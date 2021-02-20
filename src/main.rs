@@ -44,13 +44,13 @@ struct Game {
     timeout: u64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Hash)]
 struct Coordinate {
     x: u64,
     y: u64,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy, Debug)]
 enum Direction {
     UP,
     RIGHT,
@@ -78,37 +78,42 @@ const ALL_DIRECTIONS: [Direction; 4] = [
 ];
 
 impl Coordinate {
-    fn is_valid_for_board(&self, board: &Board) -> bool {
-        self.x < board.width && self.y < board.height
-    }
+    fn move_in(&self, direction: &Direction, board: &Board) -> Option<Self> {
+        let mut x = self.x;
+        let mut y = self.y;
 
-    fn move_in(&self, direction: &Direction) -> Self {
         match direction {
-            Direction::UP => Self {
-                x: self.x,
-                y: self.y + 1,
-            },
-            Direction::DOWN => Self {
-                x: self.x,
-                y: self.y - 1,
-            },
-            Direction::LEFT => Self {
-                x: self.x - 1,
-                y: self.y,
-            },
-            Direction::RIGHT => Self {
-                x: self.x + 1,
-                y: self.y,
-            },
-        }
-    }
+            Direction::UP => {
+                if self.y + 1 >= board.height {
+                    return None;
+                }
 
-    fn possbile_directions(&self, board: &Board) -> HashSet<Direction> {
-        ALL_DIRECTIONS
-            .iter()
-            .filter(|&dir| self.move_in(&dir).is_valid_for_board(board))
-            .cloned()
-            .collect()
+                y += 1;
+            }
+            Direction::DOWN => {
+                if self.y == 0 {
+                    return None;
+                }
+
+                y -= 1;
+            }
+            Direction::LEFT => {
+                if self.x == 0 {
+                    return None;
+                }
+
+                x -= 1;
+            }
+            Direction::RIGHT => {
+                if self.x + 1 >= board.width {
+                    return None;
+                }
+
+                x += 1;
+            }
+        };
+
+        Some(Self { x, y })
     }
 }
 
@@ -123,6 +128,16 @@ struct Battlesnake {
     length: u64,
     shout: Option<String>,
     squad: Option<String>,
+}
+
+impl Battlesnake {
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
+        ALL_DIRECTIONS
+            .iter()
+            .cloned()
+            .filter_map(|dir| self.head.move_in(&dir, &board).map(|coor| (dir, coor)))
+            .collect()
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -151,21 +166,33 @@ fn start(game_state: Json<GameState>) -> Status {
 #[derive(Serialize, Debug)]
 struct MoveOutput {
     r#move: String,
-    shout: String,
+    shout: Option<String>,
 }
 
 #[post("/move", data = "<game_state>")]
 fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let possible = game_state.you.head.possbile_directions(&game_state.board);
+    let possible = game_state.you.possbile_moves(&game_state.board);
     let next_move = possible
         .iter()
-        .next()
-        .expect("There isn't anywhere we can move that isn't a wall??");
+        .filter(|(dir, coor)| {
+            println!(
+                "Head: {:?} Body: {:?} Move: {:?}->{:?}",
+                game_state.you.head, game_state.you.body, dir, coor
+            );
+            !game_state.you.body.contains(coor)
+        })
+        .next();
 
-    Json(MoveOutput {
-        r#move: next_move.value(),
-        shout: "".to_owned(),
-    })
+    let stuck_response: MoveOutput = MoveOutput {
+        r#move: Direction::UP.value(),
+        shout: Some("Oh NO we are stuck".to_owned()),
+    };
+    let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
+        r#move: dir.value(),
+        shout: None,
+    });
+    println!("{:?}", output);
+    Json(output)
 }
 
 fn main() {
