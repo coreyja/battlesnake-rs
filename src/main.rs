@@ -7,6 +7,7 @@ extern crate serde_derive;
 
 use rocket::http::Status;
 use rocket_contrib::json::Json;
+use std::collections::HashSet;
 
 #[derive(Serialize)]
 struct AboutMe {
@@ -47,6 +48,68 @@ struct Game {
 struct Coordinate {
     x: u64,
     y: u64,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum Direction {
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT,
+}
+
+impl Direction {
+    fn value(&self) -> String {
+        match self {
+            Direction::UP => "up",
+            Direction::RIGHT => "right",
+            Direction::LEFT => "left",
+            Direction::DOWN => "down",
+        }
+        .to_owned()
+    }
+}
+
+const ALL_DIRECTIONS: [Direction; 4] = [
+    Direction::UP,
+    Direction::RIGHT,
+    Direction::LEFT,
+    Direction::DOWN,
+];
+
+impl Coordinate {
+    fn is_valid_for_board(&self, board: &Board) -> bool {
+        self.x < board.width && self.y < board.height
+    }
+
+    fn move_in(&self, direction: &Direction) -> Self {
+        match direction {
+            Direction::UP => Self {
+                x: self.x,
+                y: self.y + 1,
+            },
+            Direction::DOWN => Self {
+                x: self.x,
+                y: self.y - 1,
+            },
+            Direction::LEFT => Self {
+                x: self.x - 1,
+                y: self.y,
+            },
+            Direction::RIGHT => Self {
+                x: self.x + 1,
+                y: self.y,
+            },
+        }
+    }
+
+    fn possbile_directions(&self, board: &Board) -> HashSet<Direction> {
+        ALL_DIRECTIONS
+            .iter()
+            .filter(|&dir| self.move_in(&dir).is_valid_for_board(board))
+            .cloned()
+            .collect()
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -93,9 +156,14 @@ struct MoveOutput {
 
 #[post("/move", data = "<game_state>")]
 fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    println!("{:?}", game_state);
+    let possible = game_state.you.head.possbile_directions(&game_state.board);
+    let next_move = possible
+        .iter()
+        .next()
+        .expect("There isn't anywhere we can move that isn't a wall??");
+
     Json(MoveOutput {
-        r#move: "down".to_owned(),
+        r#move: next_move.value(),
         shout: "".to_owned(),
     })
 }
