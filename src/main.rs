@@ -178,13 +178,7 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
     let possible = game_state.you.possbile_moves(&game_state.board);
     let next_move = possible
         .iter()
-        .filter(|(dir, coor)| {
-            println!(
-                "Head: {:?} Body: {:?} Move: {:?}->{:?}",
-                game_state.you.head, game_state.you.body, dir, coor
-            );
-            !game_state.you.body.contains(coor)
-        })
+        .filter(|(dir, coor)| !game_state.you.body.contains(coor))
         .next();
 
     let stuck_response: MoveOutput = MoveOutput {
@@ -195,7 +189,6 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
         r#move: dir.value(),
         shout: None,
     });
-    println!("{:?}", output);
     Json(output)
 }
 
