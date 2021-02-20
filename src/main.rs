@@ -123,7 +123,7 @@ struct Battlesnake {
     name: String,
     health: u8,
     body: Vec<Coordinate>,
-    latency: u16,
+    latency: serde_json::Value,
     head: Coordinate,
     length: u64,
     shout: Option<String>,
