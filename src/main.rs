@@ -157,9 +157,13 @@ struct GameState {
     you: Battlesnake,
 }
 
-#[post("/start", data = "<game_state>")]
-fn start(game_state: Json<GameState>) -> Status {
-    println!("{:?}", game_state);
+#[post("/start")]
+fn start() -> Status {
+    Status::NoContent
+}
+
+#[post("/end")]
+fn end() -> Status {
     Status::NoContent
 }
 
@@ -197,6 +201,6 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
 
 fn main() {
     rocket::ignite()
-        .mount("/", routes![me, start, api_move])
+        .mount("/", routes![me, start, api_move, end])
         .launch();
 }
