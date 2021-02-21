@@ -202,6 +202,8 @@ struct MoveOutput {
 }
 
 fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
+    const PREFERRED_HEALTH: i64 = 80;
+
     if game_state.you.body.contains(coor) {
         return 0;
     }
@@ -211,8 +213,8 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     }
 
     let ihealth: i64 = game_state.you.health.into();
-    let current_score: i64 = (ihealth - 50).abs().into();
-    let current_score = 50 - current_score;
+    let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
+    let current_score = PREFERRED_HEALTH - current_score;
 
     if times_to_recurse == 0 {
         return current_score;
