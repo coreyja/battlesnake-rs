@@ -31,20 +31,20 @@ fn me() -> Json<AboutMe> {
     })
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Ruleset {
     name: String,
     version: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Game {
     id: String,
     ruleset: Option<Ruleset>,
     timeout: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Hash)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 struct Coordinate {
     x: u64,
     y: u64,
@@ -115,9 +115,17 @@ impl Coordinate {
 
         Some(Self { x, y })
     }
+
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
+        ALL_DIRECTIONS
+            .iter()
+            .cloned()
+            .filter_map(|dir| self.move_in(&dir, &board).map(|coor| (dir, coor)))
+            .collect()
+    }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Battlesnake {
     id: String,
     name: String,
@@ -132,15 +140,11 @@ struct Battlesnake {
 
 impl Battlesnake {
     fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
-        ALL_DIRECTIONS
-            .iter()
-            .cloned()
-            .filter_map(|dir| self.head.move_in(&dir, &board).map(|coor| (dir, coor)))
-            .collect()
+        self.head.possbile_moves(board)
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Board {
     height: u64,
     width: u64,
@@ -149,12 +153,23 @@ struct Board {
     snakes: Vec<Battlesnake>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct GameState {
     game: Game,
     turn: u64,
     board: Board,
     you: Battlesnake,
+}
+
+impl GameState {
+    fn move_in(&self, dir: &Direction, coor: &Coordinate) -> Self {
+        let mut clonned = self.clone();
+
+        clonned.you.body.insert(0, coor.clone());
+        clonned.you.body.pop();
+
+        clonned
+    }
 }
 
 #[post("/start")]
@@ -173,13 +188,27 @@ struct MoveOutput {
     shout: Option<String>,
 }
 
+fn score(game_state: &GameState, dir: &Direction, coor: &Coordinate, times_to_recurse: u8) -> u64 {
+    if game_state.you.body.contains(coor) {
+        return 0;
+    }
+
+    if times_to_recurse == 0 {
+        return 1;
+    }
+
+    coor.possbile_moves(&game_state.board)
+        .iter()
+        .map(|(d, c)| score(&game_state.move_in(dir, coor), &d, &c, times_to_recurse - 1))
+        .sum()
+}
+
 #[post("/move", data = "<game_state>")]
 fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
     let possible = game_state.you.possbile_moves(&game_state.board);
     let next_move = possible
         .iter()
-        .filter(|(dir, coor)| !game_state.you.body.contains(coor))
-        .next();
+        .max_by_key(|(dir, coor)| score(&game_state, &dir, &coor, 5));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
