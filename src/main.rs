@@ -162,11 +162,20 @@ struct GameState {
 }
 
 impl GameState {
-    fn move_in(&self, dir: &Direction, coor: &Coordinate) -> Self {
+    fn move_to(&self, coor: &Coordinate) -> Self {
         let mut clonned = self.clone();
 
         clonned.you.body.insert(0, coor.clone());
         clonned.you.body.pop();
+
+        if clonned.you.health > 0 {
+            clonned.you.health -= 1;
+        }
+
+        if let Some(pos) = clonned.board.food.iter().position(|x| x == coor) {
+            clonned.board.food.remove(pos);
+            clonned.you.health = 100;
+        }
 
         clonned
     }
@@ -193,14 +202,19 @@ fn score(game_state: &GameState, dir: &Direction, coor: &Coordinate, times_to_re
         return 0;
     }
 
+    let current_score: u64 = 1;
+
     if times_to_recurse == 0 {
-        return 1;
+        return current_score;
     }
 
-    coor.possbile_moves(&game_state.board)
+    let recursed_score: u64 = coor
+        .possbile_moves(&game_state.board)
         .iter()
-        .map(|(d, c)| score(&game_state.move_in(dir, coor), &d, &c, times_to_recurse - 1))
-        .sum()
+        .map(|(d, c)| score(&game_state.move_to(coor), &d, &c, times_to_recurse - 1))
+        .sum();
+
+    current_score + recursed_score
 }
 
 #[post("/move", data = "<game_state>")]
@@ -208,7 +222,7 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
     let possible = game_state.you.possbile_moves(&game_state.board);
     let next_move = possible
         .iter()
-        .max_by_key(|(dir, coor)| score(&game_state, &dir, &coor, 5));
+        .max_by_key(|(dir, coor)| score(&game_state, &dir, &coor, 7));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
