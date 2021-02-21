@@ -249,7 +249,6 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
 
 fn main() {
     rocket::ignite()
-        .mount("/", routes![me, start, api_move, end])
         .mount("/amphibious-arthur", routes![me, start, api_move, end])
         .launch();
 }
