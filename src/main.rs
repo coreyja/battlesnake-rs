@@ -166,7 +166,7 @@ impl GameState {
         let mut clonned = self.clone();
 
         clonned.you.body.insert(0, coor.clone());
-        clonned.you.body.pop();
+        let removed = clonned.you.body.pop();
 
         if clonned.you.health > 0 {
             clonned.you.health -= 1;
@@ -175,6 +175,10 @@ impl GameState {
         if let Some(pos) = clonned.board.food.iter().position(|x| x == coor) {
             clonned.board.food.remove(pos);
             clonned.you.health = 100;
+
+            if let Some(c) = removed {
+                clonned.you.body.push(c);
+            }
         }
 
         clonned
@@ -197,24 +201,30 @@ struct MoveOutput {
     shout: Option<String>,
 }
 
-fn score(game_state: &GameState, dir: &Direction, coor: &Coordinate, times_to_recurse: u8) -> u64 {
+fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
     if game_state.you.body.contains(coor) {
         return 0;
     }
 
-    let current_score: u64 = 1;
+    if game_state.you.health == 0 {
+        return 0;
+    }
+
+    let ihealth: i64 = game_state.you.health.into();
+    let current_score: i64 = (ihealth - 50).abs().into();
+    let current_score = 50 - current_score;
 
     if times_to_recurse == 0 {
         return current_score;
     }
 
-    let recursed_score: u64 = coor
+    let recursed_score: i64 = coor
         .possbile_moves(&game_state.board)
         .iter()
-        .map(|(d, c)| score(&game_state.move_to(coor), &d, &c, times_to_recurse - 1))
+        .map(|(_d, c)| score(&game_state.move_to(coor), &c, times_to_recurse - 1))
         .sum();
 
-    current_score + recursed_score
+    current_score + recursed_score / 2
 }
 
 #[post("/move", data = "<game_state>")]
@@ -222,7 +232,7 @@ fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
     let possible = game_state.you.possbile_moves(&game_state.board);
     let next_move = possible
         .iter()
-        .max_by_key(|(dir, coor)| score(&game_state, &dir, &coor, 7));
+        .max_by_key(|(_dir, coor)| score(&game_state, &coor, 7));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
