@@ -212,6 +212,15 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
         return 0;
     }
 
+    if game_state
+        .board
+        .snakes
+        .iter()
+        .any(|x| x.body.contains(coor))
+    {
+        return 0;
+    }
+
     let ihealth: i64 = game_state.you.health.into();
     let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
     let current_score = PREFERRED_HEALTH - current_score;
