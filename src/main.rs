@@ -241,9 +241,13 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
 #[post("/move", data = "<game_state>")]
 fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
     let possible = game_state.you.possbile_moves(&game_state.board);
+    let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
+        Ok(Ok(x)) => x,
+        _ => 5,
+    };
     let next_move = possible
         .iter()
-        .max_by_key(|(_dir, coor)| score(&game_state, &coor, 7));
+        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
