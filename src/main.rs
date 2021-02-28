@@ -5,11 +5,14 @@ extern crate rocket;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate rand;
+
 use rocket::http::Status;
 use rocket_contrib::json::Json;
 use std::collections::HashSet;
 
 mod amphibious_arthur;
+mod bombastic_bob;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -190,6 +193,15 @@ fn main() {
                 amphibious_arthur::start,
                 amphibious_arthur::api_move,
                 amphibious_arthur::end,
+            ],
+        )
+        .mount(
+            "/bombastic-bob",
+            routes![
+                bombastic_bob::me,
+                bombastic_bob::start,
+                bombastic_bob::api_move,
+                bombastic_bob::end,
             ],
         )
         .launch();
