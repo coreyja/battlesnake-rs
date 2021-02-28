@@ -9,8 +9,10 @@ use rocket::http::Status;
 use rocket_contrib::json::Json;
 use std::collections::HashSet;
 
+mod amphibious_arthur;
+
 #[derive(Serialize)]
-struct AboutMe {
+pub struct AboutMe {
     apiversion: String,
     author: Option<String>,
     color: Option<String>,
@@ -19,39 +21,27 @@ struct AboutMe {
     version: Option<String>,
 }
 
-#[get("/")]
-fn me() -> Json<AboutMe> {
-    Json(AboutMe {
-        apiversion: "1".to_owned(),
-        author: Some("coreyja".to_owned()),
-        color: Some("#AA66CC".to_owned()),
-        head: None,
-        tail: None,
-        version: None,
-    })
-}
-
 #[derive(Deserialize, Debug, Clone)]
-struct Ruleset {
+pub struct Ruleset {
     name: String,
     version: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct Game {
+pub struct Game {
     id: String,
     ruleset: Option<Ruleset>,
     timeout: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
-struct Coordinate {
+pub struct Coordinate {
     x: u64,
     y: u64,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy, Debug)]
-enum Direction {
+pub enum Direction {
     UP,
     RIGHT,
     DOWN,
@@ -126,7 +116,7 @@ impl Coordinate {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct Battlesnake {
+pub struct Battlesnake {
     id: String,
     name: String,
     health: u8,
@@ -145,7 +135,7 @@ impl Battlesnake {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct Board {
+pub struct Board {
     height: u64,
     width: u64,
     food: Vec<Coordinate>,
@@ -154,7 +144,7 @@ struct Board {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct GameState {
+pub struct GameState {
     game: Game,
     turn: u64,
     board: Board,
@@ -185,83 +175,22 @@ impl GameState {
     }
 }
 
-#[post("/start")]
-fn start() -> Status {
-    Status::NoContent
-}
-
-#[post("/end")]
-fn end() -> Status {
-    Status::NoContent
-}
-
 #[derive(Serialize, Debug)]
-struct MoveOutput {
+pub struct MoveOutput {
     r#move: String,
     shout: Option<String>,
 }
 
-fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
-    const PREFERRED_HEALTH: i64 = 80;
-
-    if game_state.you.body.contains(coor) {
-        return 0;
-    }
-
-    if game_state.you.health == 0 {
-        return 0;
-    }
-
-    if game_state
-        .board
-        .snakes
-        .iter()
-        .any(|x| x.body.contains(coor))
-    {
-        return 0;
-    }
-
-    let ihealth: i64 = game_state.you.health.into();
-    let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
-    let current_score = PREFERRED_HEALTH - current_score;
-
-    if times_to_recurse == 0 {
-        return current_score;
-    }
-
-    let recursed_score: i64 = coor
-        .possbile_moves(&game_state.board)
-        .iter()
-        .map(|(_d, c)| score(&game_state.move_to(coor), &c, times_to_recurse - 1))
-        .sum();
-
-    current_score + recursed_score / 2
-}
-
-#[post("/move", data = "<game_state>")]
-fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let possible = game_state.you.possbile_moves(&game_state.board);
-    let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
-        Ok(Ok(x)) => x,
-        _ => 5,
-    };
-    let next_move = possible
-        .iter()
-        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
-
-    let stuck_response: MoveOutput = MoveOutput {
-        r#move: Direction::UP.value(),
-        shout: Some("Oh NO we are stuck".to_owned()),
-    };
-    let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
-        r#move: dir.value(),
-        shout: None,
-    });
-    Json(output)
-}
-
 fn main() {
     rocket::ignite()
-        .mount("/amphibious-arthur", routes![me, start, api_move, end])
+        .mount(
+            "/amphibious-arthur",
+            routes![
+                amphibious_arthur::me,
+                amphibious_arthur::start,
+                amphibious_arthur::api_move,
+                amphibious_arthur::end,
+            ],
+        )
         .launch();
 }
