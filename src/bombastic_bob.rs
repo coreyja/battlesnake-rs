@@ -25,12 +25,24 @@ pub fn me() -> Json<AboutMe> {
 }
 use rand::seq::SliceRandom;
 
-#[post("/move", data = "<_game_state>")]
-pub fn api_move(_game_state: Json<GameState>) -> Json<MoveOutput> {
-    let chosen_direction = ALL_DIRECTIONS.choose(&mut rand::thread_rng()).unwrap();
+#[post("/move", data = "<game_state>")]
+pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
+    let possible_moves = game_state
+        .you
+        .head
+        .possbile_moves(&game_state.board)
+        .iter()
+        .filter(|(_dir, coor)| !game_state.you.body.contains(coor))
+        .cloned()
+        .collect::<Vec<_>>();
+    let chosen = possible_moves.choose(&mut rand::thread_rng());
+    let dir = match chosen {
+        Some(x) => x.0,
+        _ => Direction::DOWN,
+    };
 
     Json(MoveOutput {
-        r#move: chosen_direction.value(),
+        r#move: dir.value(),
         shout: None,
     })
 }
