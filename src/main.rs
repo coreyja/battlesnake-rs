@@ -13,6 +13,7 @@ use std::collections::HashSet;
 
 mod amphibious_arthur;
 mod bombastic_bob;
+mod constant_carter;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -202,6 +203,15 @@ fn main() {
                 bombastic_bob::start,
                 bombastic_bob::api_move,
                 bombastic_bob::end,
+            ],
+        )
+        .mount(
+            "/constant-carter",
+            routes![
+                constant_carter::me,
+                constant_carter::start,
+                constant_carter::api_move,
+                constant_carter::end,
             ],
         )
         .launch();
