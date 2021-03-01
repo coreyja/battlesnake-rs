@@ -24,8 +24,8 @@ pub fn me() -> Json<AboutMe> {
     })
 }
 
-#[post("/move", data = "<_game_state>")]
-pub fn api_move(_game_state: Json<GameState>) -> Json<MoveOutput> {
+#[post("/move")]
+pub fn api_move() -> Json<MoveOutput> {
     Json(MoveOutput {
         r#move: Direction::DOWN.value(),
         shout: None,
