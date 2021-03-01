@@ -2,11 +2,6 @@ use rocket_contrib::json::Json;
 
 use super::*;
 
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
-
 #[post("/start")]
 pub fn start() -> Status {
     Status::NoContent
@@ -28,21 +23,11 @@ pub fn me() -> Json<AboutMe> {
         version: None,
     })
 }
+use rand::seq::SliceRandom;
 
-impl Distribution<Direction> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Direction {
-        match rng.gen_range(0..=3) {
-            0 => Direction::UP,
-            1 => Direction::DOWN,
-            2 => Direction::RIGHT,
-            _ => Direction::LEFT,
-        }
-    }
-}
-
-#[post("/move", data = "<game_state>")]
-pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let chosen_direction: Direction = rand::random();
+#[post("/move", data = "<_game_state>")]
+pub fn api_move(_game_state: Json<GameState>) -> Json<MoveOutput> {
+    let chosen_direction = ALL_DIRECTIONS.choose(&mut rand::thread_rng()).unwrap();
 
     Json(MoveOutput {
         r#move: chosen_direction.value(),
