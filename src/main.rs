@@ -14,6 +14,7 @@ use std::collections::HashSet;
 mod amphibious_arthur;
 mod bombastic_bob;
 mod constant_carter;
+mod devious_devin;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -212,6 +213,15 @@ fn main() {
                 constant_carter::start,
                 constant_carter::api_move,
                 constant_carter::end,
+            ],
+        )
+        .mount(
+            "/devious-devin",
+            routes![
+                devious_devin::me,
+                devious_devin::start,
+                devious_devin::api_move,
+                devious_devin::end,
             ],
         )
         .launch();
