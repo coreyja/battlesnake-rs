@@ -41,8 +41,8 @@ pub struct Game {
 
 #[derive(Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Coordinate {
-    x: u64,
-    y: u64,
+    x: i64,
+    y: i64,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy, Debug)]
@@ -73,49 +73,38 @@ const ALL_DIRECTIONS: [Direction; 4] = [
 ];
 
 impl Coordinate {
-    fn move_in(&self, direction: &Direction, board: &Board) -> Option<Self> {
+    fn valid(&self, board: &Board) -> bool {
+        self.x >= 0 && self.x < board.width.into() && self.y >= 0 && self.y < board.height.into()
+    }
+
+    fn move_in(&self, direction: &Direction, board: &Board) -> Self {
         let mut x = self.x;
         let mut y = self.y;
 
         match direction {
             Direction::UP => {
-                if self.y + 1 >= board.height {
-                    return None;
-                }
-
                 y += 1;
             }
             Direction::DOWN => {
-                if self.y == 0 {
-                    return None;
-                }
-
                 y -= 1;
             }
             Direction::LEFT => {
-                if self.x == 0 {
-                    return None;
-                }
-
                 x -= 1;
             }
             Direction::RIGHT => {
-                if self.x + 1 >= board.width {
-                    return None;
-                }
-
                 x += 1;
             }
         };
 
-        Some(Self { x, y })
+        Self { x, y }
     }
 
     fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
         ALL_DIRECTIONS
             .iter()
             .cloned()
-            .filter_map(|dir| self.move_in(&dir, &board).map(|coor| (dir, coor)))
+            .map(|dir| (dir, self.move_in(&dir, &board)))
+            .filter(|(_, coor)| coor.valid(board))
             .collect()
     }
 }
@@ -141,8 +130,8 @@ impl Battlesnake {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Board {
-    height: u64,
-    width: u64,
+    height: u32,
+    width: u32,
     food: Vec<Coordinate>,
     hazards: Vec<Coordinate>,
     snakes: Vec<Battlesnake>,
