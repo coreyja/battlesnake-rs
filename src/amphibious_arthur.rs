@@ -55,7 +55,13 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     let recursed_score: i64 = coor
         .possbile_moves(&game_state.board)
         .iter()
-        .map(|(_d, c)| score(&game_state.move_to(coor), &c, times_to_recurse - 1))
+        .map(|(_d, c)| {
+            score(
+                &game_state.move_to(coor, &game_state.you.id),
+                &c,
+                times_to_recurse - 1,
+            )
+        })
         .sum();
 
     current_score + recursed_score / 2

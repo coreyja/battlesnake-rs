@@ -8,7 +8,6 @@ extern crate serde_derive;
 extern crate rand;
 
 use rocket::http::Status;
-use rocket_contrib::json::Json;
 use std::collections::HashSet;
 
 mod amphibious_arthur;
@@ -68,8 +67,8 @@ impl Direction {
 const ALL_DIRECTIONS: [Direction; 4] = [
     Direction::UP,
     Direction::RIGHT,
-    Direction::LEFT,
     Direction::DOWN,
+    Direction::LEFT,
 ];
 
 impl Coordinate {
@@ -77,7 +76,7 @@ impl Coordinate {
         self.x >= 0 && self.x < board.width.into() && self.y >= 0 && self.y < board.height.into()
     }
 
-    fn move_in(&self, direction: &Direction, board: &Board) -> Self {
+    fn move_in(&self, direction: &Direction) -> Self {
         let mut x = self.x;
         let mut y = self.y;
 
@@ -103,7 +102,7 @@ impl Coordinate {
         ALL_DIRECTIONS
             .iter()
             .cloned()
-            .map(|dir| (dir, self.move_in(&dir, &board)))
+            .map(|dir| (dir, self.move_in(&dir)))
             .filter(|(_, coor)| coor.valid(board))
             .collect()
     }
@@ -146,19 +145,25 @@ pub struct GameState {
 }
 
 impl GameState {
-    fn move_to(&self, coor: &Coordinate) -> Self {
+    fn move_to(&self, coor: &Coordinate, snake_id: &str) -> Self {
         let mut clonned = self.clone();
+        let you: &mut Battlesnake = clonned
+            .board
+            .snakes
+            .iter_mut()
+            .find(|s| s.id == snake_id)
+            .expect("We didn't find that snake");
 
-        clonned.you.body.insert(0, coor.clone());
-        let removed = clonned.you.body.pop();
+        you.body.insert(0, coor.clone());
+        let removed = you.body.pop();
 
-        if clonned.you.health > 0 {
-            clonned.you.health -= 1;
+        if you.health > 0 {
+            you.health -= 1;
         }
 
         if let Some(pos) = clonned.board.food.iter().position(|x| x == coor) {
             clonned.board.food.remove(pos);
-            clonned.you.health = 100;
+            you.health = 100;
 
             if let Some(c) = removed {
                 clonned.you.body.push(c);
