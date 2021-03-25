@@ -18,8 +18,8 @@ pub fn me() -> Json<AboutMe> {
         apiversion: "1".to_owned(),
         author: Some("coreyja".to_owned()),
         color: Some("#AA66CC".to_owned()),
-        head: None,
-        tail: None,
+        head: Some("chomp".to_owned()),
+        tail: Some("swirl".to_owned()),
         version: None,
     })
 }
