@@ -260,7 +260,7 @@ version = "0.1.0"
 dependencies = [
  "async_executors",
  "itertools",
- "opentelemetry 0.13.0",
+ "opentelemetry",
  "opentelemetry-honeycomb",
  "rand 0.8.3",
  "rocket",
@@ -1301,22 +1301,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b91cea1dfd50064e52db033179952d18c770cbc5dfefc8eba45d619357ba3914"
-dependencies = [
- "async-trait",
- "futures",
- "js-sys",
- "lazy_static",
- "percent-encoding 2.1.0",
- "pin-project",
- "rand 0.8.3",
- "thiserror",
-]
-
-[[package]]
 name = "opentelemetry-honeycomb"
 version = "0.1.0"
 source = "git+https://github.com/ramosbugs/opentelemetry-honeycomb-rs#ca82ecd99bdfcf9357547d6079e31d70a5bfb9b4"
@@ -1329,7 +1313,7 @@ dependencies = [
  "hazy",
  "libhoney-rust",
  "log 0.4.14",
- "opentelemetry 0.12.0",
+ "opentelemetry",
  "serde_json",
  "thiserror",
  "tokio",
