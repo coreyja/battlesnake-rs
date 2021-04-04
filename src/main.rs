@@ -180,8 +180,30 @@ pub struct MoveOutput {
     shout: Option<String>,
 }
 
+use async_executors::TokioTpBuilder;
+use opentelemetry_honeycomb::HoneycombApiKey;
+use std::sync::Arc;
+
 fn main() {
+    let mut builder = TokioTpBuilder::new();
+    builder.tokio_builder().enable_io();
+    let executor = Arc::new(builder.build().expect("Failed to build Tokio executor"));
+
+    let (_flusher, tracer, _uninstall) = opentelemetry_honeycomb::new_pipeline(
+        HoneycombApiKey::new(
+            std::env::var("HONEYCOMB_API_KEY")
+                .expect("Missing or invalid environment variable HONEYCOMB_API_KEY"),
+        ),
+        std::env::var("HONEYCOMB_DATASET")
+            .expect("Missing or invalid environment variable HONEYCOMB_DATASET"),
+        executor.clone(),
+        move |fut| executor.block_on(fut),
+    )
+    .install()
+    .unwrap();
+
     rocket::ignite()
+        .manage(tracer)
         .mount(
             "/amphibious-arthur",
             routes![
