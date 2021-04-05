@@ -186,7 +186,7 @@ use std::sync::Arc;
 
 fn main() {
     let mut builder = TokioTpBuilder::new();
-    builder.tokio_builder().enable_io();
+    builder.tokio_builder().enable_io().enable_time();
     let executor = Arc::new(builder.build().expect("Failed to build Tokio executor"));
 
     let (_flusher, tracer, _uninstall) = opentelemetry_honeycomb::new_pipeline(
