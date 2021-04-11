@@ -63,67 +63,47 @@ use opentelemetry::{
     Context,
 };
 
-fn score(
-    game_state: &GameState,
-    coor: &Coordinate,
-    times_to_recurse: u8,
-    tracing: &Tracing,
-) -> i64 {
-    let parent_cx = Context::current_with_span(tracing.span.clone());
-    let child = tracing
-        .tracer
-        .span_builder("score")
-        .with_parent_context(parent_cx)
-        .start(tracing.tracer);
+fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
+    const PREFERRED_HEALTH: i64 = 80;
 
-    let new_tracing = Tracing {
-        tracer: tracing.tracer,
-        span: &child.clone(),
-    };
+    if game_state.you.body.contains(coor) {
+        return 0;
+    }
 
-    tracing.tracer.with_span(child, |_cx| {
-        const PREFERRED_HEALTH: i64 = 80;
+    if game_state.you.health == 0 {
+        return 0;
+    }
 
-        if game_state.you.body.contains(coor) {
-            return 0;
-        }
+    if game_state
+        .board
+        .snakes
+        .iter()
+        .any(|x| x.body.contains(coor))
+    {
+        return 0;
+    }
 
-        if game_state.you.health == 0 {
-            return 0;
-        }
+    let ihealth: i64 = game_state.you.health.into();
+    let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
+    let current_score = PREFERRED_HEALTH - current_score;
 
-        if game_state
-            .board
-            .snakes
-            .iter()
-            .any(|x| x.body.contains(coor))
-        {
-            return 0;
-        }
+    if times_to_recurse == 0 {
+        return current_score;
+    }
 
-        let ihealth: i64 = game_state.you.health.into();
-        let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
-        let current_score = PREFERRED_HEALTH - current_score;
+    let recursed_score: i64 = coor
+        .possbile_moves(&game_state.board)
+        .iter()
+        .map(|(_d, c)| {
+            score(
+                &game_state.move_to_and_opponent_sprawl(coor),
+                &c,
+                times_to_recurse - 1,
+            )
+        })
+        .sum();
 
-        if times_to_recurse == 0 {
-            return current_score;
-        }
-
-        let recursed_score: i64 = coor
-            .possbile_moves(&game_state.board)
-            .iter()
-            .map(|(_d, c)| {
-                score(
-                    &game_state.move_to_and_opponent_sprawl(coor),
-                    &c,
-                    times_to_recurse - 1,
-                    &new_tracing,
-                )
-            })
-            .sum();
-
-        current_score + recursed_score / 2
-    })
+    current_score + recursed_score / 2
 }
 
 #[post("/move", data = "<game_state>")]
@@ -144,7 +124,7 @@ pub fn api_move(game_state: Json<GameState>, tracing: Tracing) -> Json<MoveOutpu
     };
     let next_move = possible
         .iter()
-        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit, &tracing));
+        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
