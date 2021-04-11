@@ -73,7 +73,7 @@ fn score(
     let child = tracing
         .tracer
         .span_builder("score")
-        .with_parent_context(parent_cx.clone())
+        .with_parent_context(parent_cx)
         .start(tracing.tracer);
 
     let new_tracing = Tracing {
@@ -128,7 +128,16 @@ fn score(
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>, tracing: Tracing) -> Json<MoveOutput> {
+    let parent_cx = Context::current_with_span(tracing.span.clone());
+    let possible_moves_span = tracing
+        .tracer
+        .span_builder("possbile_moves")
+        .with_parent_context(parent_cx)
+        .start(tracing.tracer);
+
     let possible = game_state.you.possbile_moves(&game_state.board);
+    possible_moves_span.end();
+
     let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
         Ok(Ok(x)) => x,
         _ => 5,
