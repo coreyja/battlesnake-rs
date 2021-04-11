@@ -14,6 +14,7 @@ mod amphibious_arthur;
 mod bombastic_bob;
 mod constant_carter;
 mod devious_devin;
+mod opentelemetry_rocket;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -202,8 +203,10 @@ fn main() {
     .install()
     .unwrap();
 
+    let f = opentelemetry_rocket::OpenTelemetryFairing { tracer };
+
     rocket::ignite()
-        .manage(tracer)
+        .attach(f)
         .mount(
             "/amphibious-arthur",
             routes![

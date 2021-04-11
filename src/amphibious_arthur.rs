@@ -1,4 +1,4 @@
-use opentelemetry::trace::Tracer;
+use opentelemetry::trace::Span;
 use rocket::State;
 use rocket_contrib::json::Json;
 
@@ -103,28 +103,23 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
 }
 
 #[post("/move", data = "<game_state>")]
-pub fn api_move(
-    game_state: Json<GameState>,
-    tracer: State<opentelemetry::sdk::trace::Tracer>,
-) -> Json<MoveOutput> {
-    tracer.in_span("amphibious_arthur/move", |_| {
-        let possible = game_state.you.possbile_moves(&game_state.board);
-        let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
-            Ok(Ok(x)) => x,
-            _ => 5,
-        };
-        let next_move = possible
-            .iter()
-            .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
+pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
+    let possible = game_state.you.possbile_moves(&game_state.board);
+    let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
+        Ok(Ok(x)) => x,
+        _ => 5,
+    };
+    let next_move = possible
+        .iter()
+        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
-        let stuck_response: MoveOutput = MoveOutput {
-            r#move: Direction::UP.value(),
-            shout: Some("Oh NO we are stuck".to_owned()),
-        };
-        let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
-            r#move: dir.value(),
-            shout: None,
-        });
-        Json(output)
-    })
+    let stuck_response: MoveOutput = MoveOutput {
+        r#move: Direction::UP.value(),
+        shout: Some("Oh NO we are stuck".to_owned()),
+    };
+    let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
+        r#move: dir.value(),
+        shout: None,
+    });
+    Json(output)
 }
