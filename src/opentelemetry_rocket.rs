@@ -1,7 +1,7 @@
 use rocket::fairing::{Info, Kind};
 use rocket::http::{Status, StatusClass};
 use rocket::request::{FromRequest, Outcome};
-use rocket::{Data, Request, Response};
+use rocket::{Data, Request, Response, Rocket, State};
 
 use opentelemetry::trace::{Span, StatusCode, Tracer};
 use opentelemetry::KeyValue;
@@ -17,8 +17,12 @@ impl rocket::fairing::Fairing for OpenTelemetryFairing {
     fn info(&self) -> Info {
         Info {
             name: "OpenTelemetry Fairing",
-            kind: Kind::Request | Kind::Response,
+            kind: Kind::Request | Kind::Response | Kind::Attach,
         }
+    }
+
+    fn on_attach(&self, rocket: Rocket) -> Result<Rocket, Rocket> {
+        Ok(rocket.manage(self.tracer.clone()))
     }
 
     /// Stores the start time of the request in request-local state.
@@ -50,28 +54,30 @@ impl rocket::fairing::Fairing for OpenTelemetryFairing {
     }
 }
 
-// /// Request guard used to retrieve the start time of a request.
-// #[derive(Clone)]
-// pub struct PublicWrappedSpan<'a>(pub &'a opentelemetry::sdk::trace::Span);
+/// Request guard used to retrieve the start time of a request.
+#[derive(Clone)]
+pub struct Tracing<'a, 'b> {
+    pub span: &'a opentelemetry::sdk::trace::Span,
+    pub tracer: &'b opentelemetry::sdk::trace::Tracer,
+}
 
-// // Allows a route to access the time a request was initiated.
-// impl<'a, 'r> FromRequest<'a, 'r> for PublicWrappedSpan<'a> {
-//     type Error = ();
+// Allows a route to access the time a request was initiated.
+impl<'a, 'r> FromRequest<'a, 'r> for Tracing<'a, 'a> {
+    type Error = ();
 
-//     fn from_request(request: &'a Request<'r>) -> Outcome<PublicWrappedSpan<'a>, ()> {
-//         match &request.local_cache(|| WrappedSpan(None)) {
-//             WrappedSpan(Some(span)) => {
-//                 if let Some(route) = request.route() {
-//                     span.update_name(route.uri.path().to_string())
-//                 }
-//                 Outcome::Success(PublicWrappedSpan(span))
-//             }
-//             WrappedSpan(None) => Outcome::Failure((Status::InternalServerError, ())),
-//         }
-//     }
-// }
-
-// pub struct TracerAndSpan<'a, 'b>(
-//     pub &'a opentelemetry::sdk::trace::Tracer,
-//     pub &'b opentelemetry::sdk::trace::Span,
-// );
+    fn from_request(request: &'a Request<'r>) -> Outcome<Tracing<'a, 'a>, ()> {
+        let t = request.guard::<State<opentelemetry::sdk::trace::Tracer>>();
+        match &request.local_cache(|| WrappedSpan(None)) {
+            WrappedSpan(Some(span)) => {
+                if let Some(route) = request.route() {
+                    span.update_name(route.uri.path().to_string())
+                }
+                t.map(|tracer| Tracing {
+                    span,
+                    tracer: tracer.inner(),
+                })
+            }
+            WrappedSpan(None) => Outcome::Failure((Status::InternalServerError, ())),
+        }
+    }
+}
