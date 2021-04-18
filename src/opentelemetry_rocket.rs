@@ -7,7 +7,7 @@ use opentelemetry::trace::{Span, StatusCode, Tracer};
 use opentelemetry::KeyValue;
 
 pub struct OpenTelemetryFairing {
-    pub tracer: opentelemetry::sdk::trace::Tracer,
+    pub tracer: Option<opentelemetry::sdk::trace::Tracer>,
 }
 
 #[derive(Clone)]
@@ -22,20 +22,19 @@ impl rocket::fairing::Fairing for OpenTelemetryFairing {
     }
 
     fn on_attach(&self, rocket: Rocket) -> Result<Rocket, Rocket> {
-        Ok(rocket.manage(self.tracer.clone()))
+        Ok(rocket.manage::<Option<opentelemetry::sdk::trace::Tracer>>(self.tracer.clone()))
     }
 
-    /// Stores the start time of the request in request-local state.
     fn on_request(&self, request: &mut Request, _data: &Data) {
-        let request_path = request.uri().path();
-        let span = self.tracer.start(request_path);
-        span.set_attribute(KeyValue::new("http.method", request.method().as_str()));
-        span.set_attribute(KeyValue::new("http.path", request_path.to_owned()));
-        request.local_cache(|| WrappedSpan(Some(span)));
+        if let Some(tracer) = &self.tracer {
+            let request_path = request.uri().path();
+            let span = tracer.start(request_path);
+            span.set_attribute(KeyValue::new("http.method", request.method().as_str()));
+            span.set_attribute(KeyValue::new("http.path", request_path.to_owned()));
+            request.local_cache(|| WrappedSpan(Some(span)));
+        }
     }
 
-    /// Adds a header to the response indicating how long the server took to
-    /// process the request.
     fn on_response(&self, request: &Request, response: &mut Response) {
         let wrapped_span = request.local_cache(|| WrappedSpan(None));
         if let Some(span) = &wrapped_span.0 {
@@ -56,9 +55,13 @@ impl rocket::fairing::Fairing for OpenTelemetryFairing {
 
 /// Request guard used to retrieve the start time of a request.
 #[derive(Clone)]
-pub struct Tracing<'a, 'b> {
+pub struct TracingInner<'a, 'b> {
     pub span: &'a opentelemetry::sdk::trace::Span,
     pub tracer: &'b opentelemetry::sdk::trace::Tracer,
+}
+#[derive(Clone)]
+pub struct Tracing<'a, 'b> {
+    pub inner: Option<TracingInner<'a, 'b>>,
 }
 
 // Allows a route to access the time a request was initiated.
@@ -66,18 +69,20 @@ impl<'a, 'r> FromRequest<'a, 'r> for Tracing<'a, 'a> {
     type Error = ();
 
     fn from_request(request: &'a Request<'r>) -> Outcome<Tracing<'a, 'a>, ()> {
-        let t = request.guard::<State<opentelemetry::sdk::trace::Tracer>>();
+        let t = request.guard::<State<Option<opentelemetry::sdk::trace::Tracer>>>();
         match &request.local_cache(|| WrappedSpan(None)) {
             WrappedSpan(Some(span)) => {
                 if let Some(route) = request.route() {
                     span.update_name(route.uri.path().to_string())
                 }
-                t.map(|tracer| Tracing {
-                    span,
-                    tracer: tracer.inner(),
+                t.map(|t2| match t2.inner() {
+                    Some(t3) => Tracing {
+                        inner: Some(TracingInner { span, tracer: t3 }),
+                    },
+                    None => Tracing { inner: None },
                 })
             }
-            WrappedSpan(None) => Outcome::Failure((Status::InternalServerError, ())),
+            WrappedSpan(None) => Outcome::Success(Tracing { inner: None }),
         }
     }
 }

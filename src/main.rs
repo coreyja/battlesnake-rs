@@ -190,18 +190,23 @@ fn main() {
     builder.tokio_builder().enable_io().enable_time();
     let executor = Arc::new(builder.build().expect("Failed to build Tokio executor"));
 
-    let (_flusher, tracer, _uninstall) = opentelemetry_honeycomb::new_pipeline(
-        HoneycombApiKey::new(
-            std::env::var("HONEYCOMB_API_KEY")
-                .expect("Missing or invalid environment variable HONEYCOMB_API_KEY"),
-        ),
-        std::env::var("HONEYCOMB_DATASET")
-            .expect("Missing or invalid environment variable HONEYCOMB_DATASET"),
-        executor.clone(),
-        move |fut| executor.block_on(fut),
-    )
-    .install()
-    .unwrap();
+    let tracer = match (
+        std::env::var("HONEYCOMB_API_KEY"),
+        std::env::var("HONEYCOMB_DATASET"),
+    ) {
+        (Ok(api_key), Ok(dataset)) => {
+            let (_flusher, tracer, _uninstall) = opentelemetry_honeycomb::new_pipeline(
+                HoneycombApiKey::new(api_key),
+                dataset,
+                executor.clone(),
+                move |fut| executor.block_on(fut),
+            )
+            .install()
+            .unwrap();
+            Some(tracer)
+        }
+        _ => None,
+    };
 
     let f = opentelemetry_rocket::OpenTelemetryFairing { tracer };
 

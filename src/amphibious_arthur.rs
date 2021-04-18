@@ -108,15 +108,18 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>, tracing: Tracing) -> Json<MoveOutput> {
-    let parent_cx = Context::current_with_span(tracing.span.clone());
-    let possible_moves_span = tracing
-        .tracer
-        .span_builder("possbile_moves")
-        .with_parent_context(parent_cx)
-        .start(tracing.tracer);
+    let possible_moves_span = tracing.inner.map(|x| {
+        let parent_cx = Context::current_with_span(x.span.clone());
+        x.tracer
+            .span_builder("possbile_moves")
+            .with_parent_context(parent_cx)
+            .start(x.tracer)
+    });
 
     let possible = game_state.you.possbile_moves(&game_state.board);
-    possible_moves_span.end();
+    if let Some(span) = possible_moves_span {
+        span.end();
+    }
 
     let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
         Ok(Ok(x)) => x,
