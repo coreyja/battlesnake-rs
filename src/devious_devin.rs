@@ -27,7 +27,6 @@ pub fn me() -> Json<AboutMe> {
 const MAX_DEPTH: i64 = 16;
 
 fn score(node: &GameState, depth: i64) -> Option<i64> {
-    println!("Depth: {}", depth);
     let me: &Battlesnake = node
         .board
         .snakes
@@ -123,9 +122,6 @@ fn minimax(
 
         for (dir, child) in children(node, &node.you.id).into_iter() {
             let value = minimax(&child, depth + 1, false, alpha, beta).0;
-            if depth == 0 {
-                println! {"Top Level Dir: {:?} Score: {}", dir, value};
-            }
 
             if value > best.0 {
                 best = (value, Some(dir));
@@ -165,8 +161,7 @@ fn minimax(
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let (score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX);
-    println!("Score: {} Dir: {:?}", score, dir);
+    let (_score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX);
 
     Json(MoveOutput {
         r#move: dir.unwrap().value(),
