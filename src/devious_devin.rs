@@ -24,7 +24,7 @@ pub fn me() -> Json<AboutMe> {
     })
 }
 
-const MAX_DEPTH: i64 = 10;
+const MAX_DEPTH: i64 = 16;
 
 fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option<i64> {
     // let print_end_state = |msg: &str| {
@@ -57,12 +57,12 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         .any(|c| !c.valid(&node.board) || other_body.contains(c))
     {
         // print_end_state("lost cause hit other snake or ran off board");
-        return Some(SCORE_LOSE);
+        return Some(SCORE_LOSE + depth);
     }
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
         // print_end_state(&format!("lost cause hit self Body: {:?}", me.body));
-        return Some(SCORE_LOSE);
+        return Some(SCORE_LOSE + depth);
     }
 
     let num_snakes: i64 = node.board.snakes.len().try_into().unwrap();
@@ -73,10 +73,10 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
     if me.body[0] == not_me.body[0] {
         if me.length > not_me.length {
             // print_end_state("head to head win");
-            return Some(SCORE_WIN);
+            return Some(SCORE_WIN - depth);
         } else {
             // print_end_state("head to head lose");
-            return Some(SCORE_LOSE);
+            return Some(SCORE_LOSE + depth);
         }
     }
 
@@ -86,18 +86,18 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         .any(|c| !c.valid(&node.board) || my_body.contains(c))
     {
         // print_end_state("other snake off board or hit me");
-        return Some(SCORE_WIN);
+        return Some(SCORE_WIN - depth);
     }
 
     if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
         // print_end_state("other snake hit itself");
-        return Some(SCORE_WIN);
+        return Some(SCORE_WIN - depth);
     }
 
     if depth == MAX_DEPTH {
         let h: (i64, i64) = (me.health.into(), not_me.health.into());
         // print_end_state("Made it to max depth");
-        return Some(h.0);
+        return Some(h.0 + depth);
     }
 
     None
@@ -134,7 +134,7 @@ fn minimax(
 
     let new_depth = depth.try_into().unwrap();
     if let Some(s) = score(&node, new_depth, &current_moves) {
-        return (s + new_depth, None);
+        return (s, None);
     }
 
     if is_maximizing {
