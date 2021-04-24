@@ -156,7 +156,6 @@ impl GameState {
             .expect("We didn't find that snake");
 
         you.body.insert(0, coor.clone());
-        let removed = you.body.pop();
 
         if you.health > 0 {
             you.health -= 1;
@@ -165,10 +164,8 @@ impl GameState {
         if let Some(pos) = clonned.board.food.iter().position(|x| x == coor) {
             clonned.board.food.remove(pos);
             you.health = 100;
-
-            if let Some(c) = removed {
-                clonned.you.body.push(c);
-            }
+        } else {
+            you.body.pop();
         }
 
         clonned

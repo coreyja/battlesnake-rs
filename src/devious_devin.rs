@@ -24,9 +24,16 @@ pub fn me() -> Json<AboutMe> {
     })
 }
 
-const MAX_DEPTH: i64 = 16;
+const MAX_DEPTH: i64 = 10;
 
-fn score(node: &GameState, depth: i64) -> Option<i64> {
+fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option<i64> {
+    // let print_end_state = |msg: &str| {
+    //     println!(
+    //         "Turn {} Depth: {} Msg: {}\n{:?}",
+    //         node.turn, depth, msg, current_moves
+    //     );
+    // };
+
     let me: &Battlesnake = node
         .board
         .snakes
@@ -49,10 +56,12 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
         .iter()
         .any(|c| !c.valid(&node.board) || other_body.contains(c))
     {
+        // print_end_state("lost cause hit other snake or ran off board");
         return Some(SCORE_LOSE);
     }
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
+        // print_end_state(&format!("lost cause hit self Body: {:?}", me.body));
         return Some(SCORE_LOSE);
     }
 
@@ -63,8 +72,10 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
 
     if me.body[0] == not_me.body[0] {
         if me.length > not_me.length {
+            // print_end_state("head to head win");
             return Some(SCORE_WIN);
         } else {
+            // print_end_state("head to head lose");
             return Some(SCORE_LOSE);
         }
     }
@@ -74,16 +85,19 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
         .iter()
         .any(|c| !c.valid(&node.board) || my_body.contains(c))
     {
+        // print_end_state("other snake off board or hit me");
         return Some(SCORE_WIN);
     }
 
     if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
+        // print_end_state("other snake hit itself");
         return Some(SCORE_WIN);
     }
 
     if depth == MAX_DEPTH {
-        let h: i64 = me.health.into();
-        return Some(h);
+        let h: (i64, i64) = (me.health.into(), not_me.health.into());
+        // print_end_state("Made it to max depth");
+        return Some(h.0);
     }
 
     None
@@ -93,8 +107,13 @@ const SCORE_LOSE: i64 = -5;
 const SCORE_WIN: i64 = 5;
 
 fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)> {
-    node.you
-        .head
+    let you: &Battlesnake = node
+        .board
+        .snakes
+        .iter()
+        .find(|s| s.id == turn_snake_id)
+        .expect("We didn't find that snake");
+    you.body[0]
         .possbile_moves(&node.board)
         .iter()
         .map(|(dir, coor)| (dir.clone(), node.move_to(coor, turn_snake_id)))
@@ -108,12 +127,13 @@ fn minimax(
     is_maximizing: bool,
     alpha: i64,
     beta: i64,
+    current_moves: Vec<Direction>,
 ) -> (i64, Option<Direction>) {
     let mut alpha = alpha;
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
-    if let Some(s) = score(&node, new_depth) {
+    if let Some(s) = score(&node, new_depth, &current_moves) {
         return (s + new_depth, None);
     }
 
@@ -121,7 +141,12 @@ fn minimax(
         let mut best = (i64::MIN, None);
 
         for (dir, child) in children(node, &node.you.id).into_iter() {
-            let value = minimax(&child, depth + 1, false, alpha, beta).0;
+            let new_current_moves = {
+                let mut x = current_moves.clone();
+                x.push(dir);
+                x
+            };
+            let value = minimax(&child, depth + 1, false, alpha, beta, new_current_moves).0;
 
             if value > best.0 {
                 best = (value, Some(dir));
@@ -144,7 +169,12 @@ fn minimax(
             .next()
             .unwrap();
         for (dir, child) in children(node, &not_me.id).into_iter() {
-            let value = minimax(&child, depth + 1, true, alpha, beta).0;
+            let new_current_moves = {
+                let mut x = current_moves.clone();
+                x.push(dir);
+                x
+            };
+            let value = minimax(&child, depth + 1, true, alpha, beta, new_current_moves).0;
 
             if value < best.0 {
                 best = (value, Some(dir));
@@ -161,7 +191,7 @@ fn minimax(
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let (_score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX);
+    let (_score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX, vec![]);
 
     Json(MoveOutput {
         r#move: dir.unwrap().value(),
