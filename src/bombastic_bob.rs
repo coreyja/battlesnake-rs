@@ -33,9 +33,7 @@ pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
         .you
         .head
         .possbile_moves(&game_state.board)
-        .iter()
         .filter(|(_dir, coor)| !body_set.contains(coor))
-        .cloned()
         .collect::<Vec<_>>();
     let chosen = possible_moves.choose(&mut rand::thread_rng());
     let dir = match chosen {
