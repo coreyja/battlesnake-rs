@@ -35,14 +35,13 @@ impl MoveToAndSpawn for GameState {
     fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self {
         let mut cloned = self.move_to(coor, &self.you.id);
 
-        let mut opponents: Vec<&mut Battlesnake> = cloned
+        let opponents = cloned
             .board
             .snakes
             .iter_mut()
-            .filter(|s| s.id == self.you.id)
-            .collect();
+            .filter(|s| s.id == self.you.id);
 
-        for s in opponents.iter_mut() {
+        for s in opponents {
             let mut new_body: Vec<Coordinate> = s
                 .head
                 .possbile_moves(&self.board)

@@ -23,18 +23,16 @@ pub fn me() -> Json<AboutMe> {
         version: None,
     })
 }
-use rand::seq::SliceRandom;
-use std::iter::FromIterator;
+use rand::seq::IteratorRandom;
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let body_set: HashSet<Coordinate> = HashSet::from_iter(game_state.you.body.iter().cloned());
+    let body_set: HashSet<&Coordinate> = game_state.you.body.iter().collect();
     let possible_moves = game_state
         .you
         .head
         .possbile_moves(&game_state.board)
-        .filter(|(_dir, coor)| !body_set.contains(coor))
-        .collect::<Vec<_>>();
+        .filter(|(_dir, coor)| !body_set.contains(coor));
     let chosen = possible_moves.choose(&mut rand::thread_rng());
     let dir = match chosen {
         Some(x) => x.0,
