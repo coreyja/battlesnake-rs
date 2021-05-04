@@ -26,6 +26,19 @@ pub struct AboutMe {
     version: Option<String>,
 }
 
+impl Default for AboutMe {
+    fn default() -> Self {
+        AboutMe {
+            apiversion: "1".to_owned(),
+            author: None,
+            color: None,
+            head: None,
+            tail: None,
+            version: None,
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct Ruleset {
     name: String,
@@ -186,6 +199,38 @@ pub struct MoveOutput {
 use async_executors::TokioTpBuilder;
 use opentelemetry_honeycomb::HoneycombApiKey;
 use std::sync::Arc;
+
+use rocket_contrib::json::Json;
+
+#[post("/<snake>/start")]
+fn api_start(snake: String) -> Status {
+    Status::NoContent
+}
+
+#[post("/<snake>/end")]
+fn api_end(snake: String) -> Status {
+    Status::NoContent
+}
+
+#[post("/<snake>/move")]
+fn api_move(snake: String) -> Json<MoveOutput> {
+    Json(MoveOutput {
+        r#move: Direction::DOWN.value(),
+        shout: None,
+    })
+}
+
+#[get("/<snake>")]
+fn api_about(snake: String) -> Json<AboutMe> {
+    Json(AboutMe {
+        apiversion: "1".to_owned(),
+        author: Some("coreyja".to_owned()),
+        color: Some("#AA66CC".to_owned()),
+        head: None,
+        tail: None,
+        version: None,
+    })
+}
 
 fn main() {
     let mut builder = TokioTpBuilder::new();
