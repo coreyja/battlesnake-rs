@@ -99,15 +99,13 @@ impl Coordinate {
         Self { x, y }
     }
 
-    fn possbile_moves<'a>(
-        &'a self,
-        board: &'a Board,
-    ) -> impl Iterator<Item = (Direction, Coordinate)> + 'a {
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
         ALL_DIRECTIONS
             .iter()
             .cloned()
-            .map(move |dir| (dir, self.move_in(&dir)))
-            .filter(move |(_, coor)| coor.valid(board))
+            .map(|dir| (dir, self.move_in(&dir)))
+            .filter(|(_, coor)| coor.valid(board))
+            .collect()
     }
 }
 
@@ -125,10 +123,7 @@ pub struct Battlesnake {
 }
 
 impl Battlesnake {
-    fn possbile_moves<'a>(
-        &'a self,
-        board: &'a Board,
-    ) -> impl Iterator<Item = (Direction, Coordinate)> + 'a {
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
         self.head.possbile_moves(board)
     }
 }

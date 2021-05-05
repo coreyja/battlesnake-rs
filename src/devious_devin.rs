@@ -56,10 +56,6 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         return Some(SCORE_LOSE + depth);
     }
 
-    if me.health == 0 {
-        return Some(SCORE_LOSE + depth);
-    }
-
     let num_snakes: i64 = node.board.snakes.len().try_into().unwrap();
     if depth % num_snakes != 0 {
         return None;
@@ -85,10 +81,6 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         return Some(SCORE_WIN - depth);
     }
 
-    if not_me.health == 0 {
-        return Some(SCORE_WIN - depth);
-    }
-
     if depth == MAX_DEPTH {
         // let h: (i64, i64) = (me.health.into(), not_me.health.into());
         let me_length: i64 = me.body.len().try_into().unwrap();
@@ -99,8 +91,8 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
     None
 }
 
-const SCORE_LOSE: i64 = -200;
-const SCORE_WIN: i64 = 200;
+const SCORE_LOSE: i64 = -5;
+const SCORE_WIN: i64 = 5;
 
 fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)> {
     let you: &Battlesnake = node
@@ -111,7 +103,8 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)
         .expect("We didn't find that snake");
     you.body[0]
         .possbile_moves(&node.board)
-        .map(|(dir, coor)| (dir.clone(), node.move_to(&coor, turn_snake_id)))
+        .iter()
+        .map(|(dir, coor)| (dir.clone(), node.move_to(coor, turn_snake_id)))
         .collect()
 }
 use std::convert::TryInto;
