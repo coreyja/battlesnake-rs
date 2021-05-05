@@ -102,10 +102,7 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
 const SCORE_LOSE: i64 = -200;
 const SCORE_WIN: i64 = 200;
 
-fn children<'a>(
-    node: &'a GameState,
-    turn_snake_id: &'a str,
-) -> impl Iterator<Item = (Direction, GameState)> + 'a {
+fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)> {
     let you: &Battlesnake = node
         .board
         .snakes
@@ -114,7 +111,8 @@ fn children<'a>(
         .expect("We didn't find that snake");
     you.body[0]
         .possbile_moves(&node.board)
-        .map(move |(dir, coor)| (dir.clone(), node.move_to(&coor, turn_snake_id)))
+        .map(|(dir, coor)| (dir.clone(), node.move_to(&coor, turn_snake_id)))
+        .collect()
 }
 use std::convert::TryInto;
 
@@ -137,7 +135,7 @@ fn minimax(
     if is_maximizing {
         let mut best = (i64::MIN, None);
 
-        for (dir, child) in children(node, &node.you.id) {
+        for (dir, child) in children(node, &node.you.id).into_iter() {
             let new_current_moves = {
                 let mut x = current_moves.clone();
                 x.push(dir);
