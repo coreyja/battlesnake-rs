@@ -27,16 +27,6 @@ pub fn me() -> Json<AboutMe> {
 const MAX_DEPTH: i64 = 14;
 
 fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option<i64> {
-    let enabled = std::env::var("PRINT_END_STATES");
-    let print_end_state = |msg: &str| {
-        if let Ok(_) = enabled {
-            println!(
-                "Turn {} Depth: {} Msg: {}\n{:?}",
-                node.turn, depth, msg, current_moves
-            );
-        }
-    };
-
     let me: &Battlesnake = node
         .board
         .snakes
@@ -59,12 +49,10 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         .iter()
         .any(|c| !c.valid(&node.board) || other_body.contains(c))
     {
-        print_end_state("lost cause hit other snake or ran off board");
         return Some(SCORE_LOSE + depth);
     }
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
-        print_end_state(&format!("lost cause hit self Body: {:?}", me.body));
         return Some(SCORE_LOSE + depth);
     }
 
@@ -79,10 +67,8 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
 
     if me.body[0] == not_me.body[0] {
         if me.length > not_me.length {
-            print_end_state("head to head win");
             return Some(SCORE_WIN - depth);
         } else {
-            print_end_state("head to head lose or draw");
             return Some(SCORE_LOSE + depth);
         }
     }
@@ -92,12 +78,10 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
         .iter()
         .any(|c| !c.valid(&node.board) || my_body.contains(c))
     {
-        print_end_state("other snake off board or hit me");
         return Some(SCORE_WIN - depth);
     }
 
     if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
-        print_end_state("other snake hit itself");
         return Some(SCORE_WIN - depth);
     }
 
@@ -107,7 +91,6 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
 
     if depth == MAX_DEPTH {
         // let h: (i64, i64) = (me.health.into(), not_me.health.into());
-        print_end_state("Made it to max depth");
         let me_length: i64 = me.body.len().try_into().unwrap();
         let other_length: i64 = not_me.body.len().try_into().unwrap();
         return Some(me_length - other_length + depth);
