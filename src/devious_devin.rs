@@ -91,8 +91,8 @@ fn score(node: &GameState, depth: i64, current_moves: &Vec<Direction>) -> Option
     None
 }
 
-const SCORE_LOSE: i64 = -5;
-const SCORE_WIN: i64 = 5;
+const SCORE_LOSE: i64 = -200;
+const SCORE_WIN: i64 = 200;
 
 fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)> {
     let you: &Battlesnake = node
