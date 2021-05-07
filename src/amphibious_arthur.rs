@@ -33,7 +33,8 @@ use rand::seq::SliceRandom;
 
 impl MoveToAndSpawn for GameState {
     fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self {
-        let mut cloned = self.move_to(coor, &self.you.id);
+        let mut cloned = self.clone();
+        cloned.move_to(coor, &self.you.id);
 
         let opponents = cloned
             .board

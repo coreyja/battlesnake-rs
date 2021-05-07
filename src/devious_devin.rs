@@ -100,7 +100,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
 const SCORE_LOSE: i64 = -200;
 const SCORE_WIN: i64 = 200;
 
-fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)> {
+fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate)> {
     let you: &Battlesnake = node
         .board
         .snakes
@@ -110,13 +110,13 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, GameState)
     you.body[0]
         .possbile_moves(&node.board)
         .iter()
-        .map(|(dir, coor)| (dir.clone(), node.move_to(coor, turn_snake_id)))
+        .cloned()
         .collect()
 }
 use std::convert::TryInto;
 
 fn minimax(
-    node: &GameState,
+    node: &mut GameState,
     depth: usize,
     is_maximizing: bool,
     alpha: i64,
@@ -133,8 +133,11 @@ fn minimax(
     if is_maximizing {
         let mut best = (i64::MIN, None);
 
-        for (dir, child) in children(node, &node.you.id).into_iter() {
-            let value = minimax(&child, depth + 1, false, alpha, beta).0;
+        let me = node.you.id.to_owned();
+        for (dir, coor) in children(node, &node.you.id).into_iter() {
+            let last_move = node.move_to(&coor, &me);
+            let value = minimax(node, depth + 1, false, alpha, beta).0;
+            node.reverse_move(last_move);
 
             if value > best.0 {
                 best = (value, Some(dir));
@@ -153,11 +156,15 @@ fn minimax(
             .board
             .snakes
             .iter()
+            .cloned()
             .filter(|s| s.id != node.you.id)
+            .map(|s| s.id)
             .next()
             .unwrap();
-        for (dir, child) in children(node, &not_me.id).into_iter() {
-            let value = minimax(&child, depth + 1, true, alpha, beta).0;
+        for (dir, coor) in children(node, &not_me).into_iter() {
+            let last_move = node.move_to(&coor, &not_me);
+            let value = minimax(node, depth + 1, true, alpha, beta).0;
+            node.reverse_move(last_move);
 
             if value < best.0 {
                 best = (value, Some(dir));
@@ -171,11 +178,13 @@ fn minimax(
         best
     }
 }
+use debug_print::debug_println;
 
 #[post("/move", data = "<game_state>")]
 pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let (score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX);
-    println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);
+    let mut game_state = game_state.into_inner();
+    let (score, dir) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX);
+    debug_println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);
 
     Json(MoveOutput {
         r#move: dir.unwrap().value(),

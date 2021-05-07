@@ -259,6 +259,7 @@ name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
  "async_executors",
+ "debug_print",
  "itertools",
  "opentelemetry",
  "opentelemetry-honeycomb",
@@ -437,6 +438,12 @@ dependencies = [
  "quote 1.0.9",
  "syn 1.0.60",
 ]
+
+[[package]]
+name = "debug_print"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f215f9b7224f49fb73256115331f677d868b34d18b65dbe4db392e6021eea90"
 
 [[package]]
 name = "derivative"
