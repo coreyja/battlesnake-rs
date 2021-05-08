@@ -228,10 +228,12 @@ use async_executors::TokioTpBuilder;
 use opentelemetry_honeycomb::HoneycombApiKey;
 use std::sync::Arc;
 
+use bombastic_bob::BombasticBob;
 use constant_carter::ConstantCarter;
 use rocket::State;
 use rocket_contrib::json::Json;
 
+type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 pub trait BattlesnakeAI {
     fn start(&self) {}
     fn end(&self) {}
@@ -242,7 +244,6 @@ pub trait BattlesnakeAI {
         Default::default()
     }
 }
-type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 
 #[post("/<snake>/start")]
 fn api_start(snake: String) -> Status {
@@ -298,7 +299,7 @@ fn main() {
         tracer: x.map(|x| x.1),
     };
 
-    let snakes: Vec<BoxedSnake> = vec![Box::new(ConstantCarter {})];
+    let snakes: Vec<BoxedSnake> = vec![Box::new(ConstantCarter {}), Box::new(BombasticBob {})];
 
     rocket::ignite()
         .attach(f)
@@ -310,15 +311,6 @@ fn main() {
                 amphibious_arthur::start,
                 amphibious_arthur::api_move,
                 amphibious_arthur::end,
-            ],
-        )
-        .mount(
-            "/bombastic-bob",
-            routes![
-                bombastic_bob::me,
-                bombastic_bob::start,
-                bombastic_bob::api_move,
-                bombastic_bob::end,
             ],
         )
         .mount(
