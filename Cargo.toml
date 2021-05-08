@@ -18,3 +18,12 @@ opentelemetry-honeycomb = { git = 'https://github.com/ramosbugs/opentelemetry-ho
 opentelemetry = "0.12.0"
 async_executors = { version = "0.4.0", features = ["tokio_tp"] }
 debug_print = "1.0.0"
+
+
+[lib]
+name = "battlesnake_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rocket"
+path = "src/bin/rocket.rs"
