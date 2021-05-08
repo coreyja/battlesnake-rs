@@ -2,4 +2,5 @@
 
 members = [
     "battlesnake-rs",
+    "web-lambda",
 ]
