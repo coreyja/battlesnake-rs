@@ -1,29 +1,4 @@
-use rocket_contrib::json::Json;
-
 use super::*;
-use crate::opentelemetry_rocket::Tracing;
-
-#[post("/start")]
-pub fn start() -> Status {
-    Status::NoContent
-}
-
-#[post("/end")]
-pub fn end() -> Status {
-    Status::NoContent
-}
-
-#[get("/")]
-pub fn me() -> Json<AboutMe> {
-    Json(AboutMe {
-        apiversion: "1".to_owned(),
-        author: Some("coreyja".to_owned()),
-        color: Some("#AA66CC".to_owned()),
-        head: Some("chomp".to_owned()),
-        tail: Some("swirl".to_owned()),
-        version: None,
-    })
-}
 
 trait MoveToAndSpawn {
     fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self;
@@ -58,10 +33,7 @@ impl MoveToAndSpawn for GameState {
     }
 }
 
-use opentelemetry::{
-    trace::{Span, TraceContextExt, Tracer},
-    Context,
-};
+use opentelemetry::trace::{Span, Tracer};
 
 fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
     const PREFERRED_HEALTH: i64 = 80;
@@ -106,36 +78,60 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     current_score + recursed_score / 2
 }
 
-#[post("/move", data = "<game_state>")]
-pub fn api_move(game_state: Json<GameState>, tracing: Tracing) -> Json<MoveOutput> {
-    let possible_moves_span = tracing.inner.map(|x| {
-        let parent_cx = Context::current_with_span(x.span.clone());
-        x.tracer
-            .span_builder("possbile_moves")
-            .with_parent_context(parent_cx)
-            .start(x.tracer)
-    });
+pub struct AmphibiousArthur {
+    tracer: Arc<Option<opentelemetry::sdk::trace::Tracer>>,
+}
 
-    let possible = game_state.you.possbile_moves(&game_state.board);
-    if let Some(span) = possible_moves_span {
-        span.end();
+impl AmphibiousArthur {
+    pub fn new(tracer: Arc<Option<opentelemetry::sdk::trace::Tracer>>) -> Self {
+        Self { tracer }
+    }
+}
+
+impl BattlesnakeAI for AmphibiousArthur {
+    fn name(&self) -> String {
+        "amphibious-arthur".to_owned()
+    }
+    fn make_move(&self, game_state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+        let possible_moves_span = self
+            .tracer
+            .as_ref()
+            .as_ref()
+            .map(|x| x.span_builder("possbile_moves").start(x));
+
+        let possible = game_state.you.possbile_moves(&game_state.board);
+        if let Some(span) = possible_moves_span {
+            span.end();
+        }
+
+        let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
+            Ok(Ok(x)) => x,
+            _ => 5,
+        };
+        let next_move = possible
+            .iter()
+            .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
+
+        let stuck_response: MoveOutput = MoveOutput {
+            r#move: Direction::UP.value(),
+            shout: Some("Oh NO we are stuck".to_owned()),
+        };
+        let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
+            r#move: dir.value(),
+            shout: None,
+        });
+
+        Ok(output)
     }
 
-    let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
-        Ok(Ok(x)) => x,
-        _ => 5,
-    };
-    let next_move = possible
-        .iter()
-        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
-
-    let stuck_response: MoveOutput = MoveOutput {
-        r#move: Direction::UP.value(),
-        shout: Some("Oh NO we are stuck".to_owned()),
-    };
-    let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
-        r#move: dir.value(),
-        shout: None,
-    });
-    Json(output)
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            apiversion: "1".to_owned(),
+            author: Some("coreyja".to_owned()),
+            color: Some("#AA66CC".to_owned()),
+            head: Some("chomp".to_owned()),
+            tail: Some("swirl".to_owned()),
+            version: None,
+        }
+    }
 }

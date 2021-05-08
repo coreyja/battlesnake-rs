@@ -228,6 +228,7 @@ use async_executors::TokioTpBuilder;
 use opentelemetry_honeycomb::HoneycombApiKey;
 use std::sync::Arc;
 
+use amphibious_arthur::AmphibiousArthur;
 use bombastic_bob::BombasticBob;
 use constant_carter::ConstantCarter;
 use rocket::State;
@@ -295,24 +296,18 @@ fn main() {
         _ => None,
     };
 
-    let f = opentelemetry_rocket::OpenTelemetryFairing {
-        tracer: x.map(|x| x.1),
-    };
+    // let f = opentelemetry_rocket::OpenTelemetryFairing {
+    //     tracer: x.map(|x| x.1),
+    // };
 
-    let snakes: Vec<BoxedSnake> = vec![Box::new(ConstantCarter {}), Box::new(BombasticBob {})];
+    let snakes: Vec<BoxedSnake> = vec![
+        Box::new(ConstantCarter {}),
+        Box::new(BombasticBob {}),
+        Box::new(AmphibiousArthur::new(Arc::new(x.map(|x| x.1)))),
+    ];
 
     rocket::ignite()
-        .attach(f)
         .manage(snakes)
-        .mount(
-            "/amphibious-arthur",
-            routes![
-                amphibious_arthur::me,
-                amphibious_arthur::start,
-                amphibious_arthur::api_move,
-                amphibious_arthur::end,
-            ],
-        )
         .mount(
             "/devious-devin",
             routes![
