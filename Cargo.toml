@@ -17,3 +17,4 @@ itertools = "0.10.0"
 opentelemetry-honeycomb = { git = 'https://github.com/ramosbugs/opentelemetry-honeycomb-rs' }
 opentelemetry = "0.12.0"
 async_executors = { version = "0.4.0", features = ["tokio_tp"] }
+debug_print = "1.0.0"

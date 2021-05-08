@@ -112,15 +112,13 @@ impl Coordinate {
         Self { x, y }
     }
 
-    fn possbile_moves<'a>(
-        &'a self,
-        board: &'a Board,
-    ) -> impl Iterator<Item = (Direction, Coordinate)> + 'a {
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
         ALL_DIRECTIONS
             .iter()
             .cloned()
-            .map(move |dir| (dir, self.move_in(&dir)))
-            .filter(move |(_, coor)| coor.valid(board))
+            .map(|dir| (dir, self.move_in(&dir)))
+            .filter(|(_, coor)| coor.valid(board))
+            .collect()
     }
 }
 
@@ -138,10 +136,7 @@ pub struct Battlesnake {
 }
 
 impl Battlesnake {
-    fn possbile_moves<'a>(
-        &'a self,
-        board: &'a Board,
-    ) -> impl Iterator<Item = (Direction, Coordinate)> + 'a {
+    fn possbile_moves(&self, board: &Board) -> HashSet<(Direction, Coordinate)> {
         self.head.possbile_moves(board)
     }
 }
@@ -163,30 +158,63 @@ pub struct GameState {
     you: Battlesnake,
 }
 
+pub enum MoveResult {
+    AteFood(u8), // old_health
+    MovedTail(Coordinate),
+}
+pub struct Move {
+    snake_id: String,
+    move_result: MoveResult,
+}
+
 impl GameState {
-    fn move_to(&self, coor: &Coordinate, snake_id: &str) -> Self {
-        let mut clonned = self.clone();
-        let you: &mut Battlesnake = clonned
+    fn move_to(&mut self, coor: &Coordinate, snake_id: &str) -> Move {
+        let to_move = self
             .board
             .snakes
             .iter_mut()
             .find(|s| s.id == snake_id)
-            .expect("We didn't find that snake");
+            .unwrap();
+        to_move.body.insert(0, coor.clone());
 
-        you.body.insert(0, coor.clone());
-
-        if you.health > 0 {
-            you.health -= 1;
+        if to_move.health > 0 {
+            to_move.health -= 1;
         }
 
-        if let Some(pos) = clonned.board.food.iter().position(|x| x == coor) {
-            clonned.board.food.remove(pos);
-            you.health = 100;
+        let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
+            self.board.food.remove(pos);
+            let old_health = to_move.health;
+            to_move.health = 100;
+            MoveResult::AteFood(old_health)
         } else {
-            you.body.pop();
-        }
+            MoveResult::MovedTail(to_move.body.pop().unwrap())
+        };
 
-        clonned
+        let snake_id = snake_id.to_owned();
+        Move {
+            snake_id,
+            move_result,
+        }
+    }
+
+    fn reverse_move(&mut self, m: Move) {
+        let to_move = self
+            .board
+            .snakes
+            .iter_mut()
+            .find(|s| s.id == m.snake_id)
+            .unwrap();
+        to_move.body.remove(0);
+
+        match m.move_result {
+            MoveResult::AteFood(old_health) => {
+                to_move.health = old_health;
+            }
+            MoveResult::MovedTail(tail) => {
+                to_move.body.push(tail);
+                to_move.health += 1;
+            }
+        }
     }
 }
 

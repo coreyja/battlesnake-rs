@@ -33,7 +33,8 @@ use rand::seq::SliceRandom;
 
 impl MoveToAndSpawn for GameState {
     fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self {
-        let mut cloned = self.move_to(coor, &self.you.id);
+        let mut cloned = self.clone();
+        cloned.move_to(coor, &self.you.id);
 
         let opponents = cloned
             .board
@@ -45,7 +46,9 @@ impl MoveToAndSpawn for GameState {
             let mut new_body: Vec<Coordinate> = s
                 .head
                 .possbile_moves(&self.board)
+                .iter()
                 .map(|(_dir, coor)| coor)
+                .cloned()
                 .collect();
             s.head = new_body.choose(&mut rand::thread_rng()).unwrap().clone();
             s.body.append(&mut new_body);
@@ -90,6 +93,7 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
 
     let recursed_score: i64 = coor
         .possbile_moves(&game_state.board)
+        .iter()
         .map(|(_d, c)| {
             score(
                 &game_state.move_to_and_opponent_sprawl(coor),
@@ -121,7 +125,9 @@ pub fn api_move(game_state: Json<GameState>, tracing: Tracing) -> Json<MoveOutpu
         Ok(Ok(x)) => x,
         _ => 5,
     };
-    let next_move = possible.max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
+    let next_move = possible
+        .iter()
+        .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
     let stuck_response: MoveOutput = MoveOutput {
         r#move: Direction::UP.value(),
