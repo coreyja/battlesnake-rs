@@ -92,6 +92,7 @@ impl BattlesnakeAI for AmphibiousArthur {
     fn name(&self) -> String {
         "amphibious-arthur".to_owned()
     }
+
     fn make_move(&self, game_state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
         let possible_moves_span = self
             .tracer

@@ -231,6 +231,8 @@ use std::sync::Arc;
 use amphibious_arthur::AmphibiousArthur;
 use bombastic_bob::BombasticBob;
 use constant_carter::ConstantCarter;
+use devious_devin::DeviousDevin;
+
 use rocket::State;
 use rocket_contrib::json::Json;
 
@@ -296,27 +298,15 @@ fn main() {
         _ => None,
     };
 
-    // let f = opentelemetry_rocket::OpenTelemetryFairing {
-    //     tracer: x.map(|x| x.1),
-    // };
-
     let snakes: Vec<BoxedSnake> = vec![
         Box::new(ConstantCarter {}),
         Box::new(BombasticBob {}),
         Box::new(AmphibiousArthur::new(Arc::new(x.map(|x| x.1)))),
+        Box::new(DeviousDevin {}),
     ];
 
     rocket::ignite()
         .manage(snakes)
-        .mount(
-            "/devious-devin",
-            routes![
-                devious_devin::me,
-                devious_devin::start,
-                devious_devin::api_moved,
-                devious_devin::end,
-            ],
-        )
         .mount("/", routes![api_start, api_end, api_move, api_about])
         .launch();
 }

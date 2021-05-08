@@ -1,27 +1,35 @@
-use rocket_contrib::json::Json;
-
 use super::*;
 
-#[post("/start")]
-pub fn start() -> Status {
-    Status::NoContent
-}
+use debug_print::debug_println;
 
-#[post("/end")]
-pub fn end() -> Status {
-    Status::NoContent
-}
+pub struct DeviousDevin {}
 
-#[get("/")]
-pub fn me() -> Json<AboutMe> {
-    Json(AboutMe {
-        apiversion: "1".to_owned(),
-        author: Some("coreyja".to_owned()),
-        color: Some("#99cc00".to_owned()),
-        head: Some("snail".to_owned()),
-        tail: Some("rbc-necktie".to_owned()),
-        version: None,
-    })
+impl BattlesnakeAI for DeviousDevin {
+    fn make_move(&self, game_state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+        let mut game_state = game_state;
+        let (score, dir) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX);
+        debug_println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);
+
+        Ok(MoveOutput {
+            r#move: dir.unwrap().value(),
+            shout: None,
+        })
+    }
+
+    fn name(&self) -> String {
+        "devious-devin".to_owned()
+    }
+
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            apiversion: "1".to_owned(),
+            author: Some("coreyja".to_owned()),
+            color: Some("#99cc00".to_owned()),
+            head: Some("snail".to_owned()),
+            tail: Some("rbc-necktie".to_owned()),
+            version: None,
+        }
+    }
 }
 
 const MAX_DEPTH: i64 = 14;
@@ -177,17 +185,4 @@ fn minimax(
 
         best
     }
-}
-use debug_print::debug_println;
-
-#[post("/move", data = "<game_state>")]
-pub fn api_moved(game_state: Json<GameState>) -> Json<MoveOutput> {
-    let mut game_state = game_state.into_inner();
-    let (score, dir) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX);
-    debug_println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);
-
-    Json(MoveOutput {
-        r#move: dir.unwrap().value(),
-        shout: None,
-    })
 }
