@@ -204,7 +204,7 @@ fn minimax(
 }
 
 #[post("/move", data = "<game_state>")]
-pub fn api_move(game_state: Json<GameState>) -> Json<MoveOutput> {
+pub fn api_moved(game_state: Json<GameState>) -> Json<MoveOutput> {
     let (_score, dir) = minimax(&game_state, 0, true, i64::MIN, i64::MAX, vec![]);
 
     Json(MoveOutput {

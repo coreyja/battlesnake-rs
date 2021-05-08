@@ -200,7 +200,21 @@ use async_executors::TokioTpBuilder;
 use opentelemetry_honeycomb::HoneycombApiKey;
 use std::sync::Arc;
 
+use constant_carter::ConstantCarter;
+use rocket::State;
 use rocket_contrib::json::Json;
+
+pub trait BattlesnakeAI {
+    fn start(&self) {}
+    fn end(&self) {}
+    fn make_move(&self, state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>>;
+    fn name(&self) -> String;
+
+    fn about(&self) -> AboutMe {
+        Default::default()
+    }
+}
+type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 
 #[post("/<snake>/start")]
 fn api_start(snake: String) -> Status {
@@ -212,24 +226,22 @@ fn api_end(snake: String) -> Status {
     Status::NoContent
 }
 
-#[post("/<snake>/move")]
-fn api_move(snake: String) -> Json<MoveOutput> {
-    Json(MoveOutput {
-        r#move: Direction::DOWN.value(),
-        shout: None,
-    })
+#[post("/<snake>/move", data = "<game_state>")]
+fn api_move(
+    snake: String,
+    snakes: State<Vec<BoxedSnake>>,
+    game_state: Json<GameState>,
+) -> Option<Json<MoveOutput>> {
+    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
+    let m = snake_ai.make_move(game_state.into_inner()).ok()?;
+
+    Some(Json(m))
 }
 
 #[get("/<snake>")]
-fn api_about(snake: String) -> Json<AboutMe> {
-    Json(AboutMe {
-        apiversion: "1".to_owned(),
-        author: Some("coreyja".to_owned()),
-        color: Some("#AA66CC".to_owned()),
-        head: None,
-        tail: None,
-        version: None,
-    })
+fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<AboutMe>> {
+    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
+    Some(Json(snake_ai.about()))
 }
 
 fn main() {
@@ -258,8 +270,11 @@ fn main() {
         tracer: x.map(|x| x.1),
     };
 
+    let snakes: Vec<BoxedSnake> = vec![Box::new(ConstantCarter {})];
+
     rocket::ignite()
         .attach(f)
+        .manage(snakes)
         .mount(
             "/amphibious-arthur",
             routes![
@@ -279,22 +294,14 @@ fn main() {
             ],
         )
         .mount(
-            "/constant-carter",
-            routes![
-                constant_carter::me,
-                constant_carter::start,
-                constant_carter::api_move,
-                constant_carter::end,
-            ],
-        )
-        .mount(
             "/devious-devin",
             routes![
                 devious_devin::me,
                 devious_devin::start,
-                devious_devin::api_move,
+                devious_devin::api_moved,
                 devious_devin::end,
             ],
         )
+        .mount("/", routes![api_start, api_end, api_move, api_about])
         .launch();
 }
