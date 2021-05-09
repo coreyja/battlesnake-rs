@@ -3,4 +3,5 @@
 members = [
     "battlesnake-rs",
     "web-lambda",
+    "web-rocket",
 ]

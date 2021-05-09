@@ -279,14 +279,10 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
- "async_executors",
  "debug_print",
  "itertools",
  "opentelemetry",
- "opentelemetry-honeycomb",
  "rand 0.8.3",
- "rocket",
- "rocket_contrib",
  "serde",
  "serde_derive",
  "serde_json",
@@ -2405,6 +2401,24 @@ dependencies = [
  "lambda_http",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "web-rocket"
+version = "0.1.0"
+dependencies = [
+ "async_executors",
+ "battlesnake-rs",
+ "debug_print",
+ "itertools",
+ "opentelemetry",
+ "opentelemetry-honeycomb",
+ "rand 0.8.3",
+ "rocket",
+ "rocket_contrib",
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
