@@ -93,7 +93,10 @@ impl BattlesnakeAI for AmphibiousArthur {
         "amphibious-arthur".to_owned()
     }
 
-    fn make_move(&self, game_state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+    fn make_move(
+        &self,
+        game_state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let possible_moves_span = self
             .tracer
             .as_ref()

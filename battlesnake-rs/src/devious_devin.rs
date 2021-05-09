@@ -5,7 +5,10 @@ use debug_print::debug_println;
 pub struct DeviousDevin {}
 
 impl BattlesnakeAI for DeviousDevin {
-    fn make_move(&self, game_state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+    fn make_move(
+        &self,
+        game_state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
         let (score, dir) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX);
         debug_println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);

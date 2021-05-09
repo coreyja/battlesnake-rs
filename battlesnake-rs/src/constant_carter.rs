@@ -15,7 +15,10 @@ impl BattlesnakeAI for ConstantCarter {
         }
     }
 
-    fn make_move(&self, _state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+    fn make_move(
+        &self,
+        _state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         Ok(MoveOutput {
             r#move: Direction::DOWN.value(),
             shout: None,

@@ -2397,6 +2397,7 @@ checksum = "b7148f4696fb4960a346eaa60bbfb42a1ac4ebba21f750f75fc1375b098d5ffa"
 name = "web-lambda"
 version = "0.1.0"
 dependencies = [
+ "battlesnake-rs",
  "http",
  "lambda_http",
  "serde_json",

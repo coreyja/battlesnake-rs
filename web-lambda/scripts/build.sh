@@ -20,7 +20,7 @@ function musl-build() {
     #   -v cargo-registry:/home/rust/.cargo/registry \
     #   -v "$PWD":/home/rust/src \
     #   --rm -it ekidd/rust-musl-builder:nightly cargo build -p web-lambda $BUILD_ARGS
-    cargo build --target x86_64-unknown-linux-musl -p web-lambda
+    cargo build --target x86_64-unknown-linux-musl -p web-lambda $BUILD_ARGS
   popd
 }
 

@@ -224,7 +224,10 @@ pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 pub trait BattlesnakeAI {
     fn start(&self) {}
     fn end(&self) {}
-    fn make_move(&self, state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>>;
+    fn make_move(
+        &self,
+        state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
     fn name(&self) -> String;
 
     fn about(&self) -> AboutMe {

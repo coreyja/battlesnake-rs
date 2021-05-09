@@ -5,7 +5,10 @@ use super::*;
 pub struct BombasticBob;
 
 impl BattlesnakeAI for BombasticBob {
-    fn make_move(&self, state: GameState) -> Result<MoveOutput, Box<dyn std::error::Error>> {
+    fn make_move(
+        &self,
+        state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let body_set: HashSet<&Coordinate> = state.you.body.iter().collect();
         let possible_moves = state
             .you
