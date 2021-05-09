@@ -1,25 +1,38 @@
 use lambda_http::{
     handler,
     lambda_runtime::{self, Context, Error},
-    Request, RequestExt,
+    Handler, IntoResponse, Request, RequestExt,
 };
 
 use serde_json::json;
-use serde_json::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    lambda_runtime::run(handler(handle_request)).await?;
+    let state = std::sync::Arc::new("something".to_owned());
+
+    lambda_runtime::run(handler(move |request: Request, _: Context| {
+        let path_parts: Vec<&str> = request
+            .uri()
+            .path()
+            .split("/")
+            .filter(|x| x != &"")
+            .collect();
+        let snake_name = path_parts.get(0);
+
+        let mine = state.clone();
+        let v = json!({ "state": mine.as_ref(), "msg":
+                   format!(
+                       "hello {} you are asking for {}",
+                       request
+                           .query_string_parameters()
+                           .get("name")
+                           .unwrap_or_else(|| "stranger"),
+                       snake_name.unwrap_or_else(|| &"404")
+                   )
+        });
+        async { Ok(v) }
+    }))
+    .await?;
 
     Ok(())
-}
-
-async fn handle_request(request: Request, _: Context) -> Result<Value, Error> {
-    Ok(json!(format!(
-        "hello {}",
-        request
-            .query_string_parameters()
-            .get("name")
-            .unwrap_or_else(|| "stranger")
-    )))
 }
