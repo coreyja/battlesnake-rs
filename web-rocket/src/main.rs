@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
+extern crate serde_derive;
+
 extern crate rand;
 
 use rocket::http::Status;
@@ -10,8 +13,8 @@ use rocket::http::Status;
 use battlesnake_rs::amphibious_arthur::AmphibiousArthur;
 use battlesnake_rs::bombastic_bob::BombasticBob;
 use battlesnake_rs::constant_carter::ConstantCarter;
-use battlesnake_rs::devious_devin::DeviousDevin;
-use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
+use battlesnake_rs::devious_devin::{DeviousDevin, EvaluateOutput};
+use battlesnake_rs::{AboutMe, BattlesnakeAI, BoxedSnake, Direction, GameState, MoveOutput};
 
 use rocket::State;
 
@@ -20,13 +23,13 @@ use opentelemetry_honeycomb::HoneycombApiKey;
 use rocket_contrib::json::Json;
 use std::sync::Arc;
 
-#[post("/<snake>/start")]
-fn api_start(snake: String) -> Status {
+#[post("/<_snake>/start")]
+fn api_start(_snake: String) -> Status {
     Status::NoContent
 }
 
-#[post("/<snake>/end")]
-fn api_end(snake: String) -> Status {
+#[post("/<_snake>/end")]
+fn api_end(_snake: String) -> Status {
     Status::NoContent
 }
 
@@ -38,6 +41,14 @@ fn api_move(
 ) -> Option<Json<MoveOutput>> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
     let m = snake_ai.make_move(game_state.into_inner()).ok()?;
+
+    Some(Json(m))
+}
+
+#[post("/devious-devin/explain", data = "<game_state>")]
+fn custom_evaluate(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
+    let devin = DeviousDevin {};
+    let m = devin.explain_move(game_state.into_inner()).ok()?;
 
     Some(Json(m))
 }
@@ -79,6 +90,9 @@ fn main() {
 
     rocket::ignite()
         .manage(snakes)
-        .mount("/", routes![api_start, api_end, api_move, api_about])
+        .mount(
+            "/",
+            routes![api_start, api_end, api_move, api_about, custom_evaluate],
+        )
         .launch();
 }

@@ -4,6 +4,34 @@ use debug_print::debug_println;
 
 pub struct DeviousDevin {}
 
+#[derive(Serialize)]
+pub struct MoveOption {
+    dir: Option<Direction>,
+    score: i64,
+}
+
+#[derive(Serialize)]
+pub struct EvaluateOutput {
+    options: Vec<MoveOption>,
+}
+
+impl DeviousDevin {
+    pub fn explain_move(
+        &self,
+        game_state: GameState,
+    ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let mut game_state = game_state;
+        let options = minimax_options(&mut game_state, 0, true, i64::MIN, i64::MAX);
+
+        let options: Vec<MoveOption> = options
+            .into_iter()
+            .map(|(score, dir)| MoveOption { score, dir })
+            .collect();
+
+        Ok(EvaluateOutput { options })
+    }
+}
+
 impl BattlesnakeAI for DeviousDevin {
     fn make_move(
         &self,
@@ -133,13 +161,30 @@ fn minimax(
     alpha: i64,
     beta: i64,
 ) -> (i64, Option<Direction>) {
+    let options = minimax_options(node, depth, is_maximizing, alpha, beta);
+
+    options
+        .into_iter()
+        .max_by_key(|(score, _)| score.clone())
+        .unwrap_or((0, Some(Direction::UP)))
+}
+
+fn minimax_options(
+    node: &mut GameState,
+    depth: usize,
+    is_maximizing: bool,
+    alpha: i64,
+    beta: i64,
+) -> Vec<(i64, Option<Direction>)> {
     let mut alpha = alpha;
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
     if let Some(s) = score(&node, new_depth) {
-        return (s, None);
+        return vec![(s, None)];
     }
+
+    let mut options = vec![];
 
     if is_maximizing {
         let mut best = (i64::MIN, None);
@@ -150,6 +195,7 @@ fn minimax(
             let value = minimax(node, depth + 1, false, alpha, beta).0;
             node.reverse_move(last_move);
 
+            options.push((value, Some(dir)));
             if value > best.0 {
                 best = (value, Some(dir));
             }
@@ -158,8 +204,6 @@ fn minimax(
                 break;
             }
         }
-
-        best
     } else {
         let mut best = (i64::MAX, None);
 
@@ -177,6 +221,7 @@ fn minimax(
             let value = minimax(node, depth + 1, true, alpha, beta).0;
             node.reverse_move(last_move);
 
+            options.push((value, Some(dir)));
             if value < best.0 {
                 best = (value, Some(dir));
             }
@@ -185,7 +230,7 @@ fn minimax(
                 break;
             }
         }
-
-        best
     }
+
+    options
 }

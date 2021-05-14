@@ -52,7 +52,7 @@ pub struct Coordinate {
     y: i64,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Copy, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy, Debug, Serialize)]
 pub enum Direction {
     UP,
     RIGHT,
