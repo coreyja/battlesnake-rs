@@ -14,7 +14,7 @@ use battlesnake_rs::amphibious_arthur::AmphibiousArthur;
 use battlesnake_rs::bombastic_bob::BombasticBob;
 use battlesnake_rs::constant_carter::ConstantCarter;
 use battlesnake_rs::devious_devin::{DeviousDevin, EvaluateOutput};
-use battlesnake_rs::{AboutMe, BattlesnakeAI, BoxedSnake, Direction, GameState, MoveOutput};
+use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
 
 use rocket::State;
 
@@ -46,7 +46,7 @@ fn api_move(
 }
 
 #[post("/devious-devin/explain", data = "<game_state>")]
-fn custom_evaluate(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
+fn custom_explain(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
     let devin = DeviousDevin {};
     let m = devin.explain_move(game_state.into_inner()).ok()?;
 
@@ -92,7 +92,7 @@ fn main() {
         .manage(snakes)
         .mount(
             "/",
-            routes![api_start, api_end, api_move, api_about, custom_evaluate],
+            routes![api_start, api_end, api_move, api_about, custom_explain],
         )
         .launch();
 }
