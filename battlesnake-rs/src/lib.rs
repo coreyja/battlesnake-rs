@@ -46,7 +46,7 @@ pub struct Game {
     timeout: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Coordinate {
     x: i64,
     y: i64,

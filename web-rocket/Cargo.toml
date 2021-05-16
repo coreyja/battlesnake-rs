@@ -19,3 +19,4 @@ opentelemetry-honeycomb = { git = 'https://github.com/ramosbugs/opentelemetry-ho
 opentelemetry = "0.12.0"
 async_executors = { version = "0.4.0", features = ["tokio_tp"] }
 debug_print = "1.0.0"
+rocket_cors = "0.5.2"

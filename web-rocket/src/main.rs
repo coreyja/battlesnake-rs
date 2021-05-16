@@ -88,8 +88,11 @@ fn main() {
         Box::new(DeviousDevin {}),
     ];
 
+    let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();
+
     rocket::ignite()
         .manage(snakes)
+        .attach(cors)
         .mount(
             "/",
             routes![api_start, api_end, api_move, api_about, custom_explain],

@@ -179,7 +179,9 @@ fn minimax(
 #[derive(Clone, Debug, Serialize)]
 struct SnakeMove {
     snake_name: String,
+    snake_id: String,
     dir: Direction,
+    move_to: Coordinate,
 }
 
 fn minimax_options(
@@ -209,6 +211,8 @@ fn minimax_options(
                 x.push(SnakeMove {
                     dir,
                     snake_name: node.you.name.clone(),
+                    snake_id: node.you.id.clone(),
+                    move_to: coor.clone(),
                 });
                 x
             };
@@ -238,6 +242,8 @@ fn minimax_options(
                 x.push(SnakeMove {
                     dir,
                     snake_name: not_me.name.clone(),
+                    snake_id: not_me.id.clone(),
+                    move_to: coor.clone(),
                 });
                 x
             };
