@@ -6,7 +6,7 @@ pub struct DeviousDevin {}
 
 #[derive(Serialize)]
 pub struct MoveOption {
-    dir: Option<Direction>,
+    moves: Vec<SnakeMove>,
     score: i64,
 }
 
@@ -21,11 +21,11 @@ impl DeviousDevin {
         game_state: GameState,
     ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
-        let options = minimax_options(&mut game_state, 0, true, i64::MIN, i64::MAX);
+        let options = minimax_options(&mut game_state, 0, true, i64::MIN, i64::MAX, vec![]);
 
         let options: Vec<MoveOption> = options
             .into_iter()
-            .map(|(score, dir)| MoveOption { score, dir })
+            .map(|(score, moves)| MoveOption { score, moves })
             .collect();
 
         Ok(EvaluateOutput { options })
@@ -38,11 +38,16 @@ impl BattlesnakeAI for DeviousDevin {
         game_state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
-        let (score, dir) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX);
-        debug_println!("Turn: {} Score: {} Dir: {:?}", game_state.turn, score, dir);
+        let (score, moves) = minimax(&mut game_state, 0, true, i64::MIN, i64::MAX, vec![]);
+        debug_println!(
+            "Turn: {} Score: {} Dir: {:?}",
+            game_state.turn,
+            score,
+            moves
+        );
 
         Ok(MoveOutput {
-            r#move: dir.unwrap().value(),
+            r#move: moves.get(0).unwrap().dir.value(),
             shout: None,
         })
     }
@@ -160,13 +165,21 @@ fn minimax(
     is_maximizing: bool,
     alpha: i64,
     beta: i64,
-) -> (i64, Option<Direction>) {
-    let options = minimax_options(node, depth, is_maximizing, alpha, beta);
+    current_moves: Vec<SnakeMove>,
+) -> (i64, Vec<SnakeMove>) {
+    let options = minimax_options(node, depth, is_maximizing, alpha, beta, current_moves);
 
+    let score_multiplier = if is_maximizing { 1 } else { -1 };
     options
         .into_iter()
-        .max_by_key(|(score, _)| score.clone())
-        .unwrap_or((0, Some(Direction::UP)))
+        .max_by_key(|(score, _)| score_multiplier * score.clone())
+        .unwrap_or((0, vec![]))
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SnakeMove {
+    snake_name: String,
+    dir: Direction,
 }
 
 fn minimax_options(
@@ -175,57 +188,65 @@ fn minimax_options(
     is_maximizing: bool,
     alpha: i64,
     beta: i64,
-) -> Vec<(i64, Option<Direction>)> {
+    current_moves: Vec<SnakeMove>,
+) -> Vec<(i64, Vec<SnakeMove>)> {
     let mut alpha = alpha;
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
     if let Some(s) = score(&node, new_depth) {
-        return vec![(s, None)];
+        return vec![(s, current_moves)];
     }
 
-    let mut options = vec![];
+    let mut options: Vec<(i64, Vec<SnakeMove>)> = vec![];
 
     if is_maximizing {
-        let mut best = (i64::MIN, None);
-
         let me = node.you.id.to_owned();
         for (dir, coor) in children(node, &node.you.id).into_iter() {
             let last_move = node.move_to(&coor, &me);
-            let value = minimax(node, depth + 1, false, alpha, beta).0;
+            let new_current_moves = {
+                let mut x = current_moves.clone();
+                x.push(SnakeMove {
+                    dir,
+                    snake_name: node.you.name.clone(),
+                });
+                x
+            };
+            let next_move_return = minimax(node, depth + 1, false, alpha, beta, new_current_moves);
+            let value = next_move_return.0;
             node.reverse_move(last_move);
 
-            options.push((value, Some(dir)));
-            if value > best.0 {
-                best = (value, Some(dir));
-            }
-            alpha = std::cmp::max(alpha, best.0);
+            options.push(next_move_return);
+            alpha = std::cmp::max(alpha, value);
             if beta <= alpha {
                 break;
             }
         }
     } else {
-        let mut best = (i64::MAX, None);
-
         let not_me = node
             .board
             .snakes
             .iter()
             .cloned()
             .filter(|s| s.id != node.you.id)
-            .map(|s| s.id)
             .next()
             .unwrap();
-        for (dir, coor) in children(node, &not_me).into_iter() {
-            let last_move = node.move_to(&coor, &not_me);
-            let value = minimax(node, depth + 1, true, alpha, beta).0;
+        for (dir, coor) in children(node, &not_me.id).into_iter() {
+            let last_move = node.move_to(&coor, &not_me.id);
+            let new_current_moves = {
+                let mut x = current_moves.clone();
+                x.push(SnakeMove {
+                    dir,
+                    snake_name: not_me.name.clone(),
+                });
+                x
+            };
+            let next_move_return = minimax(node, depth + 1, true, alpha, beta, new_current_moves);
+            let value = next_move_return.0;
             node.reverse_move(last_move);
 
-            options.push((value, Some(dir)));
-            if value < best.0 {
-                best = (value, Some(dir));
-            }
-            beta = std::cmp::min(beta, best.0);
+            options.push(next_move_return);
+            beta = std::cmp::min(beta, value);
             if beta <= alpha {
                 break;
             }
