@@ -88,11 +88,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
     let my_body: HashSet<Coordinate> = HashSet::from_iter(me.body.iter().cloned());
     let other_body: HashSet<Coordinate> = HashSet::from_iter(not_me.body.iter().cloned());
 
-    if me
-        .body
-        .iter()
-        .any(|c| !c.valid(&node.board) || other_body.contains(c))
-    {
+    if other_body.contains(&me.body[0]) {
         return Some(SCORE_LOSE + depth);
     }
 
@@ -100,11 +96,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
         return Some(SCORE_LOSE + depth);
     }
 
-    if not_me
-        .body
-        .iter()
-        .any(|c| !c.valid(&node.board) || my_body.contains(c))
-    {
+    if my_body.contains(&not_me.body[0]) {
         return Some(SCORE_WIN - depth);
     }
 
