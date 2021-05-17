@@ -19,6 +19,9 @@ Resources:
       Runtime: provided
       MemorySize: 256
       Timeout: 1
+      Environment:
+        Variables:
+          SOMETHING_TO_CHANGE_TO_FORCE_DEPLOYS: 1
       Events:
         WebApiEvent:
           Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api

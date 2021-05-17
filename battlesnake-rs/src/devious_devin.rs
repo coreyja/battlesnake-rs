@@ -124,7 +124,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
         let me_health: i64 = me.health.into();
 
         if other_length + 4 > me_length {
-            return Some(-100 + (me_health / 10) + me_length);
+            return Some(20 + (me_health / 10) + me_length);
         }
 
         return Some(me_length - other_length);
@@ -133,8 +133,8 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
     None
 }
 
-const SCORE_LOSE: i64 = -200;
-const SCORE_WIN: i64 = 200;
+const SCORE_LOSE: i64 = -10000;
+const SCORE_WIN: i64 = 10000;
 
 fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate)> {
     let you: &Battlesnake = node
