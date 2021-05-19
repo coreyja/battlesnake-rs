@@ -118,16 +118,17 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
     }
 
     if depth == MAX_DEPTH {
-        // let h: (i64, i64) = (me.health.into(), not_me.health.into());
-        let me_length: i64 = me.body.len().try_into().unwrap();
-        let other_length: i64 = not_me.body.len().try_into().unwrap();
-        let me_health: i64 = me.health.into();
-
-        if other_length + 4 > me_length {
-            return Some(20 + (me_health / 10) + me_length);
+        if not_me.body.len() + 4 > me.body.len() {
+            return Some(
+                0 - a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food)
+                    .unwrap_or(500),
+            );
         }
 
-        return Some(me_length - other_length);
+        return Some(
+            1000 - a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
+                .unwrap_or(500),
+        );
     }
 
     None
@@ -252,4 +253,143 @@ fn minimax_options(
     }
 
     options
+}
+
+mod a_prime {
+    use crate::{Board, Coordinate};
+    use std::cmp::Ordering;
+    use std::collections::{BinaryHeap, HashMap};
+
+    const NEIGHBOR_DISTANCE: i64 = 1;
+    const HEURISTIC_MAX: i64 = 500;
+
+    #[derive(Copy, Clone, Eq, PartialEq)]
+    struct Node {
+        cost: i64,
+        coordinate: Coordinate,
+    }
+
+    // The priority queue depends on `Ord`.
+    // Explicitly implement the trait so the queue becomes a min-heap
+    // instead of a max-heap.
+    impl Ord for Node {
+        fn cmp(&self, other: &Self) -> Ordering {
+            // Notice that the we flip the ordering on costs.
+            // In case of a tie we compare positions - this step is necessary
+            // to make implementations of `PartialEq` and `Ord` consistent.
+            other
+                .cost
+                .cmp(&self.cost)
+                .then_with(|| self.coordinate.x.cmp(&other.coordinate.x))
+                .then_with(|| self.coordinate.y.cmp(&other.coordinate.y))
+        }
+    }
+
+    // `PartialOrd` needs to be implemented as well.
+    impl PartialOrd for Node {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    fn hueristic(start: &Coordinate, targets: &Vec<Coordinate>) -> Option<i64> {
+        targets.iter().map(|coor| start.dist_from(coor)).min()
+    }
+
+    pub fn shortest_distance(
+        board: &Board,
+        start: &Coordinate,
+        targets: &Vec<Coordinate>,
+    ) -> Option<i64> {
+        if targets.len() == 0 {
+            return Some(0);
+        }
+
+        let mut to_search: BinaryHeap<Node> = BinaryHeap::new();
+
+        let mut known_score: HashMap<Coordinate, i64> = HashMap::new();
+
+        to_search.push(Node {
+            cost: 0,
+            coordinate: start.clone(),
+        });
+        known_score.insert(start.clone(), 0);
+
+        let mut count = 0;
+
+        while let Some(Node { cost, coordinate }) = to_search.pop() {
+            count = count + 1;
+            if targets.contains(&coordinate) {
+                return Some(cost);
+            }
+
+            let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + NEIGHBOR_DISTANCE;
+            let neighbors = coordinate.possbile_moves(&board);
+            for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
+                // true
+                board.snakes.iter().all(|snake| !snake.body.contains(n))
+            }) {
+                if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
+                    known_score.insert(neighbor.clone(), tentative);
+                    to_search.push(Node {
+                        coordinate: neighbor.clone(),
+                        cost: tentative + hueristic(neighbor, &targets).unwrap_or(HEURISTIC_MAX),
+                    });
+                }
+            }
+        }
+
+        None
+    }
+
+    #[cfg(test)]
+    mod tests {
+        // Note this useful idiom: importing names from outer (for mod tests) scope.
+        use super::*;
+
+        #[test]
+        fn test_heuristic() {
+            assert_eq!(
+                hueristic(&Coordinate { x: 1, y: 1 }, &vec![Coordinate { x: 2, y: 2 }]),
+                Some(2)
+            );
+        }
+
+        #[test]
+        fn test_multi_target_heuristic() {
+            assert_eq!(
+                hueristic(
+                    &Coordinate { x: 1, y: 1 },
+                    &vec![
+                        Coordinate { x: 3, y: 3 },
+                        Coordinate { x: 4, y: 4 },
+                        Coordinate { x: 5, y: 5 },
+                    ]
+                ),
+                Some(4)
+            );
+        }
+
+        #[test]
+        fn test_basic_a_prime() {
+            assert_eq!(
+                shortest_distance(
+                    &Board {
+                        food: vec![],
+                        hazards: vec![],
+                        height: 11,
+                        width: 11,
+                        snakes: vec![],
+                    },
+                    &Coordinate { x: 1, y: 1 },
+                    &vec![
+                        Coordinate { x: 3, y: 3 },
+                        Coordinate { x: 4, y: 4 },
+                        Coordinate { x: 5, y: 5 },
+                    ]
+                ),
+                Some(4)
+            );
+        }
+    }
 }

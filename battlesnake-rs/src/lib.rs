@@ -46,10 +46,16 @@ pub struct Game {
     timeout: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct Coordinate {
     x: i64,
     y: i64,
+}
+
+impl Coordinate {
+    fn dist_from(&self, other: &Self) -> i64 {
+        (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy, Debug, Serialize)]
