@@ -119,14 +119,16 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
 
     if depth == MAX_DEPTH {
         if not_me.body.len() + 4 > me.body.len() {
+            let l: i64 = me.body.len().try_into().unwrap();
             return Some(
-                0 - a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food)
-                    .unwrap_or(500),
+                (l + 1000)
+                    - a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food)
+                        .unwrap_or(500),
             );
         }
 
         return Some(
-            1000 - a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
+            2000 - a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
                 .unwrap_or(500),
         );
     }
