@@ -119,7 +119,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
     }
 
     if depth == MAX_DEPTH {
-        if not_me.body.len() + 4 > me.body.len() {
+        if not_me.body.len() >= me.body.len() {
             let l: i64 = me.body.len().try_into().unwrap();
             return Some(
                 (l + 1000)
@@ -130,7 +130,7 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
 
         return Some(
             2000 - a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
-                .unwrap_or(500),
+                .unwrap_or(666),
         );
     }
 
@@ -188,7 +188,6 @@ fn minimax_options(
     beta: i64,
     current_moves: Vec<SnakeMove>,
 ) -> Vec<(i64, Vec<SnakeMove>)> {
-    let start_state = node.clone();
     let mut alpha = alpha;
     let mut beta = beta;
 
@@ -255,8 +254,6 @@ fn minimax_options(
             }
         }
     }
-
-    assert_eq!(&start_state, node);
 
     options
 }
@@ -333,7 +330,10 @@ mod a_prime {
             let neighbors = coordinate.possbile_moves(&board);
             for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
                 // true
-                board.snakes.iter().all(|snake| !snake.body.contains(n))
+                board
+                    .snakes
+                    .iter()
+                    .all(|snake| !snake.body.contains(n) || targets.contains(n))
             }) {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
                     known_score.insert(neighbor.clone(), tentative);
@@ -351,6 +351,8 @@ mod a_prime {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::Battlesnake;
+        use serde_json::Value::Number;
 
         #[test]
         fn test_heuristic() {
@@ -394,6 +396,58 @@ mod a_prime {
                     ]
                 ),
                 Some(4)
+            );
+        }
+
+        #[test]
+        fn test_real_example() {
+            assert_eq!(
+                shortest_distance(
+                    &Board {
+                        food: vec![],
+                        hazards: vec![],
+                        height: 11,
+                        width: 11,
+                        snakes: vec![
+                            Battlesnake {
+                                id: "".to_owned(),
+                                name: "".to_owned(),
+                                health: 93,
+                                body: vec![
+                                    Coordinate { x: 7, y: 10 },
+                                    Coordinate { x: 6, y: 10 },
+                                    Coordinate { x: 5, y: 10 },
+                                    Coordinate { x: 4, y: 10 }
+                                ],
+                                latency: Number(84.into()),
+                                head: Coordinate { x: 0, y: 10 },
+                                length: 4,
+                                shout: Some("".to_owned()),
+                                squad: Some("".to_owned())
+                            },
+                            Battlesnake {
+                                id: "".to_owned(),
+                                name: "".to_owned(),
+                                health: 99,
+                                body: vec![
+                                    Coordinate { x: 5, y: 4 },
+                                    Coordinate { x: 5, y: 5 },
+                                    Coordinate { x: 4, y: 5 },
+                                    Coordinate { x: 3, y: 5 },
+                                    Coordinate { x: 2, y: 5 }
+                                ],
+                                latency: Number(327.into()),
+                                head: Coordinate { x: 2, y: 4 },
+                                length: 4,
+                                shout: Some("".to_owned()),
+                                squad: Some("".to_owned())
+                            }
+                        ],
+                    },
+                    &Coordinate { x: 5, y: 4 },
+                    &vec![Coordinate { x: 7, y: 10 },]
+                ),
+                Some(8)
             );
         }
     }
