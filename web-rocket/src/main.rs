@@ -3,11 +3,6 @@
 #[macro_use]
 extern crate rocket;
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate rand;
-
 use rocket::http::Status;
 
 use battlesnake_rs::amphibious_arthur::AmphibiousArthur;
