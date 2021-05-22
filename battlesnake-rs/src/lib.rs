@@ -3,6 +3,7 @@ extern crate serde_derive;
 
 use std::collections::HashSet;
 
+pub mod a_prime;
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
