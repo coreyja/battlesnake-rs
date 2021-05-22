@@ -31,13 +31,13 @@ impl Default for AboutMe {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Ruleset {
     name: String,
     version: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Game {
     id: String,
     ruleset: Option<Ruleset>,
@@ -120,7 +120,7 @@ impl Coordinate {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Battlesnake {
     id: String,
     name: String,
@@ -139,7 +139,7 @@ impl Battlesnake {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Board {
     height: u32,
     width: u32,
@@ -148,7 +148,7 @@ pub struct Board {
     snakes: Vec<Battlesnake>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct GameState {
     game: Game,
     turn: u64,
@@ -157,7 +157,7 @@ pub struct GameState {
 }
 
 pub enum MoveResult {
-    AteFood(u8), // old_health
+    AteFood(u8, Coordinate), // old_health, food_pos
     MovedTail(Coordinate),
 }
 pub struct Move {
@@ -175,15 +175,15 @@ impl GameState {
             .unwrap();
         to_move.body.insert(0, coor.clone());
 
+        let old_health = to_move.health;
         if to_move.health > 0 {
             to_move.health -= 1;
         }
 
         let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
             self.board.food.remove(pos);
-            let old_health = to_move.health;
             to_move.health = 100;
-            MoveResult::AteFood(old_health)
+            MoveResult::AteFood(old_health, coor.clone())
         } else {
             MoveResult::MovedTail(to_move.body.pop().unwrap())
         };
@@ -205,8 +205,9 @@ impl GameState {
         to_move.body.remove(0);
 
         match m.move_result {
-            MoveResult::AteFood(old_health) => {
+            MoveResult::AteFood(old_health, food_coor) => {
                 to_move.health = old_health;
+                self.board.food.push(food_coor);
             }
             MoveResult::MovedTail(tail) => {
                 to_move.body.push(tail);

@@ -1,6 +1,7 @@
 use super::*;
 
 use debug_print::debug_println;
+use serde_json::to_value;
 
 pub struct DeviousDevin {}
 
@@ -187,6 +188,7 @@ fn minimax_options(
     beta: i64,
     current_moves: Vec<SnakeMove>,
 ) -> Vec<(i64, Vec<SnakeMove>)> {
+    let start_state = node.clone();
     let mut alpha = alpha;
     let mut beta = beta;
 
@@ -253,6 +255,8 @@ fn minimax_options(
             }
         }
     }
+
+    assert_eq!(&start_state, node);
 
     options
 }
