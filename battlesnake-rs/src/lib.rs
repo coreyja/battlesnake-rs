@@ -157,7 +157,7 @@ pub struct GameState {
 }
 
 pub enum MoveResult {
-    AteFood(u8, Coordinate), // old_health, food_pos
+    AteFood(u8, Coordinate, usize), // old_health, food_coor, food_pos
     MovedTail(Coordinate),
 }
 pub struct Move {
@@ -183,7 +183,7 @@ impl GameState {
         let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
             self.board.food.remove(pos);
             to_move.health = 100;
-            MoveResult::AteFood(old_health, coor.clone())
+            MoveResult::AteFood(old_health, coor.clone(), pos)
         } else {
             MoveResult::MovedTail(to_move.body.pop().unwrap())
         };
@@ -205,9 +205,9 @@ impl GameState {
         to_move.body.remove(0);
 
         match m.move_result {
-            MoveResult::AteFood(old_health, food_coor) => {
+            MoveResult::AteFood(old_health, food_coor, food_pos) => {
                 to_move.health = old_health;
-                self.board.food.push(food_coor);
+                self.board.food.insert(food_pos, food_coor);
             }
             MoveResult::MovedTail(tail) => {
                 to_move.body.push(tail);
