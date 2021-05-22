@@ -121,6 +121,8 @@ fn score(node: &GameState, depth: i64) -> Option<i64> {
     if depth == MAX_DEPTH {
         if not_me.body.len() >= me.body.len() {
             let l: i64 = me.body.len().try_into().unwrap();
+            // TODO: Add the difference in lengts here so that I still try to grow even if I can't
+            // grow enough to get bigger
             return Some(
                 (l + 1000)
                     - a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food)
