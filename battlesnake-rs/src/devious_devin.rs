@@ -137,8 +137,16 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::HitSelfLose(depth));
     }
 
+    if not_me.body[1..].contains(&me.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherLose(depth));
+    }
+
     if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
         return Some(ScoreEndState::HitSelfWin(depth));
+    }
+
+    if me.body[1..].contains(&not_me.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherWin(depth));
     }
 
     if me.body[0] == not_me.body[0] {
@@ -147,14 +155,6 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         } else {
             return Some(ScoreEndState::HeadToHeadLose(depth));
         }
-    }
-
-    if not_me.body.contains(&me.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherLose(depth));
-    }
-
-    if me.body.contains(&not_me.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherWin(depth));
     }
 
     if depth == MAX_DEPTH {
