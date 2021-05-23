@@ -6,6 +6,7 @@ pub struct DeviousDevin {}
 pub struct MoveOption {
     moves: Vec<SnakeMove>,
     score: ScoreEndState,
+    dir: Direction,
 }
 
 #[derive(Serialize)]
@@ -20,7 +21,7 @@ impl DeviousDevin {
     ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
         let mut sorted_snakes = game_state.board.snakes.clone();
-        sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 0 } else { 1 });
+        sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
         let options = minimax_options(
             &mut game_state,
@@ -33,7 +34,19 @@ impl DeviousDevin {
 
         let mut options: Vec<MoveOption> = options
             .into_iter()
-            .map(|(score, moves)| MoveOption { score, moves })
+            .map(|(score, moves)| {
+                let m = moves
+                    .iter()
+                    .cloned()
+                    .find(|x| x.snake_id == game_state.you.id)
+                    .unwrap();
+
+                MoveOption {
+                    score,
+                    moves,
+                    dir: m.dir,
+                }
+            })
             .collect();
 
         options.sort_by_key(|option| option.score);
@@ -50,7 +63,7 @@ impl BattlesnakeAI for DeviousDevin {
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
         let mut sorted_snakes = game_state.board.snakes.clone();
-        sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 0 } else { 1 });
+        sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
         let (_score, moves) = minimax(
             &mut game_state,
@@ -62,7 +75,12 @@ impl BattlesnakeAI for DeviousDevin {
         );
 
         Ok(MoveOutput {
-            r#move: moves.get(0).unwrap().dir.value(),
+            r#move: moves
+                .iter()
+                .find(|m| m.snake_id == game_state.you.id)
+                .unwrap()
+                .dir
+                .value(),
             shout: None,
         })
     }
