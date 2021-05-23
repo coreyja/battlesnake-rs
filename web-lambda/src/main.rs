@@ -32,17 +32,6 @@ async fn main() -> Result<(), Error> {
             .cloned()
             .find(|s| snake_name == Some(&s.name()));
 
-        // let mine = state.clone();
-        // let v = json!({ "state": mine.as_ref(), "msg":
-        //            format!(
-        //                "hello {} you are asking for {}",
-        //                request
-        //                    .query_string_parameters()
-        //                    .get("name")
-        //                    .unwrap_or_else(|| "stranger"),
-        //                snake_name.unwrap_or_else(|| &"404")
-        //            )
-        // });
         api_move(snake, request, context)
     }))
     .await?;
