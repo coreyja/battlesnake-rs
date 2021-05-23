@@ -13,7 +13,7 @@ impl BattlesnakeAI for BombasticBob {
         let possible_moves = state
             .you
             .head
-            .possbile_moves(&state.board)
+            .possible_moves(&state.board)
             .iter()
             .filter(|(_dir, coor)| !body_set.contains(coor))
             .cloned()

@@ -111,7 +111,7 @@ impl Coordinate {
         Self { x, y }
     }
 
-    fn possbile_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
+    fn possible_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
         ALL_DIRECTIONS
             .iter()
             .cloned()
@@ -135,8 +135,8 @@ pub struct Battlesnake {
 }
 
 impl Battlesnake {
-    fn possbile_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
-        self.head.possbile_moves(board)
+    fn possible_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
+        self.head.possible_moves(board)
     }
 }
 
@@ -257,7 +257,7 @@ mod tests {
         };
 
         assert_eq!(
-            coor.possbile_moves(&board),
+            coor.possible_moves(&board),
             vec![
                 (Direction::UP, Coordinate { x: 1, y: 2 }),
                 (Direction::RIGHT, Coordinate { x: 2, y: 1 }),

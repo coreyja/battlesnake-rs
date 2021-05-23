@@ -193,7 +193,7 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate
         .find(|s| s.id == turn_snake_id)
         .expect("We didn't find that snake");
     you.body[0]
-        .possbile_moves(&node.board)
+        .possible_moves(&node.board)
         .iter()
         .cloned()
         .collect()

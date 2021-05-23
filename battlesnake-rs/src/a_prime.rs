@@ -1,4 +1,3 @@
-
 use crate::{Board, Coordinate};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
@@ -67,7 +66,7 @@ pub fn shortest_distance(
         }
 
         let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + NEIGHBOR_DISTANCE;
-        let neighbors = coordinate.possbile_moves(&board);
+        let neighbors = coordinate.possible_moves(&board);
         for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
             // true
             board

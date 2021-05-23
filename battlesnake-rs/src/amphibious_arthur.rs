@@ -20,7 +20,7 @@ impl MoveToAndSpawn for GameState {
         for s in opponents {
             let mut new_body: Vec<Coordinate> = s
                 .head
-                .possbile_moves(&self.board)
+                .possible_moves(&self.board)
                 .iter()
                 .map(|(_dir, coor)| coor)
                 .cloned()
@@ -64,7 +64,7 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     }
 
     let recursed_score: i64 = coor
-        .possbile_moves(&game_state.board)
+        .possible_moves(&game_state.board)
         .iter()
         .map(|(_d, c)| {
             score(
@@ -101,9 +101,9 @@ impl BattlesnakeAI for AmphibiousArthur {
             .tracer
             .as_ref()
             .as_ref()
-            .map(|x| x.span_builder("possbile_moves").start(x));
+            .map(|x| x.span_builder("possible_moves").start(x));
 
-        let possible = game_state.you.possbile_moves(&game_state.board);
+        let possible = game_state.you.possible_moves(&game_state.board);
         if let Some(span) = possible_moves_span {
             span.end();
         }
