@@ -3,7 +3,7 @@
 require 'yaml'
 
 BASE_URL = 'http://localhost:8000'.freeze
-RUNS = 100
+RUNS = 10
 
 CLI_RESULT_REGEX = /after (.*) turns\. (.*) is the winner/.freeze
 
