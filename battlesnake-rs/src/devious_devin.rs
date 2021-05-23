@@ -14,6 +14,20 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
+fn moves_to_my_direction(moves: &Vec<SnakeMove>, game_state: &GameState) -> Direction {
+    moves
+        .iter()
+        .find(|m| m.snake_id == game_state.you.id)
+        .map(|m| m.dir)
+        .unwrap_or(
+            game_state.you.body[0]
+                .possible_moves(&game_state.board)
+                .get(0)
+                .map(|x| x.0)
+                .unwrap_or(Direction::UP),
+        )
+}
+
 impl DeviousDevin {
     pub fn explain_move(
         &self,
@@ -35,17 +49,9 @@ impl DeviousDevin {
         let mut options: Vec<MoveOption> = options
             .into_iter()
             .map(|(score, moves)| {
-                let m = moves
-                    .iter()
-                    .cloned()
-                    .find(|x| x.snake_id == game_state.you.id)
-                    .unwrap();
+                let dir = moves_to_my_direction(&moves, &game_state);
 
-                MoveOption {
-                    score,
-                    moves,
-                    dir: m.dir,
-                }
+                MoveOption { score, moves, dir }
             })
             .collect();
 
@@ -75,12 +81,7 @@ impl BattlesnakeAI for DeviousDevin {
         );
 
         Ok(MoveOutput {
-            r#move: moves
-                .iter()
-                .find(|m| m.snake_id == game_state.you.id)
-                .unwrap()
-                .dir
-                .value(),
+            r#move: moves_to_my_direction(&moves, &game_state).value(),
             shout: None,
         })
     }
@@ -101,7 +102,7 @@ impl BattlesnakeAI for DeviousDevin {
     }
 }
 
-const MAX_DEPTH: i64 = 10;
+const MAX_DEPTH: i64 = 9;
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
 enum ScoreEndState {
@@ -138,44 +139,60 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .iter()
         .find(|s| s.id == node.you.id)
         .unwrap();
-    let not_me = node
+    let opponents: Vec<&Battlesnake> = node
         .board
         .snakes
         .iter()
-        .find(|s| s.id != node.you.id)
-        .unwrap();
+        .filter(|s| s.id != node.you.id)
+        .collect();
+
+    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0].clone()).collect();
+
+    // let not_me = node
+    //     .board
+    //     .snakes
+    //     .iter()
+    //     .find(|s| s.id != node.you.id)
+    //     .unwrap();
 
     let my_length: i64 = me.body.len().try_into().unwrap();
-    let not_my_length: i64 = not_me.body.len().try_into().unwrap();
+    // let not_my_length: i64 = not_me.body.len().try_into().unwrap();
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
         return Some(ScoreEndState::HitSelfLose(depth));
     }
 
-    if not_me.body[1..].contains(&me.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherLose(depth));
-    }
+    for not_me in opponents.iter() {
+        if not_me.body[1..].contains(&me.body[0]) {
+            return Some(ScoreEndState::RanIntoOtherLose(depth));
+        }
 
-    if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
-        return Some(ScoreEndState::HitSelfWin(depth));
-    }
+        if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
+            return Some(ScoreEndState::HitSelfWin(depth));
+        }
 
-    if me.body[1..].contains(&not_me.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherWin(depth));
-    }
+        if me.body[1..].contains(&not_me.body[0]) {
+            return Some(ScoreEndState::RanIntoOtherWin(depth));
+        }
 
-    if me.body[0] == not_me.body[0] {
-        if my_length > not_my_length {
-            return Some(ScoreEndState::HeadToHeadWin(depth));
-        } else {
-            return Some(ScoreEndState::HeadToHeadLose(depth));
+        if me.body[0] == not_me.body[0] {
+            if my_length > not_me.body.len().try_into().unwrap() {
+                return Some(ScoreEndState::HeadToHeadWin(depth));
+            } else {
+                return Some(ScoreEndState::HeadToHeadLose(depth));
+            }
         }
     }
 
-    if depth == MAX_DEPTH {
-        let length_difference = my_length - not_my_length;
+    if depth >= MAX_DEPTH {
+        let max_opponent_length: i64 = opponents
+            .iter()
+            .map(|s| s.body.len().try_into().unwrap())
+            .max()
+            .unwrap();
+        let length_difference = my_length - max_opponent_length;
 
-        if not_my_length >= my_length {
+        if max_opponent_length >= my_length {
             let negative_closest_food_distance =
                 a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
 
@@ -187,8 +204,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         }
 
         let negative_distance_to_opponent =
-            a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
-                .map(|dist| -dist);
+            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads).map(|dist| -dist);
 
         return Some(ScoreEndState::LongerThanOpponent(
             negative_distance_to_opponent,
