@@ -40,7 +40,7 @@ pub struct Ruleset {
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Game {
-    id: String,
+    id: serde_json::Value,
     ruleset: Option<Ruleset>,
     timeout: u64,
 }
