@@ -57,12 +57,6 @@ impl BattlesnakeAI for DeviousDevin {
             BEST_POSSIBLE_SCORE_STATE,
             vec![],
         );
-        debug_println!(
-            "Turn: {} Score: {:?} Dir: {:?}",
-            game_state.turn,
-            score,
-            moves
-        );
 
         Ok(MoveOutput {
             r#move: moves.get(0).unwrap().dir.value(),
