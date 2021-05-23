@@ -102,8 +102,6 @@ impl BattlesnakeAI for DeviousDevin {
     }
 }
 
-const MAX_DEPTH: i64 = 9;
-
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
 enum ScoreEndState {
     /// depth: i64
@@ -133,6 +131,14 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return None;
     }
 
+    let max_depth: i64 = match num_snakes {
+        2 => 10,
+        3 => 9,
+        4 => 8,
+        5 => 10,
+        _ => 10,
+    };
+
     let me: &Battlesnake = node
         .board
         .snakes
@@ -148,15 +154,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
 
     let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0].clone()).collect();
 
-    // let not_me = node
-    //     .board
-    //     .snakes
-    //     .iter()
-    //     .find(|s| s.id != node.you.id)
-    //     .unwrap();
-
     let my_length: i64 = me.body.len().try_into().unwrap();
-    // let not_my_length: i64 = not_me.body.len().try_into().unwrap();
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
         return Some(ScoreEndState::HitSelfLose(depth));
@@ -184,7 +182,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         }
     }
 
-    if depth >= MAX_DEPTH {
+    if depth >= max_depth {
         let max_opponent_length: i64 = opponents
             .iter()
             .map(|s| s.body.len().try_into().unwrap())
