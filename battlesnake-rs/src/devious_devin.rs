@@ -86,24 +86,37 @@ impl BattlesnakeAI for DeviousDevin {
     }
 }
 
-const MAX_DEPTH: i64 = 14;
+const MAX_DEPTH: i64 = 10;
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
 enum ScoreEndState {
     /// depth: i64
-    Lose(i64),
-    /// depth: i64, distance_to_nearest_food: Option<i64>
-    ShorterThanOpponent(i64, Option<i64>),
-    /// depth: i64, distance_to_opponent: Option<i64>
-    LongerThanOpponent(i64, Option<i64>),
+    HitSelfLose(i64),
     /// depth: i64
-    Win(i64),
+    RanIntoOtherLose(i64),
+    /// depth: i64
+    HeadToHeadLose(i64),
+    /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
+    ShorterThanOpponent(i64, Option<i64>, u8),
+    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
+    LongerThanOpponent(Option<i64>, i64, u8),
+    /// depth: i64
+    HitSelfWin(i64),
+    /// depth: i64
+    RanIntoOtherWin(i64),
+    /// depth: i64
+    HeadToHeadWin(i64),
 }
 
-const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
-const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
+const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HeadToHeadWin(i64::MAX);
+const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HitSelfLose(i64::MIN);
 
 fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
+    let num_snakes: i64 = node.board.snakes.len().try_into().unwrap();
+    if depth % num_snakes != 0 {
+        return None;
+    }
+
     let me: &Battlesnake = node
         .board
         .snakes
@@ -117,59 +130,55 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .find(|s| s.id != node.you.id)
         .unwrap();
 
-    use std::iter::FromIterator;
-    let my_body: HashSet<Coordinate> = HashSet::from_iter(me.body.iter().cloned());
-    let other_body: HashSet<Coordinate> = HashSet::from_iter(not_me.body.iter().cloned());
-
-    if other_body.contains(&me.body[0]) {
-        return Some(ScoreEndState::Lose(depth));
-    }
+    let my_length: i64 = me.body.len().try_into().unwrap();
+    let not_my_length: i64 = not_me.body.len().try_into().unwrap();
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
-        return Some(ScoreEndState::Lose(depth));
-    }
-
-    if my_body.contains(&not_me.body[0]) {
-        return Some(ScoreEndState::Win(depth));
+        return Some(ScoreEndState::HitSelfLose(depth));
     }
 
     if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
-        return Some(ScoreEndState::Win(depth));
-    }
-
-    let num_snakes: i64 = node.board.snakes.len().try_into().unwrap();
-    if depth % num_snakes != 0 {
-        return None;
+        return Some(ScoreEndState::HitSelfWin(depth));
     }
 
     if me.body[0] == not_me.body[0] {
-        if me.length > not_me.length {
-            return Some(ScoreEndState::Win(depth));
+        if my_length > not_my_length {
+            return Some(ScoreEndState::HeadToHeadWin(depth));
         } else {
-            return Some(ScoreEndState::Lose(depth));
+            return Some(ScoreEndState::HeadToHeadLose(depth));
         }
     }
 
-    if depth == MAX_DEPTH {
-        if not_me.body.len() >= me.body.len() {
-            let l: i64 = me.body.len().try_into().unwrap();
-            // TODO: Add the difference in lengts here so that I still try to grow even if I can't
-            // grow enough to get bigger
-            let closest_food_distance =
-                a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food);
+    if not_me.body.contains(&me.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherLose(depth));
+    }
 
-            return Some(ScoreEndState::LongerThanOpponent(
-                depth,
-                closest_food_distance,
+    if me.body.contains(&not_me.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherWin(depth));
+    }
+
+    if depth == MAX_DEPTH {
+        let length_difference = my_length - not_my_length;
+
+        if not_my_length >= my_length {
+            let negative_closest_food_distance =
+                a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
+
+            return Some(ScoreEndState::ShorterThanOpponent(
+                length_difference,
+                negative_closest_food_distance,
+                me.health,
             ));
         }
 
-        let distance_to_opponent =
-            a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]]);
+        let negative_distance_to_opponent =
+            a_prime::shortest_distance(&node.board, &me.body[0], &vec![not_me.body[0]])
+                .map(|dist| -dist);
 
-        return Some(ScoreEndState::ShorterThanOpponent(
-            depth,
-            distance_to_opponent,
+        return Some(ScoreEndState::LongerThanOpponent(
+            negative_distance_to_opponent,
+            length_difference,
+            me.health,
         ));
     }
 
@@ -300,34 +309,4 @@ fn minimax_options(
     options
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use ScoreEndState::*;
-
-    #[test]
-    fn test_score_sorting() {
-        let mut sorted_vec = vec![
-            LongerThanOpponent(3, Some(4)),
-            LongerThanOpponent(3, Some(5)),
-            Lose(4),
-            Lose(7),
-            ShorterThanOpponent(4, None),
-            ShorterThanOpponent(4, Some(3)),
-            Win(5),
-        ];
-        sorted_vec.sort();
-
-        assert_eq!(
-            sorted_vec,
-            vec![
-                Lose(4),
-                Lose(7),
-                ShorterThanOpponent(4, None),
-                ShorterThanOpponent(4, Some(3)),
-                LongerThanOpponent(3, Some(4)),
-                LongerThanOpponent(3, Some(5)),
-                Win(5),
-            ]
-        )
-    }
-}
+mod tests {}

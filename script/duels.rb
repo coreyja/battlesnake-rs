@@ -3,7 +3,7 @@
 require 'yaml'
 
 BASE_URL = 'http://localhost:8000'.freeze
-RUNS = 10
+RUNS = 100
 
 CLI_RESULT_REGEX = /after (.*) turns\. (.*) is the winner/.freeze
 
@@ -41,7 +41,7 @@ trap("SIGINT") do
 end
 
 (0...RUNS).each do |i|
-  run_result = `battlesnake play #{snake_args} -H 11 -W 11 2>&1 >/dev/null | tail -n1`
+  run_result = `battlesnake play #{snake_args} -H 11 -W 11 -t 500 2>&1 >/dev/null | tail -n1`
   match = CLI_RESULT_REGEX.match(run_result)
   if match
     turns, winning_name = match.captures
