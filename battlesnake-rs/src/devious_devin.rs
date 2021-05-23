@@ -1,8 +1,5 @@
 use super::*;
 
-use debug_print::debug_println;
-use itertools::Itertools;
-
 pub struct DeviousDevin {}
 
 #[derive(Serialize)]
@@ -49,7 +46,7 @@ impl BattlesnakeAI for DeviousDevin {
         game_state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let mut game_state = game_state;
-        let (score, moves) = minimax(
+        let (_score, moves) = minimax(
             &mut game_state,
             0,
             true,
