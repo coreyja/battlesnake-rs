@@ -125,7 +125,7 @@ impl Coordinate {
 pub struct Battlesnake {
     id: String,
     name: String,
-    health: u8,
+    health: i16,
     body: Vec<Coordinate>,
     latency: serde_json::Value,
     head: Coordinate,
@@ -158,8 +158,8 @@ pub struct GameState {
 }
 
 pub enum MoveResult {
-    AteFood(u8, Coordinate, usize), // old_health, food_coor, food_pos
-    MovedTail(Coordinate),
+    AteFood(i16, Coordinate, usize), // old_health, food_coor, food_pos
+    MovedTail(i16, Coordinate),      //old_health, tail_was
 }
 pub struct Move {
     snake_id: String,
@@ -177,17 +177,19 @@ impl GameState {
         to_move.body.insert(0, coor.clone());
 
         let old_health = to_move.health;
-        if to_move.health > 0 {
-            to_move.health -= 1;
-        }
+        to_move.health -= 1;
 
         let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
             self.board.food.remove(pos);
             to_move.health = 100;
             MoveResult::AteFood(old_health, coor.clone(), pos)
         } else {
-            MoveResult::MovedTail(to_move.body.pop().unwrap())
+            MoveResult::MovedTail(old_health, to_move.body.pop().unwrap())
         };
+
+        if self.board.hazards.contains(coor) {
+            to_move.health -= 15;
+        }
 
         let snake_id = snake_id.to_owned();
         Move {
@@ -210,9 +212,9 @@ impl GameState {
                 to_move.health = old_health;
                 self.board.food.insert(food_pos, food_coor);
             }
-            MoveResult::MovedTail(tail) => {
+            MoveResult::MovedTail(old_health, tail) => {
+                to_move.health = old_health;
                 to_move.body.push(tail);
-                to_move.health += 1;
             }
         }
     }

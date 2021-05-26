@@ -109,11 +109,13 @@ enum ScoreEndState {
     /// depth: i64
     RanIntoOtherLose(i64),
     /// depth: i64
+    OutOfHealthLose(i64),
+    /// depth: i64
     HeadToHeadLose(i64),
     /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
-    ShorterThanOpponent(i64, Option<i64>, u8),
+    ShorterThanOpponent(i64, Option<i64>, i16),
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(Option<i64>, i64, u8),
+    LongerThanOpponent(Option<i64>, i64, i16),
     /// negative_depth: i64
     HitSelfWin(i64),
     /// negative_depth: i64
@@ -160,6 +162,10 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::HitSelfLose(depth));
     }
 
+    if me.health <= 0 {
+        return Some(ScoreEndState::OutOfHealthLose(depth));
+    }
+
     for not_me in opponents.iter() {
         if not_me.body[1..].contains(&me.body[0]) {
             return Some(ScoreEndState::RanIntoOtherLose(depth));
@@ -190,7 +196,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             .unwrap();
         let length_difference = my_length - max_opponent_length;
 
-        if max_opponent_length >= my_length {
+        if max_opponent_length >= my_length || me.health < 20 {
             let negative_closest_food_distance =
                 a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
 
