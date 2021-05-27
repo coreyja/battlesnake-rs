@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
 const NEIGHBOR_DISTANCE: i64 = 1;
+const HAZARD_PENALTY: i64 = 1;
 const HEURISTIC_MAX: i64 = 500;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -57,15 +58,18 @@ pub fn shortest_distance(
     });
     known_score.insert(start.clone(), 0);
 
-    let mut count = 0;
-
     while let Some(Node { cost, coordinate }) = to_search.pop() {
-        count = count + 1;
         if targets.contains(&coordinate) {
             return Some(cost);
         }
 
-        let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + NEIGHBOR_DISTANCE;
+        let neighbor_distance = if board.hazards.contains(&coordinate) {
+            HAZARD_PENALTY + NEIGHBOR_DISTANCE
+        } else {
+            NEIGHBOR_DISTANCE
+        };
+
+        let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + neighbor_distance;
         let neighbors = coordinate.possible_moves(&board);
         for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
             // true
