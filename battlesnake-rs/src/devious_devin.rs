@@ -71,7 +71,7 @@ impl BattlesnakeAI for DeviousDevin {
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
-        let options = minimax_options(
+        let (_, moves) = minimax(
             &mut game_state,
             &sorted_snakes,
             0,
@@ -79,8 +79,6 @@ impl BattlesnakeAI for DeviousDevin {
             BEST_POSSIBLE_SCORE_STATE,
             vec![],
         );
-
-        let (_, moves) = options.iter().max_by_key(|(s, _)| s.clone()).unwrap();
 
         Ok(MoveOutput {
             r#move: moves_to_my_direction(&moves, &game_state).value(),
