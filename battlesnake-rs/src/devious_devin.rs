@@ -71,7 +71,7 @@ impl BattlesnakeAI for DeviousDevin {
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
-        let (_score, moves) = minimax(
+        let options = minimax_options(
             &mut game_state,
             &sorted_snakes,
             0,
@@ -79,6 +79,8 @@ impl BattlesnakeAI for DeviousDevin {
             BEST_POSSIBLE_SCORE_STATE,
             vec![],
         );
+
+        let (_, moves) = options.iter().max_by_key(|(s, _)| s.clone()).unwrap();
 
         Ok(MoveOutput {
             r#move: moves_to_my_direction(&moves, &game_state).value(),
@@ -166,27 +168,35 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::OutOfHealthLose(depth));
     }
 
-    for not_me in opponents.iter() {
-        if not_me.body[1..].contains(&me.body[0]) {
-            return Some(ScoreEndState::RanIntoOtherLose(depth));
-        }
-
-        if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
-            return Some(ScoreEndState::HitSelfWin(-depth));
-        }
-
-        if me.body[1..].contains(&not_me.body[0]) {
-            return Some(ScoreEndState::RanIntoOtherWin(-depth));
-        }
-
-        if me.body[0] == not_me.body[0] {
-            if my_length > not_me.body.len().try_into().unwrap() {
-                return Some(ScoreEndState::HeadToHeadWin(-depth));
-            } else {
-                return Some(ScoreEndState::HeadToHeadLose(depth));
+    if let Some(opponent_end_state) = opponents
+        .iter()
+        .filter_map(|not_me| {
+            if not_me.body[1..].contains(&me.body[0]) {
+                return Some(ScoreEndState::RanIntoOtherLose(depth));
             }
-        }
-    }
+
+            if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
+                return Some(ScoreEndState::HitSelfWin(-depth));
+            }
+
+            if me.body[1..].contains(&not_me.body[0]) {
+                return Some(ScoreEndState::RanIntoOtherWin(-depth));
+            }
+
+            if me.body[0] == not_me.body[0] {
+                if my_length > not_me.body.len().try_into().unwrap() {
+                    return Some(ScoreEndState::HeadToHeadWin(-depth));
+                } else {
+                    return Some(ScoreEndState::HeadToHeadLose(depth));
+                }
+            }
+
+            None
+        })
+        .min()
+    {
+        return Some(opponent_end_state);
+    };
 
     if depth >= max_depth {
         let max_opponent_length: i64 = opponents
