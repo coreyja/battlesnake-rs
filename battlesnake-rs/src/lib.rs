@@ -8,6 +8,7 @@ pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
 pub mod devious_devin;
+pub mod famished_frank;
 
 #[derive(Serialize)]
 pub struct AboutMe {

@@ -39,13 +39,21 @@ fn hueristic(start: &Coordinate, targets: &Vec<Coordinate>) -> Option<i64> {
     targets.iter().map(|coor| start.dist_from(coor)).min()
 }
 
-pub fn shortest_distance(
+struct APrimeResult {
+    best_cost: i64,
+    paths_from: HashMap<Coordinate, Option<Coordinate>>,
+    best_target: Coordinate,
+}
+
+fn a_prime_inner(
     board: &Board,
     start: &Coordinate,
     targets: &Vec<Coordinate>,
-) -> Option<i64> {
+) -> Option<APrimeResult> {
+    let mut paths_from: HashMap<Coordinate, Option<Coordinate>> = HashMap::new();
+
     if targets.len() == 0 {
-        return Some(0);
+        return None;
     }
 
     let mut to_search: BinaryHeap<Node> = BinaryHeap::new();
@@ -57,10 +65,15 @@ pub fn shortest_distance(
         coordinate: start.clone(),
     });
     known_score.insert(start.clone(), 0);
+    paths_from.insert(start.clone(), None);
 
     while let Some(Node { cost, coordinate }) = to_search.pop() {
         if targets.contains(&coordinate) {
-            return Some(cost);
+            return Some(APrimeResult {
+                best_cost: cost,
+                paths_from,
+                best_target: coordinate,
+            });
         }
 
         let neighbor_distance = if board.hazards.contains(&coordinate) {
@@ -80,6 +93,7 @@ pub fn shortest_distance(
         }) {
             if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
                 known_score.insert(neighbor.clone(), tentative);
+                paths_from.insert(neighbor.clone(), Some(coordinate));
                 to_search.push(Node {
                     coordinate: neighbor.clone(),
                     cost: tentative + hueristic(neighbor, &targets).unwrap_or(HEURISTIC_MAX),
@@ -89,6 +103,38 @@ pub fn shortest_distance(
     }
 
     None
+}
+
+pub fn shortest_distance(
+    board: &Board,
+    start: &Coordinate,
+    targets: &Vec<Coordinate>,
+) -> Option<i64> {
+    a_prime_inner(board, start, targets).map(|r| r.best_cost)
+}
+
+pub fn shortest_path(
+    board: &Board,
+    start: &Coordinate,
+    targets: &Vec<Coordinate>,
+) -> Vec<Coordinate> {
+    let result = a_prime_inner(board, start, targets);
+
+    let mut path = vec![];
+
+    if let Some(result) = result {
+        let mut current: Option<Coordinate> = Some(result.best_target);
+
+        while let Some(c) = current {
+            path.push(c);
+
+            current = result.paths_from.get(&c).unwrap().clone();
+        }
+    }
+
+    path.reverse();
+
+    path
 }
 
 #[cfg(test)]
