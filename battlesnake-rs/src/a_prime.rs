@@ -128,7 +128,13 @@ pub fn shortest_path(
         while let Some(c) = current {
             path.push(c);
 
-            current = result.paths_from.get(&c).unwrap().clone();
+            current = result
+                .paths_from
+                .get(&c)
+                .expect(
+                    "Somehow we didn't look at this node during a-prime, but its still in the path",
+                )
+                .clone();
         }
     }
 
