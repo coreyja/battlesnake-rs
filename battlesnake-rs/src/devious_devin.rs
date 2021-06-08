@@ -220,7 +220,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
 
         return Some(ScoreEndState::LongerThanOpponent(
             negative_distance_to_opponent,
-            length_difference,
+            length_difference.max(2),
             me.health,
         ));
     }
