@@ -1,4 +1,4 @@
-use crate::{Board, Coordinate};
+use crate::{Board, Coordinate, Direction};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -135,6 +135,35 @@ pub fn shortest_path(
     path.reverse();
 
     path
+}
+
+fn direction_from_coordinate(from: &Coordinate, to: &Coordinate) -> Option<Direction> {
+    if from.x == to.x && from.y + 1 == to.y {
+        Some(Direction::UP)
+    } else if from.x == to.x && from.y - 1 == to.y {
+        Some(Direction::DOWN)
+    } else if from.x - 1 == to.x && from.y == to.y {
+        Some(Direction::LEFT)
+    } else if from.x + 1 == to.x && from.y == to.y {
+        Some(Direction::RIGHT)
+    } else {
+        None
+    }
+}
+
+pub fn shortest_path_next_direction(
+    board: &Board,
+    start: &Coordinate,
+    targets: &Vec<Coordinate>,
+) -> Option<Direction> {
+    let shortest_path = shortest_path(board, start, targets);
+    let next_coordinate = shortest_path.get(1);
+
+    if let Some(c) = next_coordinate {
+        direction_from_coordinate(start, &c)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
