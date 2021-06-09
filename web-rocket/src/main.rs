@@ -5,10 +5,10 @@ extern crate rocket;
 
 use rocket::http::Status;
 
-use battlesnake_rs::bombastic_bob::BombasticBob;
 use battlesnake_rs::constant_carter::ConstantCarter;
 use battlesnake_rs::devious_devin::{DeviousDevin, EvaluateOutput};
 use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
+use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
 use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
 
 use rocket::State;
@@ -82,6 +82,7 @@ fn main() {
         Box::new(AmphibiousArthur::new(Arc::new(x.map(|x| x.1)))),
         Box::new(DeviousDevin {}),
         Box::new(FamishedFrank {}),
+        Box::new(EremeticEric {}),
     ];
 
     let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();

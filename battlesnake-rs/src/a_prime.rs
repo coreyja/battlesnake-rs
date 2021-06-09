@@ -35,7 +35,7 @@ impl PartialOrd for Node {
     }
 }
 
-fn hueristic(start: &Coordinate, targets: &Vec<Coordinate>) -> Option<i64> {
+fn hueristic(start: &Coordinate, targets: &[Coordinate]) -> Option<i64> {
     targets.iter().map(|coor| start.dist_from(coor)).min()
 }
 
@@ -48,7 +48,7 @@ struct APrimeResult {
 fn a_prime_inner(
     board: &Board,
     start: &Coordinate,
-    targets: &Vec<Coordinate>,
+    targets: &[Coordinate],
 ) -> Option<APrimeResult> {
     let mut paths_from: HashMap<Coordinate, Option<Coordinate>> = HashMap::new();
 
@@ -105,19 +105,11 @@ fn a_prime_inner(
     None
 }
 
-pub fn shortest_distance(
-    board: &Board,
-    start: &Coordinate,
-    targets: &Vec<Coordinate>,
-) -> Option<i64> {
+pub fn shortest_distance(board: &Board, start: &Coordinate, targets: &[Coordinate]) -> Option<i64> {
     a_prime_inner(board, start, targets).map(|r| r.best_cost)
 }
 
-pub fn shortest_path(
-    board: &Board,
-    start: &Coordinate,
-    targets: &Vec<Coordinate>,
-) -> Vec<Coordinate> {
+pub fn shortest_path(board: &Board, start: &Coordinate, targets: &[Coordinate]) -> Vec<Coordinate> {
     let result = a_prime_inner(board, start, targets);
 
     let mut path = vec![];
@@ -160,7 +152,7 @@ fn direction_from_coordinate(from: &Coordinate, to: &Coordinate) -> Option<Direc
 pub fn shortest_path_next_direction(
     board: &Board,
     start: &Coordinate,
-    targets: &Vec<Coordinate>,
+    targets: &[Coordinate],
 ) -> Option<Direction> {
     let shortest_path = shortest_path(board, start, targets);
     let next_coordinate = shortest_path.get(1);

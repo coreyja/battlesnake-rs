@@ -6,10 +6,10 @@ use lambda_http::{
 
 use serde_json::json;
 
-use battlesnake_rs::bombastic_bob::BombasticBob;
 use battlesnake_rs::constant_carter::ConstantCarter;
 use battlesnake_rs::devious_devin::DeviousDevin;
 use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
+use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
 use battlesnake_rs::{BoxedSnake, GameState};
 
 use std::sync::Arc;
@@ -22,6 +22,7 @@ async fn main() -> Result<(), Error> {
         Arc::new(Box::new(AmphibiousArthur::new(Arc::new(None)))),
         Arc::new(Box::new(DeviousDevin {})),
         Arc::new(Box::new(FamishedFrank {})),
+        Arc::new(Box::new(EremeticEric {})),
     ];
 
     lambda_runtime::run(handler(move |request: Request, context: Context| {
