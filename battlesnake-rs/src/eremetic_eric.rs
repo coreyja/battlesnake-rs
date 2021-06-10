@@ -23,40 +23,109 @@ impl BattlesnakeAI for EremeticEric {
         &self,
         state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let food_direction: Option<Direction> = if state.you.health < 15 || state.turn <= 3 {
-            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &state.board.food)
-        } else {
-            None
-        };
+        let (best_food, (closest_body_part, cost)) = state
+            .board
+            .food
+            .iter()
+            .map(|food| {
+                (
+                    food,
+                    state
+                        .you
+                        .body
+                        .iter()
+                        .map(|body_part| (body_part, food.dist_from(body_part)))
+                        .min_by_key(|x| x.1)
+                        .unwrap(),
+                )
+            })
+            .min_by_key(|(_, (_, cost))| cost.clone())
+            .unwrap();
 
-        let dir: Direction = if let Some(d) = food_direction {
-            d
-        } else {
-            let d = a_prime::shortest_path_next_direction(
-                &state.board,
-                &state.you.head,
-                &state.you.body[state.you.body.len() - 1..],
-            )
-            .unwrap_or(Direction::UP);
+        let health: u64 = state.you.health.try_into().unwrap();
+        let cost: u64 = cost.try_into().unwrap();
+        if !closest_body_part.on_wall(&state.board)
+            && &state.you.head == closest_body_part
+            && health < state.you.length + cost
+        {
+            let d =
+                a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[*best_food])
+                    .unwrap();
 
-            if state.you.head.move_in(&d) == state.you.body[state.you.body.len() - 2] {
-                let possible_moves = state
-                    .you
-                    .head
-                    .possible_moves(&state.board)
-                    .iter()
-                    .filter(|(_dir, coor)| !state.you.body.contains(coor))
-                    .cloned()
-                    .collect::<Vec<_>>();
-                let chosen = possible_moves.choose(&mut rand::thread_rng());
-                chosen.map(|x| x.0).unwrap_or(Direction::UP)
+            return Ok(MoveOutput {
+                r#move: d.value(),
+                shout: None,
+            });
+        }
+
+        if closest_body_part.on_wall(&state.board) {
+            let closest_index: usize = state
+                .you
+                .body
+                .iter()
+                .position(|x| x == closest_body_part)
+                .unwrap()
+                .try_into()
+                .unwrap();
+
+            let before_index: usize = if closest_index == 0 {
+                state.you.body.len() - 1
             } else {
-                d
+                closest_index - 1
+            };
+            let before = state.you.body[before_index];
+
+            if !before.on_wall(&state.board) && state.you.head == before {
+                let d = a_prime::shortest_path_next_direction(
+                    &state.board,
+                    &state.you.head,
+                    &[*best_food],
+                )
+                .unwrap();
+
+                return Ok(MoveOutput {
+                    r#move: d.value(),
+                    shout: None,
+                });
             }
-        };
+
+            if &state.you.head == closest_body_part {
+                let d = a_prime::shortest_path_next_direction(
+                    &state.board,
+                    &state.you.head,
+                    &[*best_food],
+                )
+                .unwrap();
+
+                return Ok(MoveOutput {
+                    r#move: d.value(),
+                    shout: None,
+                });
+            }
+        }
+
+        if state.turn < 3 {
+            return Ok(MoveOutput {
+                r#move: a_prime::shortest_path_next_direction(
+                    &state.board,
+                    &state.you.head,
+                    &state.board.food,
+                )
+                .unwrap()
+                .value(),
+                shout: None,
+            });
+        }
+
+        let tail_dir = a_prime::shortest_path_next_direction(
+            &state.board,
+            &state.you.head,
+            &state.you.body[state.you.body.len() - 1..],
+        )
+        .unwrap_or(Direction::UP);
 
         Ok(MoveOutput {
-            r#move: dir.value(),
+            r#move: tail_dir.value(),
             shout: None,
         })
     }

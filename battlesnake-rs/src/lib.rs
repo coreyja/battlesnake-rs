@@ -57,6 +57,12 @@ impl Coordinate {
     fn dist_from(&self, other: &Self) -> i64 {
         (self.x - other.x).abs() + (self.y - other.y).abs()
     }
+
+    fn on_wall(&self, board: &Board) -> bool {
+        let (width, height): (i64, i64) = (board.width.into(), board.height.into());
+
+        self.x == 0 || self.y == 0 || self.x + 1 == width || self.y + 1 == height
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy, Debug, Serialize)]
