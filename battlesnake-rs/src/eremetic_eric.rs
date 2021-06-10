@@ -58,7 +58,7 @@ impl BattlesnakeAI for EremeticEric {
             });
         }
 
-        if closest_body_part.on_wall(&state.board) {
+        if closest_body_part.on_wall(&state.board) && health < state.you.length + cost {
             let closest_index: usize = state
                 .you
                 .body
