@@ -23,7 +23,7 @@ impl BattlesnakeAI for EremeticEric {
         &self,
         state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let (best_food, (closest_body_part, cost)) = state
+        let food_options: Vec<_> = state
             .board
             .food
             .iter()
@@ -39,14 +39,30 @@ impl BattlesnakeAI for EremeticEric {
                         .unwrap(),
                 )
             })
+            .collect();
+        let (best_food, (closest_body_part, best_cost)) = food_options
+            .iter()
             .min_by_key(|(_, (_, cost))| cost.clone())
-            .unwrap();
+            .unwrap()
+            .clone();
+
+        let matching_cost_foods: Vec<_> = food_options
+            .iter()
+            .cloned()
+            .filter(|(_, (_, cost))| cost == &best_cost)
+            .collect();
+
+        let (best_food, (closest_body_part, best_cost)) = matching_cost_foods
+            .iter()
+            .min_by_key(|(food, (body_part, cost))| food.dist_from(&state.you.head))
+            .unwrap()
+            .clone();
 
         let health: u64 = state.you.health.try_into().unwrap();
-        let cost: u64 = cost.try_into().unwrap();
+        let best_cost: u64 = best_cost.try_into().unwrap();
         if !closest_body_part.on_wall(&state.board)
             && &state.you.head == closest_body_part
-            && health < state.you.length + cost
+            && health < state.you.length + best_cost
         {
             let d =
                 a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[*best_food])
@@ -58,7 +74,7 @@ impl BattlesnakeAI for EremeticEric {
             });
         }
 
-        if closest_body_part.on_wall(&state.board) && health < state.you.length + cost {
+        if closest_body_part.on_wall(&state.board) && health < state.you.length + best_cost {
             let closest_index: usize = state
                 .you
                 .body
