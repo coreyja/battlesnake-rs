@@ -1,5 +1,3 @@
-use rand::seq::SliceRandom;
-
 use super::*;
 
 pub struct BombasticBob;
@@ -9,16 +7,7 @@ impl BattlesnakeAI for BombasticBob {
         &self,
         state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let body_set: HashSet<&Coordinate> = state.you.body.iter().collect();
-        let possible_moves = state
-            .you
-            .head
-            .possible_moves(&state.board)
-            .iter()
-            .filter(|(_dir, coor)| !body_set.contains(coor))
-            .cloned()
-            .collect::<Vec<_>>();
-        let chosen = possible_moves.choose(&mut rand::thread_rng());
+        let chosen = state.you.random_possible_move(&state.board);
         let dir = match chosen {
             Some(x) => x.0,
             _ => Direction::DOWN,

@@ -142,9 +142,24 @@ pub struct Battlesnake {
     squad: Option<String>,
 }
 
+use rand::seq::SliceRandom;
+
 impl Battlesnake {
     fn possible_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
         self.head.possible_moves(board)
+    }
+
+    fn random_possible_move(&self, board: &Board) -> Option<(Direction, Coordinate)> {
+        let body_set: HashSet<&Coordinate> = self.body.iter().collect();
+        let possible_moves = self
+            .head
+            .possible_moves(board)
+            .iter()
+            .filter(|(_dir, coor)| !body_set.contains(coor))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        possible_moves.choose(&mut rand::thread_rng()).cloned()
     }
 }
 
