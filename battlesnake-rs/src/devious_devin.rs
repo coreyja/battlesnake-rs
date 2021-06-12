@@ -211,7 +211,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             return Some(ScoreEndState::ShorterThanOpponent(
                 length_difference,
                 negative_closest_food_distance,
-                me.health,
+                me.health.max(50),
             ));
         }
 
@@ -221,7 +221,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::LongerThanOpponent(
             negative_distance_to_opponent,
             length_difference.max(4),
-            me.health,
+            me.health.max(50),
         ));
     }
 
