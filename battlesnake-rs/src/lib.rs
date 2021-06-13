@@ -162,8 +162,8 @@ impl Battlesnake {
         possible_moves.choose(&mut rand::thread_rng()).cloned()
     }
 
-    fn tail(&self) -> &Coordinate {
-        &self.body[self.body.len() - 1]
+    fn tail(&self) -> Coordinate {
+        self.body[self.body.len() - 1].clone()
     }
 }
 

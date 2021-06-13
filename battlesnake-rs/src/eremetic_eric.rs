@@ -1,4 +1,4 @@
-use std::{convert::TryInto, os::macos::raw::stat};
+use std::convert::TryInto;
 
 use super::*;
 
@@ -68,7 +68,7 @@ impl BattlesnakeAI for EremeticEric {
                 let would_be_tail = state.you.body[tail_index];
 
                 (
-                    a_prime::shortest_distance(&state.board, &would_be_tail, &[**food])
+                    a_prime::shortest_distance(&state.board, food, &[would_be_tail])
                         .unwrap_or(i64::MAX),
                     food,
                 )
@@ -81,6 +81,7 @@ impl BattlesnakeAI for EremeticEric {
         let cost_to_loop: u64 =
             state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
         let cant_survive_another_loop = health < cost_to_loop + best_cost;
+        dbg!(best_food, cant_survive_another_loop);
 
         if !closest_body_part.on_wall(&state.board)
             && &state.you.head == closest_body_part
@@ -162,24 +163,28 @@ impl BattlesnakeAI for EremeticEric {
             .map(|x| x.1)
             .filter(|x| empty.contains(x))
             .collect();
-        let targets = if state.board.filled_coordinates().len() as f64
+
+        let empty_dir = if state.board.filled_coordinates().len() as f64
             >= (state.board.width * state.board.height) as f64 * 0.95
             && empty_tail_neighbors.len() > 0
         {
-            empty_tail_neighbors
+            a_prime::shortest_path_next_direction(
+                &state.board,
+                &state.you.head,
+                &empty_tail_neighbors,
+            )
         } else {
-            state.you.body[state.you.body.len() - 1..]
-                .iter()
-                .cloned()
-                .collect()
+            None
         };
 
         let tail_dir =
-            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &targets)
+            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[tail])
                 .unwrap_or(Direction::UP);
 
+        let dir = empty_dir.unwrap_or(tail_dir);
+
         Ok(MoveOutput {
-            r#move: tail_dir.value(),
+            r#move: dir.value(),
             shout: None,
         })
     }
