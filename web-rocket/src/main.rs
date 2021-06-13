@@ -23,9 +23,16 @@ fn api_start(_snake: String) -> Status {
     Status::NoContent
 }
 
-#[post("/<_snake>/end")]
-fn api_end(_snake: String) -> Status {
-    Status::NoContent
+#[post("/<snake>/end", data = "<game_state>")]
+fn api_end(
+    snake: String,
+    snakes: State<Vec<BoxedSnake>>,
+    game_state: Json<GameState>,
+) -> Option<Status> {
+    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
+    snake_ai.end(game_state.into_inner());
+
+    Some(Status::NoContent)
 }
 
 #[post("/<snake>/move", data = "<game_state>")]

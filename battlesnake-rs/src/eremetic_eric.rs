@@ -17,10 +17,31 @@ impl BattlesnakeAI for EremeticEric {
         }
     }
 
+    fn end(&self, state: GameState) {
+        println!("Died at turn: {}", state.turn);
+    }
+
     fn make_move(
         &self,
-        state: GameState,
+        mut state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let body = {
+            let mut body = state.you.body.clone();
+            let path_to_complete_circle =
+                a_prime::shortest_path(&state.board, &body[0], &[body[body.len() - 1]]);
+            for c in path_to_complete_circle.into_iter() {
+                if state.board.empty_coordiates().contains(&c) {
+                    body.push(c);
+                }
+            }
+            body
+        };
+        state.you.body = body.clone();
+        let modified_board = {
+            let mut b = state.board.clone();
+            b.snakes = vec![state.you.clone()];
+            b
+        };
         let food_options: Vec<_> = state
             .board
             .food
@@ -28,10 +49,7 @@ impl BattlesnakeAI for EremeticEric {
             .map(|food| {
                 (
                     food,
-                    state
-                        .you
-                        .body
-                        .iter()
+                    body.iter()
                         .map(|body_part| (body_part, food.dist_from(body_part)))
                         .min_by_key(|x| x.1)
                         .unwrap(),
@@ -53,22 +71,18 @@ impl BattlesnakeAI for EremeticEric {
         let (best_food, (closest_body_part, best_cost)) = matching_cost_foods
             .iter()
             .min_by_key(|(food, (closest_body_part, best_cost))| {
-                let closest_index: usize = state
-                    .you
-                    .body
-                    .iter()
-                    .position(|x| &x == closest_body_part)
-                    .unwrap();
+                let closest_index: usize =
+                    body.iter().position(|x| &x == closest_body_part).unwrap();
 
                 let tail_index: usize = if closest_index == 0 {
-                    state.you.body.len() - 1
+                    body.len() - 1
                 } else {
                     closest_index - 1
                 };
-                let would_be_tail = state.you.body[tail_index];
+                let would_be_tail = body[tail_index];
 
                 (
-                    a_prime::shortest_distance(&state.board, food, &[would_be_tail])
+                    a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
                         .unwrap_or(i64::MAX),
                     food,
                 )
@@ -81,7 +95,6 @@ impl BattlesnakeAI for EremeticEric {
         let cost_to_loop: u64 =
             state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
         let cant_survive_another_loop = health < cost_to_loop + best_cost;
-        dbg!(best_food, cant_survive_another_loop);
 
         if !closest_body_part.on_wall(&state.board)
             && &state.you.head == closest_body_part
@@ -98,20 +111,18 @@ impl BattlesnakeAI for EremeticEric {
         }
 
         if closest_body_part.on_wall(&state.board) && cant_survive_another_loop {
-            let closest_index: usize = state
-                .you
-                .body
+            let closest_index: usize = body
                 .iter()
                 .position(|x| x == closest_body_part)
                 .unwrap()
                 .try_into()?;
 
             let before_index: usize = if closest_index == 0 {
-                state.you.body.len() - 1
+                body.len() - 1
             } else {
                 closest_index - 1
             };
-            let before = state.you.body[before_index];
+            let before = body[before_index];
 
             if !before.on_wall(&state.board) && state.you.head == before {
                 let d = a_prime::shortest_path_next_direction(
@@ -156,7 +167,7 @@ impl BattlesnakeAI for EremeticEric {
         }
 
         let empty = state.board.empty_coordiates();
-        let tail = state.you.body[state.you.body.len() - 1];
+        let tail = body[body.len() - 1];
         let empty_tail_neighbors: Vec<_> = tail
             .possible_moves(&state.board)
             .into_iter()
@@ -177,9 +188,12 @@ impl BattlesnakeAI for EremeticEric {
             None
         };
 
-        let tail_dir =
-            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[tail])
-                .unwrap_or(Direction::UP);
+        let tail_dir = a_prime::shortest_path_next_direction(
+            &modified_board,
+            &state.you.head,
+            &[tail.clone()],
+        )
+        .unwrap_or(Direction::UP);
 
         let dir = empty_dir.unwrap_or(tail_dir);
 

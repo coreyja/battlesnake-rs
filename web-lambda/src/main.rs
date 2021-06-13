@@ -60,7 +60,11 @@ async fn api_move(
     match action {
         None => Ok(json!(snake.about())),
         Some(&"start") => Ok(json!(snake.start())),
-        Some(&"end") => Ok(json!(snake.end())),
+        Some(&"end") => {
+            let string_body = string_body.ok_or("Body was not a string")?;
+            let state: GameState = serde_json::from_str(string_body)?;
+            Ok(json!(snake.end(state)))
+        }
         Some(&"move") => {
             let string_body = string_body.ok_or("Body was not a string")?;
             let state: GameState = serde_json::from_str(string_body)?;

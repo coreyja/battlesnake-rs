@@ -295,7 +295,7 @@ use std::sync::Arc;
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 pub trait BattlesnakeAI {
     fn start(&self) {}
-    fn end(&self) {}
+    fn end(&self, _state: GameState) {}
     fn make_move(
         &self,
         state: GameState,
