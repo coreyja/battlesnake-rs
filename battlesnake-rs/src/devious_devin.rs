@@ -241,6 +241,7 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate
         .cloned()
         .collect()
 }
+
 use std::convert::TryInto;
 
 fn minimax(

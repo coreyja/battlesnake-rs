@@ -47,7 +47,7 @@ pub struct Game {
     timeout: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct Coordinate {
     x: i64,
     y: i64,
@@ -161,6 +161,10 @@ impl Battlesnake {
 
         possible_moves.choose(&mut rand::thread_rng()).cloned()
     }
+
+    fn tail(&self) -> &Coordinate {
+        &self.body[self.body.len() - 1]
+    }
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
@@ -170,6 +174,43 @@ pub struct Board {
     food: Vec<Coordinate>,
     hazards: Vec<Coordinate>,
     snakes: Vec<Battlesnake>,
+}
+
+impl Board {
+    pub fn empty_coordiates(&self) -> Vec<Coordinate> {
+        let filled_coordinates = self.filled_coordinates();
+        self.all_coordinates()
+            .into_iter()
+            .filter(|c| !filled_coordinates.contains(c))
+            .collect()
+    }
+
+    pub fn all_coordinates(&self) -> Vec<Coordinate> {
+        let mut all = vec![];
+
+        for x in 0..self.width {
+            for y in 0..self.height {
+                all.push(Coordinate {
+                    x: x.into(),
+                    y: y.into(),
+                })
+            }
+        }
+
+        all
+    }
+
+    pub fn filled_coordinates(&self) -> Vec<Coordinate> {
+        let mut filled = vec![];
+
+        filled.append(&mut self.food.clone());
+
+        for s in &self.snakes {
+            filled.append(&mut s.body.clone());
+        }
+
+        filled
+    }
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]

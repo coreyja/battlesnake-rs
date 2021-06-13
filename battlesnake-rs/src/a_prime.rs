@@ -85,11 +85,7 @@ fn a_prime_inner(
         let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + neighbor_distance;
         let neighbors = coordinate.possible_moves(&board);
         for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
-            // true
-            board
-                .snakes
-                .iter()
-                .all(|snake| !snake.body.contains(n) || targets.contains(n))
+            targets.contains(n) || board.snakes.iter().all(|snake| !snake.body.contains(n))
         }) {
             if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
                 known_score.insert(neighbor.clone(), tentative);

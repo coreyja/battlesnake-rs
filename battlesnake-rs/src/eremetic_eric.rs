@@ -1,8 +1,6 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, os::macos::raw::stat};
 
 use super::*;
-
-use rand::seq::SliceRandom;
 
 pub struct EremeticEric {}
 
@@ -40,7 +38,7 @@ impl BattlesnakeAI for EremeticEric {
                 )
             })
             .collect();
-        let (best_food, (closest_body_part, best_cost)) = food_options
+        let (_, (_, best_cost)) = food_options
             .iter()
             .min_by_key(|(_, (_, cost))| cost.clone())
             .unwrap()
@@ -54,15 +52,39 @@ impl BattlesnakeAI for EremeticEric {
 
         let (best_food, (closest_body_part, best_cost)) = matching_cost_foods
             .iter()
-            .min_by_key(|(food, (body_part, cost))| food.dist_from(&state.you.head))
+            .min_by_key(|(food, (closest_body_part, best_cost))| {
+                let closest_index: usize = state
+                    .you
+                    .body
+                    .iter()
+                    .position(|x| &x == closest_body_part)
+                    .unwrap();
+
+                let tail_index: usize = if closest_index == 0 {
+                    state.you.body.len() - 1
+                } else {
+                    closest_index - 1
+                };
+                let would_be_tail = state.you.body[tail_index];
+
+                (
+                    a_prime::shortest_distance(&state.board, &would_be_tail, &[**food])
+                        .unwrap_or(i64::MAX),
+                    food,
+                )
+            })
             .unwrap()
             .clone();
 
-        let health: u64 = state.you.health.try_into().unwrap();
-        let best_cost: u64 = best_cost.try_into().unwrap();
+        let health: u64 = state.you.health.try_into()?;
+        let best_cost: u64 = best_cost.try_into()?;
+        let cost_to_loop: u64 =
+            state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
+        let cant_survive_another_loop = health < cost_to_loop + best_cost;
+
         if !closest_body_part.on_wall(&state.board)
             && &state.you.head == closest_body_part
-            && health < state.you.length + best_cost
+            && cant_survive_another_loop
         {
             let d =
                 a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[*best_food])
@@ -74,15 +96,14 @@ impl BattlesnakeAI for EremeticEric {
             });
         }
 
-        if closest_body_part.on_wall(&state.board) && health < state.you.length + best_cost {
+        if closest_body_part.on_wall(&state.board) && cant_survive_another_loop {
             let closest_index: usize = state
                 .you
                 .body
                 .iter()
                 .position(|x| x == closest_body_part)
                 .unwrap()
-                .try_into()
-                .unwrap();
+                .try_into()?;
 
             let before_index: usize = if closest_index == 0 {
                 state.you.body.len() - 1
@@ -133,12 +154,29 @@ impl BattlesnakeAI for EremeticEric {
             });
         }
 
-        let tail_dir = a_prime::shortest_path_next_direction(
-            &state.board,
-            &state.you.head,
-            &state.you.body[state.you.body.len() - 1..],
-        )
-        .unwrap_or(Direction::UP);
+        let empty = state.board.empty_coordiates();
+        let tail = state.you.body[state.you.body.len() - 1];
+        let empty_tail_neighbors: Vec<_> = tail
+            .possible_moves(&state.board)
+            .into_iter()
+            .map(|x| x.1)
+            .filter(|x| empty.contains(x))
+            .collect();
+        let targets = if state.board.filled_coordinates().len() as f64
+            >= (state.board.width * state.board.height) as f64 * 0.95
+            && empty_tail_neighbors.len() > 0
+        {
+            empty_tail_neighbors
+        } else {
+            state.you.body[state.you.body.len() - 1..]
+                .iter()
+                .cloned()
+                .collect()
+        };
+
+        let tail_dir =
+            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &targets)
+                .unwrap_or(Direction::UP);
 
         Ok(MoveOutput {
             r#move: tail_dir.value(),
