@@ -1,3 +1,4 @@
+use core::hash::Hash;
 use std::convert::TryInto;
 
 use super::*;
@@ -23,7 +24,7 @@ impl BattlesnakeAI for EremeticEric {
 
     fn make_move(
         &self,
-        mut state: GameState,
+        state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let body = {
             let mut body = state.you.body.clone();
@@ -36,7 +37,6 @@ impl BattlesnakeAI for EremeticEric {
             }
             body
         };
-        state.you.body = body.clone();
         let modified_board = {
             let mut b = state.board.clone();
             b.snakes = vec![state.you.clone()];
@@ -167,31 +167,34 @@ impl BattlesnakeAI for EremeticEric {
         }
 
         let empty = state.board.empty_coordiates();
-        let tail = body[body.len() - 1];
-        let empty_tail_neighbors: Vec<_> = tail
+        let empty_tail_neighbors: Vec<_> = state
+            .you
+            .tail()
             .possible_moves(&state.board)
             .into_iter()
             .map(|x| x.1)
             .filter(|x| empty.contains(x))
             .collect();
 
-        let empty_dir = if state.board.filled_coordinates().len() as f64
+        let empty_dir = if (state.board.filled_coordinates().len() as f64
             >= (state.board.width * state.board.height) as f64 * 0.95
-            && empty_tail_neighbors.len() > 0
+            && empty_tail_neighbors.len() > 0)
+            || !has_unique_elements(state.you.body.iter())
         {
-            a_prime::shortest_path_next_direction(
+            let x = a_prime::shortest_path_next_direction(
                 &state.board,
                 &state.you.head,
                 &empty_tail_neighbors,
-            )
+            );
+            x
         } else {
             None
         };
 
         let tail_dir = a_prime::shortest_path_next_direction(
-            &modified_board,
+            &state.board,
             &state.you.head,
-            &[tail.clone()],
+            &[state.you.tail()],
         )
         .unwrap_or(Direction::UP);
 
@@ -202,4 +205,13 @@ impl BattlesnakeAI for EremeticEric {
             shout: None,
         })
     }
+}
+
+fn has_unique_elements<T>(iter: T) -> bool
+where
+    T: IntoIterator,
+    T::Item: Eq + Hash,
+{
+    let mut uniq = HashSet::new();
+    iter.into_iter().all(move |x| uniq.insert(x))
 }
