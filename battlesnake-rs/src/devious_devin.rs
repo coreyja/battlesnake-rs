@@ -115,7 +115,7 @@ enum ScoreEndState {
     /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
     ShorterThanOpponent(i64, Option<i64>, i16),
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(Option<i64>, i64, i16),
+    LongerThanOpponent(usize, i64, i16),
     /// negative_depth: i64
     HeadToHeadWin(i64),
 }
@@ -203,11 +203,10 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             ));
         }
 
-        let negative_distance_to_opponent =
-            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads).map(|dist| -dist);
+        let my_flood = *flood_fill::squares_per_snake(&node).get(&me.id).unwrap();
 
         return Some(ScoreEndState::LongerThanOpponent(
-            negative_distance_to_opponent,
+            my_flood,
             length_difference.max(4),
             me.health.max(50),
         ));
