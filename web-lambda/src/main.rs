@@ -27,7 +27,7 @@ async fn main() -> Result<(), Error> {
 
     lambda_runtime::run(handler(move |request: Request, context: Context| {
         let path = request.uri().path();
-        let path_parts: Vec<&str> = path.split("/").filter(|x| x != &"").collect();
+        let path_parts: Vec<&str> = path.split('/').filter(|x| x != &"").collect();
         let snake_name = path_parts.get(0).cloned();
         let snake = snakes
             .iter()
@@ -48,7 +48,7 @@ async fn api_move(
 ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
     let snake = snake.ok_or("Snake name not found")?;
     let path = request.uri().path();
-    let path_parts: Vec<&str> = path.split("/").filter(|x| x != &"").collect();
+    let path_parts: Vec<&str> = path.split('/').filter(|x| x != &"").collect();
     let action = path_parts.get(1);
 
     let string_body = if let lambda_http::Body::Text(s) = request.body() {

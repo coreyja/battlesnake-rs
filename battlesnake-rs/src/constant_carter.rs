@@ -20,7 +20,7 @@ impl BattlesnakeAI for ConstantCarter {
         _state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         Ok(MoveOutput {
-            r#move: Direction::DOWN.value(),
+            r#move: Direction::Down.value(),
             shout: None,
         })
     }

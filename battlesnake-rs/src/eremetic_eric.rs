@@ -56,11 +56,10 @@ impl BattlesnakeAI for EremeticEric {
                 )
             })
             .collect();
-        let (_, (_, best_cost)) = food_options
+        let (_, (_, best_cost)) = *food_options
             .iter()
-            .min_by_key(|(_, (_, cost))| cost.clone())
-            .unwrap()
-            .clone();
+            .min_by_key(|(_, (_, cost))| *cost)
+            .unwrap();
 
         let matching_cost_foods: Vec<_> = food_options
             .iter()
@@ -68,9 +67,9 @@ impl BattlesnakeAI for EremeticEric {
             .filter(|(_, (_, cost))| cost == &best_cost)
             .collect();
 
-        let (best_food, (closest_body_part, best_cost)) = matching_cost_foods
+        let (best_food, (closest_body_part, best_cost)) = *matching_cost_foods
             .iter()
-            .min_by_key(|(food, (closest_body_part, best_cost))| {
+            .min_by_key(|(food, (closest_body_part, _best_cost))| {
                 let closest_index: usize =
                     body.iter().position(|x| &x == closest_body_part).unwrap();
 
@@ -87,8 +86,7 @@ impl BattlesnakeAI for EremeticEric {
                     food,
                 )
             })
-            .unwrap()
-            .clone();
+            .unwrap();
 
         let health: u64 = state.you.health.try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
@@ -111,11 +109,7 @@ impl BattlesnakeAI for EremeticEric {
         }
 
         if closest_body_part.on_wall(&state.board) && cant_survive_another_loop {
-            let closest_index: usize = body
-                .iter()
-                .position(|x| x == closest_body_part)
-                .unwrap()
-                .try_into()?;
+            let closest_index: usize = body.iter().position(|x| x == closest_body_part).unwrap();
 
             let before_index: usize = if closest_index == 0 {
                 body.len() - 1
@@ -178,15 +172,14 @@ impl BattlesnakeAI for EremeticEric {
 
         let empty_dir = if (state.board.filled_coordinates().len() as f64
             >= (state.board.width * state.board.height) as f64 * 0.95
-            && empty_tail_neighbors.len() > 0)
+            && !empty_tail_neighbors.is_empty())
             || !has_unique_elements(state.you.body.iter())
         {
-            let x = a_prime::shortest_path_next_direction(
+            a_prime::shortest_path_next_direction(
                 &state.board,
                 &state.you.head,
                 &empty_tail_neighbors,
-            );
-            x
+            )
         } else {
             None
         };
@@ -196,7 +189,7 @@ impl BattlesnakeAI for EremeticEric {
             &state.you.head,
             &[state.you.tail()],
         )
-        .unwrap_or(Direction::UP);
+        .unwrap_or(Direction::Up);
 
         let dir = empty_dir.unwrap_or(tail_dir);
 

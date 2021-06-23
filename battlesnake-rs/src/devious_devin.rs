@@ -14,18 +14,18 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-fn moves_to_my_direction(moves: &Vec<SnakeMove>, game_state: &GameState) -> Direction {
+fn moves_to_my_direction(moves: &[SnakeMove], game_state: &GameState) -> Direction {
     moves
         .iter()
         .find(|m| m.snake_id == game_state.you.id)
         .map(|m| m.dir)
-        .unwrap_or(
+        .unwrap_or_else(|| {
             game_state.you.body[0]
                 .possible_moves(&game_state.board)
                 .get(0)
                 .map(|x| x.0)
-                .unwrap_or(Direction::UP),
-        )
+                .unwrap_or(Direction::Up)
+        })
 }
 
 impl DeviousDevin {
@@ -51,7 +51,7 @@ impl DeviousDevin {
             .map(|(score, moves)| {
                 let dir = moves_to_my_direction(&moves, &game_state);
 
-                MoveOption { score, moves, dir }
+                MoveOption { moves, score, dir }
             })
             .collect();
 
@@ -154,7 +154,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .filter(|s| s.id != node.you.id)
         .collect();
 
-    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0].clone()).collect();
+    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0]).collect();
 
     let my_length: i64 = me.body.len().try_into().unwrap();
 
@@ -235,11 +235,7 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate
         .iter()
         .find(|s| s.id == turn_snake_id)
         .expect("We didn't find that snake");
-    you.body[0]
-        .possible_moves(&node.board)
-        .iter()
-        .cloned()
-        .collect()
+    you.body[0].possible_moves(&node.board).to_vec()
 }
 
 use std::convert::TryInto;
@@ -258,15 +254,9 @@ fn minimax(
     let is_maximizing = snake.id == node.you.id;
 
     if is_maximizing {
-        options
-            .into_iter()
-            .max_by_key(|(score, _)| score.clone())
-            .unwrap()
+        options.into_iter().max_by_key(|(score, _)| *score).unwrap()
     } else {
-        options
-            .into_iter()
-            .min_by_key(|(score, _)| score.clone())
-            .unwrap()
+        options.into_iter().min_by_key(|(score, _)| *score).unwrap()
     }
 }
 
@@ -307,7 +297,7 @@ fn minimax_options(
                 dir,
                 snake_name: snake.name.clone(),
                 snake_id: snake.id.clone(),
-                move_to: coor.clone(),
+                move_to: coor,
             });
             x
         };

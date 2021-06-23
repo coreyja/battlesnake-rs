@@ -55,13 +55,13 @@ impl BattlesnakeAI for FamishedFrank {
                 &state.you.head,
                 &state.you.body[state.you.body.len() - 1..],
             )
-            .unwrap_or(
+            .unwrap_or_else(|| {
                 state
                     .you
                     .random_possible_move(&state.board)
                     .map(|x| x.0)
-                    .unwrap_or(Direction::RIGHT),
-            )
+                    .unwrap_or(Direction::Right)
+            })
         };
 
         Ok(MoveOutput {

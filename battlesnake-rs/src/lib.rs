@@ -67,29 +67,29 @@ impl Coordinate {
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy, Debug, Serialize)]
 pub enum Direction {
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT,
+    Up,
+    Right,
+    Down,
+    Left,
 }
 
 impl Direction {
     fn value(&self) -> String {
         match self {
-            Direction::UP => "up",
-            Direction::RIGHT => "right",
-            Direction::LEFT => "left",
-            Direction::DOWN => "down",
+            Direction::Up => "up",
+            Direction::Right => "right",
+            Direction::Left => "left",
+            Direction::Down => "down",
         }
         .to_owned()
     }
 }
 
 const ALL_DIRECTIONS: [Direction; 4] = [
-    Direction::UP,
-    Direction::RIGHT,
-    Direction::DOWN,
-    Direction::LEFT,
+    Direction::Up,
+    Direction::Right,
+    Direction::Down,
+    Direction::Left,
 ];
 
 impl Coordinate {
@@ -102,16 +102,16 @@ impl Coordinate {
         let mut y = self.y;
 
         match direction {
-            Direction::UP => {
+            Direction::Up => {
                 y += 1;
             }
-            Direction::DOWN => {
+            Direction::Down => {
                 y -= 1;
             }
-            Direction::LEFT => {
+            Direction::Left => {
                 x -= 1;
             }
-            Direction::RIGHT => {
+            Direction::Right => {
                 x += 1;
             }
         };
@@ -163,7 +163,7 @@ impl Battlesnake {
     }
 
     fn tail(&self) -> Coordinate {
-        self.body[self.body.len() - 1].clone()
+        self.body[self.body.len() - 1]
     }
 }
 
@@ -238,7 +238,7 @@ impl GameState {
             .iter_mut()
             .find(|s| s.id == snake_id)
             .unwrap();
-        to_move.body.insert(0, coor.clone());
+        to_move.body.insert(0, *coor);
 
         let old_health = to_move.health;
         to_move.health -= 1;
@@ -246,7 +246,7 @@ impl GameState {
         let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
             self.board.food.remove(pos);
             to_move.health = 100;
-            MoveResult::AteFood(old_health, coor.clone(), pos)
+            MoveResult::AteFood(old_health, *coor, pos)
         } else {
             MoveResult::MovedTail(old_health, to_move.body.pop().unwrap())
         };
@@ -325,10 +325,10 @@ mod tests {
         assert_eq!(
             coor.possible_moves(&board),
             vec![
-                (Direction::UP, Coordinate { x: 1, y: 2 }),
-                (Direction::RIGHT, Coordinate { x: 2, y: 1 }),
-                (Direction::DOWN, Coordinate { x: 1, y: 0 }),
-                (Direction::LEFT, Coordinate { x: 0, y: 1 }),
+                (Direction::Up, Coordinate { x: 1, y: 2 }),
+                (Direction::Right, Coordinate { x: 2, y: 1 }),
+                (Direction::Down, Coordinate { x: 1, y: 0 }),
+                (Direction::Left, Coordinate { x: 0, y: 1 }),
             ]
         );
     }

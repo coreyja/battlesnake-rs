@@ -52,7 +52,7 @@ fn a_prime_inner(
 ) -> Option<APrimeResult> {
     let mut paths_from: HashMap<Coordinate, Option<Coordinate>> = HashMap::new();
 
-    if targets.len() == 0 {
+    if targets.is_empty() {
         return None;
     }
 
@@ -62,10 +62,10 @@ fn a_prime_inner(
 
     to_search.push(Node {
         cost: 0,
-        coordinate: start.clone(),
+        coordinate: *start,
     });
-    known_score.insert(start.clone(), 0);
-    paths_from.insert(start.clone(), None);
+    known_score.insert(*start, 0);
+    paths_from.insert(*start, None);
 
     while let Some(Node { cost, coordinate }) = to_search.pop() {
         if targets.contains(&coordinate) {
@@ -88,10 +88,10 @@ fn a_prime_inner(
             targets.contains(n) || board.snakes.iter().all(|snake| !snake.body.contains(n))
         }) {
             if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
-                known_score.insert(neighbor.clone(), tentative);
-                paths_from.insert(neighbor.clone(), Some(coordinate));
+                known_score.insert(*neighbor, tentative);
+                paths_from.insert(*neighbor, Some(coordinate));
                 to_search.push(Node {
-                    coordinate: neighbor.clone(),
+                    coordinate: *neighbor,
                     cost: tentative + hueristic(neighbor, &targets).unwrap_or(HEURISTIC_MAX),
                 });
             }
@@ -116,13 +116,9 @@ pub fn shortest_path(board: &Board, start: &Coordinate, targets: &[Coordinate]) 
         while let Some(c) = current {
             path.push(c);
 
-            current = result
-                .paths_from
-                .get(&c)
-                .expect(
-                    "Somehow we didn't look at this node during a-prime, but its still in the path",
-                )
-                .clone();
+            current = *result.paths_from.get(&c).expect(
+                "Somehow we didn't look at this node during a-prime, but its still in the path",
+            );
         }
     }
 
@@ -133,13 +129,13 @@ pub fn shortest_path(board: &Board, start: &Coordinate, targets: &[Coordinate]) 
 
 fn direction_from_coordinate(from: &Coordinate, to: &Coordinate) -> Option<Direction> {
     if from.x == to.x && from.y + 1 == to.y {
-        Some(Direction::UP)
+        Some(Direction::Up)
     } else if from.x == to.x && from.y - 1 == to.y {
-        Some(Direction::DOWN)
+        Some(Direction::Down)
     } else if from.x - 1 == to.x && from.y == to.y {
-        Some(Direction::LEFT)
+        Some(Direction::Left)
     } else if from.x + 1 == to.x && from.y == to.y {
-        Some(Direction::RIGHT)
+        Some(Direction::Right)
     } else {
         None
     }
@@ -169,7 +165,7 @@ mod tests {
     #[test]
     fn test_heuristic() {
         assert_eq!(
-            hueristic(&Coordinate { x: 1, y: 1 }, &vec![Coordinate { x: 2, y: 2 }]),
+            hueristic(&Coordinate { x: 1, y: 1 }, &[Coordinate { x: 2, y: 2 }]),
             Some(2)
         );
     }
@@ -179,7 +175,7 @@ mod tests {
         assert_eq!(
             hueristic(
                 &Coordinate { x: 1, y: 1 },
-                &vec![
+                &[
                     Coordinate { x: 3, y: 3 },
                     Coordinate { x: 4, y: 4 },
                     Coordinate { x: 5, y: 5 },
@@ -201,7 +197,7 @@ mod tests {
                     snakes: vec![],
                 },
                 &Coordinate { x: 1, y: 1 },
-                &vec![
+                &[
                     Coordinate { x: 3, y: 3 },
                     Coordinate { x: 4, y: 4 },
                     Coordinate { x: 5, y: 5 },
@@ -257,7 +253,7 @@ mod tests {
                     ],
                 },
                 &Coordinate { x: 5, y: 4 },
-                &vec![Coordinate { x: 7, y: 10 },]
+                &[Coordinate { x: 7, y: 10 },]
             ),
             Some(8)
         );

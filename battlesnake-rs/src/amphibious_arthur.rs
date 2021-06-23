@@ -25,7 +25,7 @@ impl MoveToAndSpawn for GameState {
                 .map(|(_dir, coor)| coor)
                 .cloned()
                 .collect();
-            s.head = new_body.choose(&mut rand::thread_rng()).unwrap().clone();
+            s.head = *new_body.choose(&mut rand::thread_rng()).unwrap();
             s.body.append(&mut new_body);
         }
 
@@ -56,7 +56,7 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     }
 
     let ihealth: i64 = game_state.you.health.into();
-    let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs().into();
+    let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs();
     let current_score = PREFERRED_HEALTH - current_score;
 
     if times_to_recurse == 0 {
@@ -117,7 +117,7 @@ impl BattlesnakeAI for AmphibiousArthur {
             .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
-            r#move: Direction::UP.value(),
+            r#move: Direction::Up.value(),
             shout: Some("Oh NO we are stuck".to_owned()),
         };
         let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {

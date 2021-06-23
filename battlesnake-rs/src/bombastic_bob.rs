@@ -8,7 +8,7 @@ impl BattlesnakeAI for BombasticBob {
         state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let chosen = state.you.random_possible_move(&state.board);
-        let dir = chosen.map(|x| x.0).unwrap_or(Direction::RIGHT);
+        let dir = chosen.map(|x| x.0).unwrap_or(Direction::Right);
 
         Ok(MoveOutput {
             r#move: dir.value(),
