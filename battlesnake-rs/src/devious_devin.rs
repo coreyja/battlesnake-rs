@@ -114,8 +114,8 @@ enum ScoreEndState {
     HeadToHeadLose(i64),
     /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
     ShorterThanOpponent(i64, Option<i64>, i16),
-    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(usize, i64, i16),
+    /// flood_fill_size: u32, difference_in_snake_length: i64, health: u8
+    LongerThanOpponent(u32, i64, i16),
     /// negative_depth: i64
     HeadToHeadWin(i64),
 }
