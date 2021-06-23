@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, convert::TryInto};
 
 pub mod a_prime;
 pub mod amphibious_arthur;
@@ -10,6 +10,7 @@ pub mod constant_carter;
 pub mod devious_devin;
 pub mod eremetic_eric;
 pub mod famished_frank;
+pub mod flood_fill;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -62,6 +63,10 @@ impl Coordinate {
         let (width, height): (i64, i64) = (board.width.into(), board.height.into());
 
         self.x == 0 || self.y == 0 || self.x + 1 == width || self.y + 1 == height
+    }
+
+    fn to_usize(&self) -> (usize, usize) {
+        (self.x.try_into().unwrap(), self.y.try_into().unwrap())
     }
 }
 
@@ -125,6 +130,13 @@ impl Coordinate {
             .cloned()
             .map(|dir| (dir, self.move_in(&dir)))
             .filter(|(_, coor)| coor.valid(board))
+            .collect()
+    }
+
+    fn neighbors(&self, board: &Board) -> Vec<Coordinate> {
+        self.possible_moves(board)
+            .into_iter()
+            .map(|x| x.1)
             .collect()
     }
 }
