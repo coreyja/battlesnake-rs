@@ -117,10 +117,6 @@ enum ScoreEndState {
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
     LongerThanOpponent(Option<i64>, i64, i16),
     /// negative_depth: i64
-    HitSelfWin(i64),
-    /// negative_depth: i64
-    RanIntoOtherWin(i64),
-    /// negative_depth: i64
     HeadToHeadWin(i64),
 }
 
@@ -171,14 +167,6 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .filter_map(|not_me| {
             if not_me.body[1..].contains(&me.body[0]) {
                 return Some(ScoreEndState::RanIntoOtherLose(depth));
-            }
-
-            if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
-                return Some(ScoreEndState::HitSelfWin(-depth));
-            }
-
-            if me.body[1..].contains(&not_me.body[0]) {
-                return Some(ScoreEndState::RanIntoOtherWin(-depth));
             }
 
             if me.body[0] == not_me.body[0] {
