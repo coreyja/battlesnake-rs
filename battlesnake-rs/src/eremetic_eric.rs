@@ -67,9 +67,12 @@ impl BattlesnakeAI for EremeticEric {
             .filter(|(_, (_, cost))| cost == &best_cost)
             .collect();
 
-        let (best_food, (closest_body_part, best_cost)) = *matching_cost_foods
+        let cost_to_loop: u64 =
+            state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
+
+        let mut matching_food_options: Vec<_> = matching_cost_foods
             .iter()
-            .min_by_key(|(food, (closest_body_part, _best_cost))| {
+            .map(|(food, (closest_body_part, _))| {
                 let closest_index: usize =
                     body.iter().position(|x| &x == closest_body_part).unwrap();
 
@@ -80,18 +83,37 @@ impl BattlesnakeAI for EremeticEric {
                 };
                 let would_be_tail = body[tail_index];
 
+                let dist = a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
+                    .unwrap_or(i64::MAX);
+
+                let cost_to_get_to_closest = if closest_index == 0 {
+                    0
+                } else {
+                    cost_to_loop - closest_index as u64
+                };
+                let cost_to_get_to_nearest_food = cost_to_get_to_closest as i64 + best_cost;
+
+                let health: i64 = state.you.health.into();
+                let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
+                    health - cost_to_get_to_nearest_food
+                } else {
+                    i64::MAX
+                };
+
                 (
-                    a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
-                        .unwrap_or(i64::MAX),
-                    food,
+                    (food, (closest_body_part, best_cost)),
+                    (dist, health_cost, food),
                 )
             })
-            .unwrap();
+            .collect();
+        matching_food_options.sort_by_key(|(_, cost)| cost.clone());
+        println!("{:?}", matching_food_options);
+
+        let (&best_food, (&closest_body_part, best_cost)) =
+            matching_food_options.iter().next().unwrap().0.clone();
 
         let health: u64 = state.you.health.try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
-        let cost_to_loop: u64 =
-            state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
         let cant_survive_another_loop = health < cost_to_loop + best_cost;
 
         if !closest_body_part.on_wall(&state.board)
