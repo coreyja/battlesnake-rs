@@ -113,11 +113,10 @@ impl BattlesnakeAI for EremeticEric {
                 )
             })
             .collect();
-        matching_food_options.sort_by_key(|(_, cost)| cost.clone());
+        matching_food_options.sort_by_key(|(_, cost)| *cost);
         println!("{:?}", matching_food_options);
 
-        let (&best_food, (&closest_body_part, best_cost)) =
-            matching_food_options.iter().next().unwrap().0.clone();
+        let (&best_food, (&closest_body_part, best_cost)) = matching_food_options[0].0;
 
         let health: u64 = state.you.health.try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
