@@ -223,7 +223,40 @@ impl Board {
 
         filled
     }
+
+    pub fn to_grid(&self) -> BoardGrid {
+        let mut grid: Vec<Vec<Option<BoardGridItem>>> =
+            vec![vec![None; self.width.try_into().unwrap()]; self.height.try_into().unwrap()];
+
+        for h in &self.hazards {
+            let (x, y) = h.to_usize();
+            grid[x][y] = Some(BoardGridItem::Hazard);
+        }
+
+        for f in &self.food {
+            let (x, y) = f.to_usize();
+            grid[x][y] = Some(BoardGridItem::Food);
+        }
+
+        for s in &self.snakes {
+            for b in &s.body {
+                let (x, y) = b.to_usize();
+                grid[x][y] = Some(BoardGridItem::Snake(&s.id));
+            }
+        }
+
+        BoardGrid(grid)
+    }
 }
+
+#[derive(Clone, Copy)]
+pub enum BoardGridItem<'snake_id> {
+    Snake(&'snake_id str),
+    Food,
+    Hazard,
+}
+
+pub struct BoardGrid<'a>(Vec<Vec<Option<BoardGridItem<'a>>>>);
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct GameState {
