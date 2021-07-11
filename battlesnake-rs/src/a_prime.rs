@@ -1,4 +1,4 @@
-use crate::{Board, Coordinate, Direction};
+use crate::{Board, BoardGridItem, Coordinate, Direction};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -56,6 +56,8 @@ fn a_prime_inner(
         return None;
     }
 
+    let grid = board.to_grid().0;
+
     let mut to_search: BinaryHeap<Node> = BinaryHeap::new();
 
     let mut known_score: HashMap<Coordinate, i64> = HashMap::new();
@@ -68,6 +70,8 @@ fn a_prime_inner(
     paths_from.insert(*start, None);
 
     while let Some(Node { cost, coordinate }) = to_search.pop() {
+        let (x, y) = coordinate.to_usize();
+
         if targets.contains(&coordinate) {
             return Some(APrimeResult {
                 best_cost: cost,
@@ -76,7 +80,7 @@ fn a_prime_inner(
             });
         }
 
-        let neighbor_distance = if board.hazards.contains(&coordinate) {
+        let neighbor_distance = if let Some(BoardGridItem::Hazard) = grid[x][y] {
             HAZARD_PENALTY + NEIGHBOR_DISTANCE
         } else {
             NEIGHBOR_DISTANCE
@@ -85,7 +89,12 @@ fn a_prime_inner(
         let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + neighbor_distance;
         let neighbors = coordinate.possible_moves(&board);
         for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
-            targets.contains(n) || board.snakes.iter().all(|snake| !snake.body.contains(n))
+            let (x, y) = coordinate.to_usize();
+            targets.contains(n)
+                || matches!(
+                    grid[x][y],
+                    None | Some(BoardGridItem::Hazard) | Some(BoardGridItem::Food)
+                )
         }) {
             if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
                 known_score.insert(*neighbor, tentative);
