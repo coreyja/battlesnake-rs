@@ -185,14 +185,17 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
     };
 
     if depth >= max_depth {
-        let max_opponent_length: i64 = opponents
+        let closest_opponent_length: i64 = opponents
             .iter()
-            .map(|s| s.body.len().try_into().unwrap())
-            .max()
+            .min_by_key(|s| a_prime::shortest_distance(&node.board, &me.body[0], &[s.head]))
+            .unwrap()
+            .body
+            .len()
+            .try_into()
             .unwrap();
-        let length_difference = my_length - max_opponent_length;
+        let length_difference = my_length - closest_opponent_length;
 
-        if max_opponent_length >= my_length || me.health < 20 {
+        if closest_opponent_length >= my_length || me.health < 20 {
             let negative_closest_food_distance =
                 a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
 
