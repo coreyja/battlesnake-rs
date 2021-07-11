@@ -87,7 +87,6 @@ impl BattlesnakeAI for EremeticEric {
                         closest_index - 1
                     };
                 let would_be_tail = state.you.body[tail_index];
-                dbg!(food, would_be_tail);
 
                 let dist_back_from_food_to_tail =
                     a_prime::shortest_distance(&modified_board, food, &[would_be_tail])

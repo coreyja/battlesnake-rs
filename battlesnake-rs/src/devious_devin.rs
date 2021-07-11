@@ -150,8 +150,6 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .filter(|s| s.id != node.you.id)
         .collect();
 
-    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0]).collect();
-
     let my_length: i64 = me.body.len().try_into().unwrap();
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
@@ -206,7 +204,8 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             ));
         }
 
-        let my_flood = *flood_fill::squares_per_snake(&node).get(&me.id).unwrap();
+        let flood = flood_fill::squares_per_snake(&node);
+        let my_flood = *flood.get(&me.id).unwrap();
 
         return Some(ScoreEndState::LongerThanOpponent(
             my_flood,
