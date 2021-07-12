@@ -88,7 +88,7 @@ fn a_prime_inner(
 
         let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + neighbor_distance;
         let neighbors = coordinate.possible_moves(&board);
-        for (_, neighbor) in neighbors.iter().filter(|(_, n)| {
+        for (_, neighbor) in neighbors.filter(|(_, n)| {
             let (x, y) = coordinate.to_usize();
             targets.contains(n)
                 || matches!(
@@ -97,11 +97,11 @@ fn a_prime_inner(
                 )
         }) {
             if &tentative < known_score.get(&neighbor).unwrap_or(&i64::MAX) {
-                known_score.insert(*neighbor, tentative);
-                paths_from.insert(*neighbor, Some(coordinate));
+                known_score.insert(neighbor, tentative);
+                paths_from.insert(neighbor, Some(coordinate));
                 to_search.push(Node {
-                    coordinate: *neighbor,
-                    cost: tentative + hueristic(neighbor, &targets).unwrap_or(HEURISTIC_MAX),
+                    coordinate: neighbor,
+                    cost: tentative + hueristic(&neighbor, &targets).unwrap_or(HEURISTIC_MAX),
                 });
             }
         }

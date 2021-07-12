@@ -97,7 +97,7 @@ const ALL_DIRECTIONS: [Direction; 4] = [
     Direction::Left,
 ];
 
-impl Coordinate {
+impl<'a> Coordinate {
     fn valid(&self, board: &Board) -> bool {
         self.x >= 0 && self.x < board.width.into() && self.y >= 0 && self.y < board.height.into()
     }
@@ -124,20 +124,22 @@ impl Coordinate {
         Self { x, y }
     }
 
-    fn possible_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
-        ALL_DIRECTIONS
-            .iter()
-            .cloned()
-            .map(|dir| (dir, self.move_in(&dir)))
-            .filter(|(_, coor)| coor.valid(board))
-            .collect()
+    fn possible_moves(
+        &self,
+        board: &'a Board,
+    ) -> Box<dyn Iterator<Item = (Direction, Coordinate)> + 'a> {
+        let cloned = self.clone();
+        Box::new(
+            ALL_DIRECTIONS
+                .iter()
+                .cloned()
+                .map(move |dir| (dir, cloned.move_in(&dir)))
+                .filter(move |(_, coor)| coor.valid(board)),
+        )
     }
 
-    fn neighbors(&self, board: &Board) -> Vec<Coordinate> {
-        self.possible_moves(board)
-            .into_iter()
-            .map(|x| x.1)
-            .collect()
+    fn neighbors(&self, board: &'a Board) -> Box<dyn Iterator<Item = Coordinate> + 'a> {
+        Box::new(self.possible_moves(board).into_iter().map(|x| x.1))
     }
 }
 
@@ -157,18 +159,12 @@ pub struct Battlesnake {
 use rand::seq::SliceRandom;
 
 impl Battlesnake {
-    fn possible_moves(&self, board: &Board) -> Vec<(Direction, Coordinate)> {
-        self.head.possible_moves(board)
-    }
-
     fn random_possible_move(&self, board: &Board) -> Option<(Direction, Coordinate)> {
         let body_set: HashSet<&Coordinate> = self.body.iter().collect();
         let possible_moves = self
             .head
             .possible_moves(board)
-            .iter()
             .filter(|(_dir, coor)| !body_set.contains(coor))
-            .cloned()
             .collect::<Vec<_>>();
 
         possible_moves.choose(&mut rand::thread_rng()).cloned()
@@ -367,8 +363,9 @@ mod tests {
             snakes: vec![],
         };
 
+        let x: Vec<(Direction, Coordinate)> = coor.possible_moves(&board).collect();
         assert_eq!(
-            coor.possible_moves(&board),
+            x,
             vec![
                 (Direction::Up, Coordinate { x: 1, y: 2 }),
                 (Direction::Right, Coordinate { x: 2, y: 1 }),

@@ -22,7 +22,7 @@ fn moves_to_my_direction(moves: &[SnakeMove], game_state: &GameState) -> Directi
         .unwrap_or_else(|| {
             game_state.you.body[0]
                 .possible_moves(&game_state.board)
-                .get(0)
+                .next()
                 .map(|x| x.0)
                 .unwrap_or(Direction::Up)
         })
@@ -217,14 +217,17 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
     None
 }
 
-fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate)> {
+fn children<'a>(
+    node: &'a GameState,
+    turn_snake_id: &str,
+) -> Box<dyn Iterator<Item = (Direction, Coordinate)> + 'a> {
     let you: &Battlesnake = node
         .board
         .snakes
         .iter()
         .find(|s| s.id == turn_snake_id)
         .expect("We didn't find that snake");
-    you.body[0].possible_moves(&node.board).to_vec()
+    you.body[0].possible_moves(&node.board)
 }
 
 use std::convert::TryInto;
@@ -278,7 +281,8 @@ fn minimax_options(
     let snake = &snakes[depth % snakes.len()];
     let is_maximizing = snake.id == node.you.id;
 
-    for (dir, coor) in children(node, &snake.id).into_iter() {
+    let children: Vec<_> = children(node, &snake.id).collect();
+    for (dir, coor) in children {
         let last_move = node.move_to(&coor, &snake.id);
         let new_current_moves = {
             let mut x = current_moves.clone();

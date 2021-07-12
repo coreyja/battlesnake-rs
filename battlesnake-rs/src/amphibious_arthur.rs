@@ -21,9 +21,7 @@ impl MoveToAndSpawn for GameState {
             let mut new_body: Vec<Coordinate> = s
                 .head
                 .possible_moves(&self.board)
-                .iter()
                 .map(|(_dir, coor)| coor)
-                .cloned()
                 .collect();
             s.head = *new_body.choose(&mut rand::thread_rng()).unwrap();
             s.body.append(&mut new_body);
@@ -65,7 +63,6 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
 
     let recursed_score: i64 = coor
         .possible_moves(&game_state.board)
-        .iter()
         .map(|(_d, c)| {
             score(
                 &game_state.move_to_and_opponent_sprawl(coor),
@@ -103,7 +100,7 @@ impl BattlesnakeAI for AmphibiousArthur {
             .as_ref()
             .map(|x| x.span_builder("possible_moves").start(x));
 
-        let possible = game_state.you.possible_moves(&game_state.board);
+        let possible = game_state.you.head.possible_moves(&game_state.board);
         if let Some(span) = possible_moves_span {
             span.end();
         }
@@ -112,9 +109,8 @@ impl BattlesnakeAI for AmphibiousArthur {
             Ok(Ok(x)) => x,
             _ => 5,
         };
-        let next_move = possible
-            .iter()
-            .max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
+        let next_move =
+            possible.max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: Direction::Up.value(),
