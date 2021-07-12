@@ -114,8 +114,12 @@ enum ScoreEndState {
     HeadToHeadLose(i64),
     /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
     ShorterThanOpponent(i64, Option<i64>, i16),
-    /// flood_fill_size: u32, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(u32, i64, i16),
+    /// negative_depth: i64
+    HitSelfWin(i64),
+    /// negative_depth: i64
+    RanIntoOtherWin(i64),
+    /// flood_fill_size: u32, distance_to_closest_opponent: i64, difference_in_snake_length: i64, health: u8
+    LongerThanOpponent(u32, i64, i64, i16),
     /// negative_depth: i64
     HeadToHeadWin(i64),
 }
@@ -160,37 +164,39 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::OutOfHealthLose(depth));
     }
 
-    if let Some(opponent_end_state) = opponents
+    let (closest_opponent, distance_to_closest_opponent) = opponents
         .iter()
-        .filter_map(|not_me| {
-            if not_me.body[1..].contains(&me.body[0]) {
-                return Some(ScoreEndState::RanIntoOtherLose(depth));
-            }
+        .map(|s| {
+            let dist =
+                a_prime::shortest_distance(&node.board, &me.body[0], &[s.head]).unwrap_or(1000);
 
-            if me.body[0] == not_me.body[0] {
-                if my_length > not_me.body.len().try_into().unwrap() {
-                    return Some(ScoreEndState::HeadToHeadWin(-depth));
-                } else {
-                    return Some(ScoreEndState::HeadToHeadLose(depth));
-                }
-            }
-
-            None
+            (s, dist)
         })
-        .min()
-    {
-        return Some(opponent_end_state);
-    };
+        .min_by_key(|x| x.1)
+        .unwrap();
+
+    if closest_opponent.body[1..].contains(&me.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherLose(depth));
+    }
+
+    if closest_opponent.body[1..].contains(&closest_opponent.body[0]) && depth != 0 {
+        return Some(ScoreEndState::HitSelfWin(-depth));
+    }
+
+    if me.body[1..].contains(&closest_opponent.body[0]) {
+        return Some(ScoreEndState::RanIntoOtherWin(-depth));
+    }
+
+    if me.body[0] == closest_opponent.body[0] {
+        if my_length > closest_opponent.body.len().try_into().unwrap() {
+            return Some(ScoreEndState::HeadToHeadWin(-depth));
+        } else {
+            return Some(ScoreEndState::HeadToHeadLose(depth));
+        }
+    }
 
     if depth >= max_depth {
-        let closest_opponent_length: i64 = opponents
-            .iter()
-            .min_by_key(|s| a_prime::shortest_distance(&node.board, &me.body[0], &[s.head]))
-            .unwrap()
-            .body
-            .len()
-            .try_into()
-            .unwrap();
+        let closest_opponent_length: i64 = closest_opponent.body.len().try_into().unwrap();
         let length_difference = my_length - closest_opponent_length;
 
         if closest_opponent_length >= my_length || me.health < 20 {
@@ -204,11 +210,12 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             ));
         }
 
-        let flood = flood_fill::squares_per_snake(&node);
+        let flood = flood_fill::squares_per_snake(&node, None);
         let my_flood = *flood.get(&me.id).unwrap();
 
         return Some(ScoreEndState::LongerThanOpponent(
             my_flood,
+            distance_to_closest_opponent,
             length_difference.max(4),
             me.health.max(50),
         ));
