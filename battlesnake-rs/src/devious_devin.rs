@@ -166,12 +166,7 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
 
     let (closest_opponent, distance_to_closest_opponent) = opponents
         .iter()
-        .map(|s| {
-            let dist =
-                a_prime::shortest_distance(&node.board, &me.body[0], &[s.head]).unwrap_or(1000);
-
-            (s, dist)
-        })
+        .map(|s| (s, me.body[0].dist_from(&s.head)))
         .min_by_key(|x| x.1)
         .unwrap();
 
