@@ -90,7 +90,7 @@ impl BattlesnakeAI for EremeticEric {
 
                 let dist_back_from_food_to_tail =
                     a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
-                        .unwrap_or(i64::MAX);
+                        .unwrap_or(5000);
 
                 let cost_to_get_to_closest = if closest_index == 0 {
                     0
@@ -100,15 +100,15 @@ impl BattlesnakeAI for EremeticEric {
                 let cost_to_get_to_nearest_food = cost_to_get_to_closest + best_cost as u64;
 
                 let health: u64 = state.you.health.try_into().unwrap();
-                let health_cost: u64 = if health >= cost_to_get_to_nearest_food {
-                    health - cost_to_get_to_nearest_food
+                let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
+                    0 - ((health - cost_to_get_to_nearest_food) as i64)
                 } else {
                     666
                 };
 
                 (
                     (food, (closest_body_part, best_cost)),
-                    (health_cost + dist_back_from_food_to_tail as u64, food),
+                    (health_cost + dist_back_from_food_to_tail, food),
                 )
             })
             .collect();
