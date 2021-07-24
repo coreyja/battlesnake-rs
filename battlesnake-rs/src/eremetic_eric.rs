@@ -71,8 +71,8 @@ impl BattlesnakeAI for EremeticEric {
             .filter(|(_, (_, cost))| cost == &best_cost)
             .collect();
 
-        let cost_to_loop: u64 =
-            state.you.length + state.you.head.dist_from(&state.you.tail()) as u64;
+        let cost_to_loop =
+            state.you.body.len() + state.you.head.dist_from(&state.you.tail()) as usize;
 
         let mut matching_food_options: Vec<_> = matching_cost_foods
             .iter()
@@ -92,18 +92,21 @@ impl BattlesnakeAI for EremeticEric {
                     a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
                         .unwrap_or(5000);
 
-                let cost_to_get_to_closest = if closest_index == 0 {
+                let cost_to_get_to_closest: u64 = if closest_index == 0 {
                     0
                 } else {
-                    cost_to_loop - closest_index as u64
+                    (cost_to_loop - closest_index).try_into().unwrap()
                 };
-                let cost_to_get_to_nearest_food = cost_to_get_to_closest + best_cost as u64;
+                let best_cost_u64: u64 = best_cost.try_into().unwrap();
+                let cost_to_get_to_nearest_food: u64 = cost_to_get_to_closest + best_cost_u64;
+                let cost_to_get_food_and_then_get_back =
+                    cost_to_get_to_nearest_food as i64 + dist_back_from_food_to_tail;
 
                 let health: u64 = state.you.health.try_into().unwrap();
                 let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
-                    0 - ((health - cost_to_get_to_nearest_food) as i64)
+                    cost_to_get_food_and_then_get_back
                 } else {
-                    666
+                    6666
                 };
 
                 (
@@ -119,7 +122,8 @@ impl BattlesnakeAI for EremeticEric {
 
         let health: u64 = state.you.health.try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
-        let cant_survive_another_loop = health < cost_to_loop + best_cost;
+        let cant_survive_another_loop =
+            health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
 
         if !closest_body_part.on_wall(&state.board)
             && &state.you.head == closest_body_part
