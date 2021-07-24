@@ -71,8 +71,7 @@ impl BattlesnakeAI for EremeticEric {
             .filter(|(_, (_, cost))| cost == &best_cost)
             .collect();
 
-        let cost_to_loop =
-            state.you.body.len() + state.you.head.dist_from(&state.you.tail()) as usize;
+        let cost_to_loop = body.len();
 
         let mut matching_food_options: Vec<_> = matching_cost_foods
             .iter()
@@ -80,13 +79,12 @@ impl BattlesnakeAI for EremeticEric {
                 let closest_index: usize =
                     body.iter().position(|x| &x == closest_body_part).unwrap();
 
-                let tail_index: usize =
-                    if closest_index == 0 || closest_index >= state.you.body.len() {
-                        state.you.body.len() - 1
-                    } else {
-                        closest_index - 1
-                    };
-                let would_be_tail = state.you.body[tail_index];
+                let tail_index: usize = if closest_index == 0 {
+                    state.you.body.len() - 1
+                } else {
+                    closest_index - 1
+                };
+                let would_be_tail = body[tail_index];
 
                 let dist_back_from_food_to_tail =
                     a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
@@ -95,6 +93,9 @@ impl BattlesnakeAI for EremeticEric {
                 let cost_to_get_to_closest: u64 = if closest_index == 0 {
                     0
                 } else {
+                    if closest_index > cost_to_loop {
+                        dbg!(closest_index, cost_to_loop);
+                    }
                     (cost_to_loop - closest_index).try_into().unwrap()
                 };
                 let best_cost_u64: u64 = best_cost.try_into().unwrap();
@@ -109,10 +110,7 @@ impl BattlesnakeAI for EremeticEric {
                     6666
                 };
 
-                (
-                    (food, (closest_body_part, best_cost)),
-                    (health_cost + dist_back_from_food_to_tail, food),
-                )
+                ((food, (closest_body_part, best_cost)), (health_cost, food))
             })
             .collect();
         matching_food_options.sort_by_key(|(_, cost)| *cost);
