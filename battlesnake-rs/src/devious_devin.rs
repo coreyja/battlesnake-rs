@@ -114,12 +114,12 @@ enum ScoreEndState {
     HeadToHeadLose(i64),
     /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
     ShorterThanOpponent(i64, Option<i64>, i16),
+    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
+    LongerThanOpponent(Option<i64>, i64, i16),
     /// negative_depth: i64
     HitSelfWin(i64),
     /// negative_depth: i64
     RanIntoOtherWin(i64),
-    /// flood_fill_size: u32, distance_to_closest_opponent: i64, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(u32, i64, i64, i16),
     /// negative_depth: i64
     HeadToHeadWin(i64),
 }
@@ -154,6 +154,8 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         .filter(|s| s.id != node.you.id)
         .collect();
 
+    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0]).collect();
+
     let my_length: i64 = me.body.len().try_into().unwrap();
 
     if me.body[1..].contains(&me.body[0]) && depth != 0 {
@@ -164,37 +166,45 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         return Some(ScoreEndState::OutOfHealthLose(depth));
     }
 
-    let (closest_opponent, distance_to_closest_opponent) = opponents
+    if let Some(opponent_end_state) = opponents
         .iter()
-        .map(|s| (s, me.body[0].dist_from(&s.head)))
-        .min_by_key(|x| x.1)
-        .unwrap();
+        .filter_map(|not_me| {
+            if not_me.body[1..].contains(&me.body[0]) {
+                return Some(ScoreEndState::RanIntoOtherLose(depth));
+            }
 
-    if closest_opponent.body[1..].contains(&me.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherLose(depth));
-    }
+            if not_me.body[1..].contains(&not_me.body[0]) && depth != 0 {
+                return Some(ScoreEndState::HitSelfWin(-depth));
+            }
 
-    if closest_opponent.body[1..].contains(&closest_opponent.body[0]) && depth != 0 {
-        return Some(ScoreEndState::HitSelfWin(-depth));
-    }
+            if me.body[1..].contains(&not_me.body[0]) {
+                return Some(ScoreEndState::RanIntoOtherWin(-depth));
+            }
 
-    if me.body[1..].contains(&closest_opponent.body[0]) {
-        return Some(ScoreEndState::RanIntoOtherWin(-depth));
-    }
+            if me.body[0] == not_me.body[0] {
+                if my_length > not_me.body.len().try_into().unwrap() {
+                    return Some(ScoreEndState::HeadToHeadWin(-depth));
+                } else {
+                    return Some(ScoreEndState::HeadToHeadLose(depth));
+                }
+            }
 
-    if me.body[0] == closest_opponent.body[0] {
-        if my_length > closest_opponent.body.len().try_into().unwrap() {
-            return Some(ScoreEndState::HeadToHeadWin(-depth));
-        } else {
-            return Some(ScoreEndState::HeadToHeadLose(depth));
-        }
-    }
+            None
+        })
+        .min()
+    {
+        return Some(opponent_end_state);
+    };
 
     if depth >= max_depth {
-        let closest_opponent_length: i64 = closest_opponent.body.len().try_into().unwrap();
-        let length_difference = my_length - closest_opponent_length;
+        let max_opponent_length: i64 = opponents
+            .iter()
+            .map(|s| s.body.len().try_into().unwrap())
+            .max()
+            .unwrap();
+        let length_difference = my_length - max_opponent_length;
 
-        if closest_opponent_length >= my_length || me.health < 20 {
+        if max_opponent_length >= my_length || me.health < 20 {
             let negative_closest_food_distance =
                 a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
 
@@ -205,12 +215,11 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
             ));
         }
 
-        let flood = flood_fill::squares_per_snake(&node, None);
-        let my_flood = *flood.get(&me.id).unwrap();
+        let negative_distance_to_opponent =
+            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads).map(|dist| -dist);
 
         return Some(ScoreEndState::LongerThanOpponent(
-            my_flood,
-            distance_to_closest_opponent,
+            negative_distance_to_opponent,
             length_difference.max(4),
             me.health.max(50),
         ));
@@ -219,17 +228,14 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
     None
 }
 
-fn children<'a>(
-    node: &'a GameState,
-    turn_snake_id: &str,
-) -> Box<dyn Iterator<Item = (Direction, Coordinate)> + 'a> {
+fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate)> {
     let you: &Battlesnake = node
         .board
         .snakes
         .iter()
         .find(|s| s.id == turn_snake_id)
         .expect("We didn't find that snake");
-    you.body[0].possible_moves(&node.board)
+    you.body[0].possible_moves(&node.board).collect()
 }
 
 use std::convert::TryInto;
@@ -283,8 +289,7 @@ fn minimax_options(
     let snake = &snakes[depth % snakes.len()];
     let is_maximizing = snake.id == node.you.id;
 
-    let children: Vec<_> = children(node, &snake.id).collect();
-    for (dir, coor) in children {
+    for (dir, coor) in children(node, &snake.id).into_iter() {
         let last_move = node.move_to(&coor, &snake.id);
         let new_current_moves = {
             let mut x = current_moves.clone();
