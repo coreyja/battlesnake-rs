@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate rocket;
 
+use battlesnake_rs::gigantic_george::GiganticGeorge;
 use rocket::http::Status;
 
 use battlesnake_rs::constant_carter::ConstantCarter;
@@ -84,12 +85,13 @@ fn main() {
     };
 
     let snakes: Vec<BoxedSnake> = vec![
-        Box::new(ConstantCarter {}),
-        Box::new(BombasticBob {}),
         Box::new(AmphibiousArthur::new(Arc::new(x.map(|x| x.1)))),
+        Box::new(BombasticBob {}),
+        Box::new(ConstantCarter {}),
         Box::new(DeviousDevin {}),
-        Box::new(FamishedFrank {}),
         Box::new(EremeticEric {}),
+        Box::new(FamishedFrank {}),
+        Box::new(GiganticGeorge {}),
     ];
 
     let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();

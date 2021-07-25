@@ -11,6 +11,7 @@ pub mod devious_devin;
 pub mod eremetic_eric;
 pub mod famished_frank;
 pub mod flood_fill;
+pub mod gigantic_george;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -253,6 +254,20 @@ pub enum BoardGridItem<'snake_id> {
 }
 
 pub struct BoardGrid<'a>(Vec<Vec<Option<BoardGridItem<'a>>>>);
+
+impl<'a> BoardGrid<'a> {
+    fn is_full(&self) -> bool {
+        for inner in &self.0 {
+            for item in inner {
+                if item.is_none() {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct GameState {
