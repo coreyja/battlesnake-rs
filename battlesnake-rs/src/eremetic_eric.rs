@@ -1,6 +1,8 @@
 use core::hash::Hash;
 use std::convert::TryInto;
 
+use itertools::Itertools;
+
 use super::*;
 
 pub struct EremeticEric {}
@@ -33,7 +35,7 @@ impl BattlesnakeAI for EremeticEric {
         let body = {
             let mut body = state.you.body.clone();
             let path_to_complete_circle =
-                a_prime::shortest_path(&state.board, &body[0], &[body[body.len() - 1]]);
+                a_prime::shortest_path(&state.board, &body[0], &[*body.last().unwrap()]);
             for c in path_to_complete_circle.into_iter() {
                 if !body.contains(&c) {
                     body.push(c);
@@ -43,7 +45,9 @@ impl BattlesnakeAI for EremeticEric {
         };
         let modified_board = {
             let mut b = state.board.clone();
-            b.snakes = vec![state.you.clone()];
+            let mut clone_me = state.you.clone();
+            clone_me.body = body.clone();
+            b.snakes = vec![clone_me];
             b
         };
         let food_options: Vec<_> = state
@@ -73,7 +77,7 @@ impl BattlesnakeAI for EremeticEric {
 
         let cost_to_loop = body.len();
 
-        let mut matching_food_options: Vec<_> = matching_cost_foods
+        let matching_food_options: Vec<_> = matching_cost_foods
             .iter()
             .map(|(food, (closest_body_part, _))| {
                 let closest_index: usize =
@@ -93,28 +97,34 @@ impl BattlesnakeAI for EremeticEric {
                 let cost_to_get_to_closest: u64 = if closest_index == 0 {
                     0
                 } else {
-                    if closest_index > cost_to_loop {
-                        dbg!(closest_index, cost_to_loop);
-                    }
                     (cost_to_loop - closest_index).try_into().unwrap()
                 };
                 let best_cost_u64: u64 = best_cost.try_into().unwrap();
                 let cost_to_get_to_nearest_food: u64 = cost_to_get_to_closest + best_cost_u64;
-                let cost_to_get_food_and_then_get_back =
-                    cost_to_get_to_nearest_food as i64 + dist_back_from_food_to_tail;
+                let cost_to_get_food_and_then_get_back_if_at_closest_point: u64 =
+                    best_cost_u64 + dist_back_from_food_to_tail as u64;
 
                 let health: u64 = state.you.health.try_into().unwrap();
+                if (**food == Coordinate { x: 6, y: 5 }) {
+                    dbg!(
+                        health,
+                        cost_to_get_to_closest,
+                        cost_to_get_food_and_then_get_back_if_at_closest_point
+                    );
+                }
                 let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
-                    cost_to_get_food_and_then_get_back
+                    ((health - cost_to_get_to_closest)
+                        + cost_to_get_food_and_then_get_back_if_at_closest_point)
+                        .try_into()
+                        .unwrap()
                 } else {
                     6666
                 };
 
                 ((food, (closest_body_part, best_cost)), (health_cost, food))
             })
+            .sorted_by_key(|(_, cost)| *cost)
             .collect();
-        matching_food_options.sort_by_key(|(_, cost)| *cost);
-        println!("{:?}", matching_food_options);
 
         let (&best_food, (&closest_body_part, best_cost)) = matching_food_options[0].0;
 
