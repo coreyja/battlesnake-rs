@@ -45,7 +45,8 @@ impl BattlesnakeAI for FamishedFrank {
             .filter(|t| !state.you.body.contains(t))
             .collect();
 
-        let dir = a_prime::shortest_path_next_direction(&state.board, &state.you.head, &targets);
+        let dir =
+            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &targets, None);
 
         let dir = if let Some(s) = dir {
             s
@@ -54,6 +55,7 @@ impl BattlesnakeAI for FamishedFrank {
                 &state.board,
                 &state.you.head,
                 &state.you.body[state.you.body.len() - 1..],
+                None,
             )
             .unwrap_or_else(|| {
                 state

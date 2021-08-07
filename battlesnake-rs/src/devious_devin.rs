@@ -206,7 +206,8 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
 
         if max_opponent_length >= my_length || me.health < 20 {
             let negative_closest_food_distance =
-                a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food).map(|x| -x);
+                a_prime::shortest_distance(&node.board, &me.body[0], &node.board.food, None)
+                    .map(|x| -x);
 
             return Some(ScoreEndState::ShorterThanOpponent(
                 length_difference,
@@ -216,7 +217,8 @@ fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
         }
 
         let negative_distance_to_opponent =
-            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads).map(|dist| -dist);
+            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads, None)
+                .map(|dist| -dist);
 
         return Some(ScoreEndState::LongerThanOpponent(
             negative_distance_to_opponent,

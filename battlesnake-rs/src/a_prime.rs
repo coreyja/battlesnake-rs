@@ -45,11 +45,17 @@ struct APrimeResult {
     best_target: Coordinate,
 }
 
+pub struct APrimeOptions {
+    pub food_penalty: i64,
+}
+
 fn a_prime_inner(
     board: &Board,
     start: &Coordinate,
     targets: &[Coordinate],
+    options: Option<APrimeOptions>,
 ) -> Option<APrimeResult> {
+    let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
     let mut paths_from: HashMap<Coordinate, Option<Coordinate>> = HashMap::new();
 
     if targets.is_empty() {
@@ -78,6 +84,8 @@ fn a_prime_inner(
 
         let neighbor_distance = if board.hazards.contains(&coordinate) {
             HAZARD_PENALTY + NEIGHBOR_DISTANCE
+        } else if board.food.contains(&coordinate) {
+            NEIGHBOR_DISTANCE + options.food_penalty
         } else {
             NEIGHBOR_DISTANCE
         };
@@ -101,12 +109,22 @@ fn a_prime_inner(
     None
 }
 
-pub fn shortest_distance(board: &Board, start: &Coordinate, targets: &[Coordinate]) -> Option<i64> {
-    a_prime_inner(board, start, targets).map(|r| r.best_cost)
+pub fn shortest_distance(
+    board: &Board,
+    start: &Coordinate,
+    targets: &[Coordinate],
+    options: Option<APrimeOptions>,
+) -> Option<i64> {
+    a_prime_inner(board, start, targets, options).map(|r| r.best_cost)
 }
 
-pub fn shortest_path(board: &Board, start: &Coordinate, targets: &[Coordinate]) -> Vec<Coordinate> {
-    let result = a_prime_inner(board, start, targets);
+pub fn shortest_path(
+    board: &Board,
+    start: &Coordinate,
+    targets: &[Coordinate],
+    options: Option<APrimeOptions>,
+) -> Vec<Coordinate> {
+    let result = a_prime_inner(board, start, targets, options);
 
     let mut path = vec![];
 
@@ -145,8 +163,9 @@ pub fn shortest_path_next_direction(
     board: &Board,
     start: &Coordinate,
     targets: &[Coordinate],
+    options: Option<APrimeOptions>,
 ) -> Option<Direction> {
-    let shortest_path = shortest_path(board, start, targets);
+    let shortest_path = shortest_path(board, start, targets, options);
     let next_coordinate = shortest_path.get(1);
 
     if let Some(c) = next_coordinate {
@@ -201,7 +220,8 @@ mod tests {
                     Coordinate { x: 3, y: 3 },
                     Coordinate { x: 4, y: 4 },
                     Coordinate { x: 5, y: 5 },
-                ]
+                ],
+                None
             ),
             Some(4)
         );
@@ -253,7 +273,8 @@ mod tests {
                     ],
                 },
                 &Coordinate { x: 5, y: 4 },
-                &[Coordinate { x: 7, y: 10 },]
+                &[Coordinate { x: 7, y: 10 },],
+                None
             ),
             Some(8)
         );

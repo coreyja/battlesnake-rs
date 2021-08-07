@@ -3,6 +3,8 @@ use std::convert::TryInto;
 
 use itertools::Itertools;
 
+use crate::a_prime::APrimeOptions;
+
 use super::*;
 
 pub struct EremeticEric {}
@@ -34,8 +36,9 @@ impl BattlesnakeAI for EremeticEric {
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let body = {
             let mut body = state.you.body.clone();
-            let path_to_complete_circle =
-                a_prime::shortest_path(&state.board, &body[0], &[*body.last().unwrap()]);
+            let mut path_to_complete_circle =
+                a_prime::shortest_path(&state.board, &body[0], &[*body.last().unwrap()], None);
+            path_to_complete_circle.reverse();
             for c in path_to_complete_circle.into_iter() {
                 if !body.contains(&c) {
                     body.push(c);
@@ -55,14 +58,19 @@ impl BattlesnakeAI for EremeticEric {
             .food
             .iter()
             .map(|food| {
-                (
-                    food,
-                    body.iter()
-                        .map(|body_part| (body_part, food.dist_from(body_part)))
-                        .min_by_key(|x| x.1)
-                        .unwrap(),
-                )
+                let body_options = body
+                    .iter()
+                    .map(|body_part| (body_part, food.dist_from(body_part)))
+                    .collect_vec();
+                let best = body_options.iter().cloned().min_by_key(|x| x.1).unwrap();
+                body_options
+                    .iter()
+                    .filter(|(_, cost)| *cost == best.1)
+                    .cloned()
+                    .map(|(body, _)| (food, (body, best.1)))
+                    .collect_vec()
             })
+            .flatten()
             .collect();
         let (_, (_, best_cost)) = *food_options
             .iter()
@@ -84,14 +92,14 @@ impl BattlesnakeAI for EremeticEric {
                     body.iter().position(|x| &x == closest_body_part).unwrap();
 
                 let tail_index: usize = if closest_index == 0 {
-                    state.you.body.len() - 1
+                    body.len() - 1
                 } else {
                     closest_index - 1
                 };
                 let would_be_tail = body[tail_index];
 
                 let dist_back_from_food_to_tail =
-                    a_prime::shortest_distance(&modified_board, food, &[would_be_tail])
+                    a_prime::shortest_distance(&modified_board, food, &[would_be_tail], None)
                         .unwrap_or(5000);
 
                 let cost_to_get_to_closest: u64 = if closest_index == 0 {
@@ -105,15 +113,10 @@ impl BattlesnakeAI for EremeticEric {
                     best_cost_u64 + dist_back_from_food_to_tail as u64;
 
                 let health: u64 = state.you.health.try_into().unwrap();
-                if (**food == Coordinate { x: 6, y: 5 }) {
-                    dbg!(
-                        health,
-                        cost_to_get_to_closest,
-                        cost_to_get_food_and_then_get_back_if_at_closest_point
-                    );
-                }
                 let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
-                    ((health - cost_to_get_to_closest)
+                    let health_when_at_closest = health - cost_to_get_to_closest;
+
+                    (health_when_at_closest
                         + cost_to_get_food_and_then_get_back_if_at_closest_point)
                         .try_into()
                         .unwrap()
@@ -134,9 +137,13 @@ impl BattlesnakeAI for EremeticEric {
             health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
 
         if &state.you.head == closest_body_part && cant_survive_another_loop {
-            let d =
-                a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[*best_food])
-                    .unwrap();
+            let d = a_prime::shortest_path_next_direction(
+                &state.board,
+                &state.you.head,
+                &[*best_food],
+                None,
+            )
+            .unwrap();
 
             return Ok(MoveOutput {
                 r#move: d.value(),
@@ -150,6 +157,7 @@ impl BattlesnakeAI for EremeticEric {
                     &state.board,
                     &state.you.head,
                     &state.board.food,
+                    None,
                 )
                 .unwrap()
                 .value(),
@@ -157,51 +165,17 @@ impl BattlesnakeAI for EremeticEric {
             });
         }
 
-        let empty = state.board.empty_coordiates();
-        let empty_tail_neighbors: Vec<_> = state
-            .you
-            .tail()
-            .possible_moves(&state.board)
-            .into_iter()
-            .map(|x| x.1)
-            .filter(|x| empty.contains(x))
-            .collect();
-
-        let empty_dir = if (state.board.filled_coordinates().len() as f64
-            >= (state.board.width * state.board.height) as f64 * 0.95
-            && !empty_tail_neighbors.is_empty())
-            || !has_unique_elements(state.you.body.iter())
-        {
-            a_prime::shortest_path_next_direction(
-                &state.board,
-                &state.you.head,
-                &empty_tail_neighbors,
-            )
-        } else {
-            None
-        };
-
-        let dir = empty_dir.unwrap_or_else(|| {
-            a_prime::shortest_path_next_direction(
-                &state.board,
-                &state.you.head,
-                &[state.you.tail()],
-            )
-            .unwrap_or(Direction::Up)
-        });
+        let dir = a_prime::shortest_path_next_direction(
+            &state.board,
+            &state.you.head,
+            &[state.you.tail()],
+            Some(APrimeOptions { food_penalty: 1 }),
+        )
+        .unwrap_or(Direction::Up);
 
         Ok(MoveOutput {
             r#move: dir.value(),
             shout: None,
         })
     }
-}
-
-fn has_unique_elements<T>(iter: T) -> bool
-where
-    T: IntoIterator,
-    T::Item: Eq + Hash,
-{
-    let mut uniq = HashSet::new();
-    iter.into_iter().all(move |x| uniq.insert(x))
 }
