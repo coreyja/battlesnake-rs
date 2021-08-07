@@ -280,7 +280,7 @@ fn minimax_options(
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
-    if let Some(s) = score(&node, new_depth) {
+    if let Some(s) = score(node, new_depth) {
         return vec![(s, current_moves)];
     }
 
@@ -308,14 +308,11 @@ fn minimax_options(
 
         if is_maximizing {
             alpha = std::cmp::max(alpha, value);
-            if beta <= alpha {
-                break;
-            }
         } else {
             beta = std::cmp::min(beta, value);
-            if beta <= alpha {
-                break;
-            }
+        }
+        if beta <= alpha {
+            break;
         }
     }
 

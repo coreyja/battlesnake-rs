@@ -110,7 +110,7 @@ impl BattlesnakeAI for AmphibiousArthur {
             _ => 5,
         };
         let next_move =
-            possible.max_by_key(|(_dir, coor)| score(&game_state, &coor, recursion_limit));
+            possible.max_by_key(|(_dir, coor)| score(&game_state, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: Direction::Up.value(),

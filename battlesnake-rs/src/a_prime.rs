@@ -83,7 +83,7 @@ fn a_prime_inner(
         };
 
         let tentative = known_score.get(&coordinate).unwrap_or(&i64::MAX) + neighbor_distance;
-        let neighbors = coordinate.possible_moves(&board);
+        let neighbors = coordinate.possible_moves(board);
         for (_, neighbor) in neighbors.filter(|(_, n)| {
             targets.contains(n) || board.snakes.iter().all(|snake| !snake.body.contains(n))
         }) {
@@ -92,7 +92,7 @@ fn a_prime_inner(
                 paths_from.insert(neighbor, Some(coordinate));
                 to_search.push(Node {
                     coordinate: neighbor,
-                    cost: tentative + hueristic(&neighbor, &targets).unwrap_or(HEURISTIC_MAX),
+                    cost: tentative + hueristic(&neighbor, targets).unwrap_or(HEURISTIC_MAX),
                 });
             }
         }
@@ -150,7 +150,7 @@ pub fn shortest_path_next_direction(
     let next_coordinate = shortest_path.get(1);
 
     if let Some(c) = next_coordinate {
-        direction_from_coordinate(start, &c)
+        direction_from_coordinate(start, c)
     } else {
         None
     }

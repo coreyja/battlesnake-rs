@@ -123,10 +123,7 @@ impl BattlesnakeAI for EremeticEric {
         let cant_survive_another_loop =
             health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
 
-        if !closest_body_part.on_wall(&state.board)
-            && &state.you.head == closest_body_part
-            && cant_survive_another_loop
-        {
+        if &state.you.head == closest_body_part && cant_survive_another_loop {
             let d =
                 a_prime::shortest_path_next_direction(&state.board, &state.you.head, &[*best_food])
                     .unwrap();
@@ -135,45 +132,6 @@ impl BattlesnakeAI for EremeticEric {
                 r#move: d.value(),
                 shout: None,
             });
-        }
-
-        if closest_body_part.on_wall(&state.board) && cant_survive_another_loop {
-            let closest_index: usize = body.iter().position(|x| x == closest_body_part).unwrap();
-
-            let before_index: usize = if closest_index == 0 {
-                body.len() - 1
-            } else {
-                closest_index - 1
-            };
-            let before = body[before_index];
-
-            if !before.on_wall(&state.board) && state.you.head == before {
-                let d = a_prime::shortest_path_next_direction(
-                    &state.board,
-                    &state.you.head,
-                    &[*best_food],
-                )
-                .unwrap();
-
-                return Ok(MoveOutput {
-                    r#move: d.value(),
-                    shout: None,
-                });
-            }
-
-            if &state.you.head == closest_body_part {
-                let d = a_prime::shortest_path_next_direction(
-                    &state.board,
-                    &state.you.head,
-                    &[*best_food],
-                )
-                .unwrap();
-
-                return Ok(MoveOutput {
-                    r#move: d.value(),
-                    shout: None,
-                });
-            }
         }
 
         if state.turn < 3 {
@@ -213,14 +171,14 @@ impl BattlesnakeAI for EremeticEric {
             None
         };
 
-        let tail_dir = a_prime::shortest_path_next_direction(
-            &state.board,
-            &state.you.head,
-            &[state.you.tail()],
-        )
-        .unwrap_or(Direction::Up);
-
-        let dir = empty_dir.unwrap_or(tail_dir);
+        let dir = empty_dir.unwrap_or_else(|| {
+            a_prime::shortest_path_next_direction(
+                &state.board,
+                &state.you.head,
+                &[state.you.tail()],
+            )
+            .unwrap_or(Direction::Up)
+        });
 
         Ok(MoveOutput {
             r#move: dir.value(),

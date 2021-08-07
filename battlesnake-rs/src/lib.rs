@@ -60,13 +60,7 @@ impl Coordinate {
         (self.x - other.x).abs() + (self.y - other.y).abs()
     }
 
-    fn on_wall(&self, board: &Board) -> bool {
-        let (width, height): (i64, i64) = (board.width.into(), board.height.into());
-
-        self.x == 0 || self.y == 0 || self.x + 1 == width || self.y + 1 == height
-    }
-
-    fn to_usize(&self) -> (usize, usize) {
+    fn to_usize(self) -> (usize, usize) {
         (self.x.try_into().unwrap(), self.y.try_into().unwrap())
     }
 }
@@ -129,7 +123,7 @@ impl<'a> Coordinate {
         &self,
         board: &'a Board,
     ) -> Box<dyn Iterator<Item = (Direction, Coordinate)> + 'a> {
-        let cloned = self.clone();
+        let cloned = *self;
         Box::new(
             ALL_DIRECTIONS
                 .iter()

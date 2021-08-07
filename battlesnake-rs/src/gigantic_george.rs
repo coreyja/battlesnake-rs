@@ -17,7 +17,7 @@ fn path_to_full_board(
         .last()
         .unwrap()
         .possible_moves(board)
-        .filter(|(_, c)| !reversed_body.contains(&c))
+        .filter(|(_, c)| !reversed_body.contains(c))
     {
         let mut new_body = reversed_body.to_vec();
         new_body.push(coor);
