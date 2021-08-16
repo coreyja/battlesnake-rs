@@ -1,4 +1,3 @@
-use core::hash::Hash;
 use std::convert::TryInto;
 
 use itertools::Itertools;
