@@ -130,7 +130,7 @@ enum ScoreEndState {
     OutOfHealthLose(i64),
     /// depth: i64
     HeadToHeadLose(i64),
-    /// difference_in_snake_length: i64, negaitve_distance_to_nearest_food: Option<i64>, health: u8
+    /// difference_in_snake_length: i64, negative_distance_to_nearest_food: Option<i64>, health: u8
     ShorterThanOpponent(i64, Option<i64>, i16),
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
     LongerThanOpponent(Option<i64>, i64, i16),
@@ -164,7 +164,7 @@ fn score(node: &GameState, depth: i64, max_depth: i64) -> Option<ScoreEndState> 
         .filter(|s| s.id != node.you.id)
         .collect();
 
-    let oppenent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0]).collect();
+    let opponent_heads: Vec<Coordinate> = opponents.iter().map(|s| s.body[0]).collect();
 
     let my_length: i64 = me.body.len().try_into().unwrap();
 
@@ -227,7 +227,7 @@ fn score(node: &GameState, depth: i64, max_depth: i64) -> Option<ScoreEndState> 
         }
 
         let negative_distance_to_opponent =
-            a_prime::shortest_distance(&node.board, &me.body[0], &oppenent_heads, None)
+            a_prime::shortest_distance(&node.board, &me.body[0], &opponent_heads, None)
                 .map(|dist| -dist);
 
         return Some(ScoreEndState::LongerThanOpponent(
