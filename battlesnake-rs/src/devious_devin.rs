@@ -37,6 +37,14 @@ impl DeviousDevin {
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
+        let max_depth = match sorted_snakes.len() {
+            2 => 10,
+            3 => 9,
+            4 => 8,
+            5 => 10,
+            _ => 10,
+        };
+
         let options = minimax_options(
             &mut game_state,
             &sorted_snakes,
@@ -44,6 +52,7 @@ impl DeviousDevin {
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
             vec![],
+            max_depth,
         );
 
         let mut options: Vec<MoveOption> = options
@@ -71,6 +80,14 @@ impl BattlesnakeAI for DeviousDevin {
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
+        let max_depth = match sorted_snakes.len() {
+            2 => 10,
+            3 => 9,
+            4 => 8,
+            5 => 10,
+            _ => 10,
+        };
+
         let (_, moves) = minimax(
             &mut game_state,
             &sorted_snakes,
@@ -78,6 +95,7 @@ impl BattlesnakeAI for DeviousDevin {
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
             vec![],
+            max_depth,
         );
 
         Ok(MoveOutput {
@@ -127,19 +145,11 @@ enum ScoreEndState {
 const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HeadToHeadWin(i64::MAX);
 const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HitSelfLose(i64::MIN);
 
-fn score(node: &GameState, depth: i64) -> Option<ScoreEndState> {
+fn score(node: &GameState, depth: i64, max_depth: i64) -> Option<ScoreEndState> {
     let num_snakes: i64 = node.board.snakes.len().try_into().unwrap();
     if depth % num_snakes != 0 {
         return None;
     }
-
-    let max_depth: i64 = match num_snakes {
-        2 => 10,
-        3 => 9,
-        4 => 8,
-        5 => 10,
-        _ => 10,
-    };
 
     let me: &Battlesnake = node
         .board
@@ -249,8 +259,9 @@ fn minimax(
     alpha: ScoreEndState,
     beta: ScoreEndState,
     current_moves: Vec<SnakeMove>,
+    max_depth: usize,
 ) -> (ScoreEndState, Vec<SnakeMove>) {
-    let options = minimax_options(node, snakes, depth, alpha, beta, current_moves);
+    let options = minimax_options(node, snakes, depth, alpha, beta, current_moves, max_depth);
 
     let snake = &snakes[depth % snakes.len()];
     let is_maximizing = snake.id == node.you.id;
@@ -277,12 +288,13 @@ fn minimax_options(
     alpha: ScoreEndState,
     beta: ScoreEndState,
     current_moves: Vec<SnakeMove>,
+    max_depth: usize,
 ) -> Vec<(ScoreEndState, Vec<SnakeMove>)> {
     let mut alpha = alpha;
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
-    if let Some(s) = score(node, new_depth) {
+    if let Some(s) = score(node, new_depth, max_depth as i64) {
         return vec![(s, current_moves)];
     }
 
@@ -303,7 +315,15 @@ fn minimax_options(
             });
             x
         };
-        let next_move_return = minimax(node, snakes, depth + 1, alpha, beta, new_current_moves);
+        let next_move_return = minimax(
+            node,
+            snakes,
+            depth + 1,
+            alpha,
+            beta,
+            new_current_moves,
+            max_depth,
+        );
         let value = next_move_return.0;
         node.reverse_move(last_move);
         options.push(next_move_return);
