@@ -78,14 +78,16 @@ impl BattlesnakeAI for DeviousDevin {
             _ => 10,
         };
 
-        let best_option = minimax(
-            &mut game_state,
-            &sorted_snakes,
-            0,
-            WORT_POSSIBLE_SCORE_STATE,
-            BEST_POSSIBLE_SCORE_STATE,
-            max_depth,
-        );
+        // let best_option = minimax(
+        //     &mut game_state,
+        //     &sorted_snakes,
+        //     0,
+        //     WORT_POSSIBLE_SCORE_STATE,
+        //     BEST_POSSIBLE_SCORE_STATE,
+        //     max_depth,
+        //     None,
+        // );
+        let best_option = deepened_minimax(&mut game_state, &sorted_snakes, max_depth);
 
         Ok(MoveOutput {
             r#move: option_to_my_direction(&best_option, &game_state)
@@ -231,16 +233,6 @@ fn score(node: &GameState, depth: i64, max_depth: i64) -> Option<ScoreEndState> 
     None
 }
 
-fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate)> {
-    let you: &Battlesnake = node
-        .board
-        .snakes
-        .iter()
-        .find(|s| s.id == turn_snake_id)
-        .expect("We didn't find that snake");
-    you.body[0].possible_moves(&node.board).collect()
-}
-
 use std::convert::TryInto;
 
 #[derive(Clone, Debug, Serialize)]
@@ -297,6 +289,7 @@ fn minimax(
     alpha: ScoreEndState,
     beta: ScoreEndState,
     max_depth: usize,
+    previous_return: Option<MinMaxReturn>,
 ) -> MinMaxReturn {
     let mut alpha = alpha;
     let mut beta = beta;
@@ -311,9 +304,48 @@ fn minimax(
     let snake = &snakes[depth % snakes.len()];
     let is_maximizing = snake.id == node.you.id;
 
-    for (dir, coor) in children(node, &snake.id).into_iter() {
+    let possible_moves: Vec<_> = node
+        .board
+        .snakes
+        .iter()
+        .find(|s| s.id == snake.id)
+        .expect("We didn't find that snake")
+        .body[0]
+        .possible_moves(&node.board)
+        .collect();
+
+    let possible_zipped: Vec<((Direction, Coordinate), Option<MinMaxReturn>)> =
+        if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
+            let mut v: Vec<_> = possible_moves
+                .into_iter()
+                .map(|m| {
+                    (
+                        m,
+                        options
+                            .iter()
+                            .position(|x| x.0 == m.0)
+                            .map(|x| options.remove(x).1),
+                    )
+                })
+                .collect();
+            v.sort_by_cached_key(|(_, r)| r.as_ref().map(|x| *x.score()));
+            v.reverse();
+            v
+        } else {
+            possible_moves.into_iter().map(|m| (m, None)).collect()
+        };
+
+    for ((dir, coor), previous_return) in possible_zipped.into_iter() {
         let last_move = node.move_to(&coor, &snake.id);
-        let next_move_return = minimax(node, snakes, depth + 1, alpha, beta, max_depth);
+        let next_move_return = minimax(
+            node,
+            snakes,
+            depth + 1,
+            alpha,
+            beta,
+            max_depth,
+            previous_return,
+        );
         let value = *next_move_return.score();
         node.reverse_move(last_move);
         options.push((dir, next_move_return));
@@ -339,6 +371,39 @@ fn minimax(
         is_maximizing,
         moving_snake_id: snake.id.to_owned(),
     }
+}
+
+fn deepened_minimax(
+    node: &mut GameState,
+    snakes: &[Battlesnake],
+    max_depth: usize,
+) -> MinMaxReturn {
+    let mut current_depth = 2;
+
+    let mut current_return = minimax(
+        node,
+        snakes,
+        0,
+        WORT_POSSIBLE_SCORE_STATE,
+        BEST_POSSIBLE_SCORE_STATE,
+        current_depth,
+        None,
+    );
+
+    while current_depth < max_depth {
+        current_depth += 2;
+        current_return = minimax(
+            node,
+            snakes,
+            0,
+            WORT_POSSIBLE_SCORE_STATE,
+            BEST_POSSIBLE_SCORE_STATE,
+            current_depth,
+            Some(current_return),
+        )
+    }
+
+    current_return
 }
 
 #[cfg(test)]
