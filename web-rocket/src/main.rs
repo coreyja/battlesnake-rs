@@ -7,7 +7,7 @@ use battlesnake_rs::gigantic_george::GiganticGeorge;
 use rocket::http::Status;
 
 use battlesnake_rs::constant_carter::ConstantCarter;
-use battlesnake_rs::devious_devin::{DeviousDevin, EvaluateOutput};
+use battlesnake_rs::devious_devin::DeviousDevin;
 use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
 use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
 use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
@@ -48,13 +48,13 @@ fn api_move(
     Some(Json(m))
 }
 
-#[post("/devious-devin/explain", data = "<game_state>")]
-fn custom_explain(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
-    let devin = DeviousDevin {};
-    let m = devin.explain_move(game_state.into_inner()).ok()?;
+// #[post("/devious-devin/explain", data = "<game_state>")]
+// fn custom_explain(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
+//     let devin = DeviousDevin {};
+//     let m = devin.explain_move(game_state.into_inner()).ok()?;
 
-    Some(Json(m))
-}
+//     Some(Json(m))
+// }
 
 #[get("/<snake>")]
 fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<AboutMe>> {
@@ -99,9 +99,6 @@ fn main() {
     rocket::ignite()
         .manage(snakes)
         .attach(cors)
-        .mount(
-            "/",
-            routes![api_start, api_end, api_move, api_about, custom_explain],
-        )
+        .mount("/", routes![api_start, api_end, api_move, api_about])
         .launch();
 }

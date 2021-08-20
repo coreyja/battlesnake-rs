@@ -14,61 +14,51 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-fn moves_to_my_direction(moves: &[SnakeMove], game_state: &GameState) -> Direction {
-    moves
-        .iter()
-        .find(|m| m.snake_id == game_state.you.id)
-        .map(|m| m.dir)
-        .unwrap_or_else(|| {
-            game_state.you.body[0]
-                .possible_moves(&game_state.board)
-                .next()
-                .map(|x| x.0)
-                .unwrap_or(Direction::Up)
-        })
+fn option_to_my_direction(option: &MinMaxReturn, game_state: &GameState) -> Option<Direction> {
+    option.direction_for(&game_state.you.id)
 }
 
 impl DeviousDevin {
-    pub fn explain_move(
-        &self,
-        game_state: GameState,
-    ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let mut game_state = game_state;
-        let mut sorted_snakes = game_state.board.snakes.clone();
-        sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
+    // pub fn explain_move(
+    //     &self,
+    //     game_state: GameState,
+    // ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
+    //     let mut game_state = game_state;
+    //     let mut sorted_snakes = game_state.board.snakes.clone();
+    //     sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
-        let max_depth = match sorted_snakes.len() {
-            2 => 10,
-            3 => 9,
-            4 => 8,
-            5 => 10,
-            _ => 10,
-        };
+    //     let max_depth = match sorted_snakes.len() {
+    //         2 => 10,
+    //         3 => 9,
+    //         4 => 8,
+    //         5 => 10,
+    //         _ => 10,
+    //     };
 
-        let options = minimax_options(
-            &mut game_state,
-            &sorted_snakes,
-            0,
-            WORT_POSSIBLE_SCORE_STATE,
-            BEST_POSSIBLE_SCORE_STATE,
-            vec![],
-            max_depth,
-        );
+    //     let options = minimax_options(
+    //         &mut game_state,
+    //         &sorted_snakes,
+    //         0,
+    //         WORT_POSSIBLE_SCORE_STATE,
+    //         BEST_POSSIBLE_SCORE_STATE,
+    //         vec![],
+    //         max_depth,
+    //     );
 
-        let mut options: Vec<MoveOption> = options
-            .into_iter()
-            .map(|(score, moves)| {
-                let dir = moves_to_my_direction(&moves, &game_state);
+    //     let mut options: Vec<MoveOption> = options
+    //         .into_iter()
+    //         .map(|(score, moves)| {
+    //             let dir = moves_to_my_direction(&moves, &game_state);
 
-                MoveOption { moves, score, dir }
-            })
-            .collect();
+    //             MoveOption { moves, score, dir }
+    //         })
+    //         .collect();
 
-        options.sort_by_key(|option| option.score);
-        options.reverse();
+    //     options.sort_by_key(|option| option.score);
+    //     options.reverse();
 
-        Ok(EvaluateOutput { options })
-    }
+    //     Ok(EvaluateOutput { options })
+    // }
 }
 
 impl BattlesnakeAI for DeviousDevin {
@@ -88,18 +78,19 @@ impl BattlesnakeAI for DeviousDevin {
             _ => 10,
         };
 
-        let (_, moves) = minimax(
+        let best_option = minimax(
             &mut game_state,
             &sorted_snakes,
             0,
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
-            vec![],
             max_depth,
         );
 
         Ok(MoveOutput {
-            r#move: moves_to_my_direction(&moves, &game_state).value(),
+            r#move: option_to_my_direction(&best_option, &game_state)
+                .expect("TODO: this needs to be handled")
+                .value(),
             shout: None,
         })
     }
@@ -252,27 +243,6 @@ fn children(node: &GameState, turn_snake_id: &str) -> Vec<(Direction, Coordinate
 
 use std::convert::TryInto;
 
-fn minimax(
-    node: &mut GameState,
-    snakes: &[Battlesnake],
-    depth: usize,
-    alpha: ScoreEndState,
-    beta: ScoreEndState,
-    current_moves: Vec<SnakeMove>,
-    max_depth: usize,
-) -> (ScoreEndState, Vec<SnakeMove>) {
-    let options = minimax_options(node, snakes, depth, alpha, beta, current_moves, max_depth);
-
-    let snake = &snakes[depth % snakes.len()];
-    let is_maximizing = snake.id == node.you.id;
-
-    if is_maximizing {
-        options.into_iter().max_by_key(|(score, _)| *score).unwrap()
-    } else {
-        options.into_iter().min_by_key(|(score, _)| *score).unwrap()
-    }
-}
-
 #[derive(Clone, Debug, Serialize)]
 struct SnakeMove {
     snake_name: String,
@@ -281,52 +251,72 @@ struct SnakeMove {
     move_to: Coordinate,
 }
 
-fn minimax_options(
+#[derive(Debug)]
+enum MinMaxReturn {
+    Node {
+        is_maximizing: bool,
+        options: Vec<(Direction, MinMaxReturn)>,
+        moving_snake_id: String,
+    },
+    Leaf {
+        score: ScoreEndState,
+    },
+}
+
+impl MinMaxReturn {
+    fn score(&self) -> &ScoreEndState {
+        match self {
+            MinMaxReturn::Node { options, .. } => options.first().unwrap().1.score(),
+            MinMaxReturn::Leaf { score } => score,
+        }
+    }
+
+    fn direction_for(&self, snake_id: &str) -> Option<Direction> {
+        match self {
+            MinMaxReturn::Leaf { .. } => None,
+            MinMaxReturn::Node {
+                moving_snake_id,
+                options,
+                ..
+            } => {
+                let chosen = options.first()?;
+                if moving_snake_id == snake_id {
+                    Some(chosen.0)
+                } else {
+                    chosen.1.direction_for(snake_id)
+                }
+            }
+        }
+    }
+}
+
+fn minimax(
     node: &mut GameState,
     snakes: &[Battlesnake],
     depth: usize,
     alpha: ScoreEndState,
     beta: ScoreEndState,
-    current_moves: Vec<SnakeMove>,
     max_depth: usize,
-) -> Vec<(ScoreEndState, Vec<SnakeMove>)> {
+) -> MinMaxReturn {
     let mut alpha = alpha;
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
     if let Some(s) = score(node, new_depth, max_depth as i64) {
-        return vec![(s, current_moves)];
+        return MinMaxReturn::Leaf { score: s };
     }
 
-    let mut options = vec![];
+    let mut options: Vec<(Direction, MinMaxReturn)> = vec![];
 
     let snake = &snakes[depth % snakes.len()];
     let is_maximizing = snake.id == node.you.id;
 
     for (dir, coor) in children(node, &snake.id).into_iter() {
         let last_move = node.move_to(&coor, &snake.id);
-        let new_current_moves = {
-            let mut x = current_moves.clone();
-            x.push(SnakeMove {
-                dir,
-                snake_name: snake.name.clone(),
-                snake_id: snake.id.clone(),
-                move_to: coor,
-            });
-            x
-        };
-        let next_move_return = minimax(
-            node,
-            snakes,
-            depth + 1,
-            alpha,
-            beta,
-            new_current_moves,
-            max_depth,
-        );
-        let value = next_move_return.0;
+        let next_move_return = minimax(node, snakes, depth + 1, alpha, beta, max_depth);
+        let value = *next_move_return.score();
         node.reverse_move(last_move);
-        options.push(next_move_return);
+        options.push((dir, next_move_return));
 
         if is_maximizing {
             alpha = std::cmp::max(alpha, value);
@@ -338,7 +328,18 @@ fn minimax_options(
         }
     }
 
-    options
+    options.sort_by_cached_key(|(_, value)| *value.score());
+
+    if is_maximizing {
+        options.reverse();
+    }
+
+    MinMaxReturn::Node {
+        options,
+        is_maximizing,
+        moving_snake_id: snake.id.to_owned(),
+    }
 }
+
 #[cfg(test)]
 mod tests {}
