@@ -378,7 +378,7 @@ fn deepened_minimax(
     snakes: &[Battlesnake],
     max_depth: usize,
 ) -> MinMaxReturn {
-    let mut current_depth = 2;
+    let mut current_depth = snakes.len();
 
     let mut current_return = minimax(
         node,
@@ -391,7 +391,7 @@ fn deepened_minimax(
     );
 
     while current_depth < max_depth {
-        current_depth += 2;
+        current_depth += snakes.len();
         current_return = minimax(
             node,
             snakes,
