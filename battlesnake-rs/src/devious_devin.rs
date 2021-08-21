@@ -233,6 +233,7 @@ enum MinMaxReturn {
         is_maximizing: bool,
         options: Vec<(Direction, MinMaxReturn)>,
         moving_snake_id: String,
+        score: ScoreEndState,
     },
     Leaf {
         score: ScoreEndState,
@@ -242,7 +243,7 @@ enum MinMaxReturn {
 impl MinMaxReturn {
     fn score(&self) -> &ScoreEndState {
         match self {
-            MinMaxReturn::Node { options, .. } => options.first().unwrap().1.score(),
+            MinMaxReturn::Node { score, .. } => score,
             MinMaxReturn::Leaf { score } => score,
         }
     }
@@ -349,11 +350,13 @@ fn minimax(
     if is_maximizing {
         options.reverse();
     }
+    let chosen_score = *options[0].1.score();
 
     MinMaxReturn::Node {
         options,
         is_maximizing,
         moving_snake_id: snake.id.to_owned(),
+        score: chosen_score,
     }
 }
 
