@@ -66,7 +66,6 @@ impl BattlesnakeAI for DeviousDevin {
         &self,
         game_state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let mut game_state = game_state;
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
@@ -87,7 +86,7 @@ impl BattlesnakeAI for DeviousDevin {
         //     max_depth,
         //     None,
         // );
-        let best_option = deepened_minimax(&mut game_state, &sorted_snakes, max_depth);
+        let best_option = deepened_minimax(game_state.clone(), sorted_snakes);
 
         Ok(MoveOutput {
             r#move: option_to_my_direction(&best_option, &game_state)
@@ -243,7 +242,7 @@ struct SnakeMove {
     move_to: Coordinate,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum MinMaxReturn {
     Node {
         is_maximizing: bool,
@@ -283,8 +282,8 @@ impl MinMaxReturn {
 }
 
 fn minimax(
-    node: &mut GameState,
-    snakes: &[Battlesnake],
+    mut node: GameState,
+    snakes: Vec<Battlesnake>,
     depth: usize,
     alpha: ScoreEndState,
     beta: ScoreEndState,
@@ -295,7 +294,7 @@ fn minimax(
     let mut beta = beta;
 
     let new_depth = depth.try_into().unwrap();
-    if let Some(s) = score(node, new_depth, max_depth as i64) {
+    if let Some(s) = score(&node, new_depth, max_depth as i64) {
         return MinMaxReturn::Leaf { score: s };
     }
 
@@ -338,8 +337,8 @@ fn minimax(
     for ((dir, coor), previous_return) in possible_zipped.into_iter() {
         let last_move = node.move_to(&coor, &snake.id);
         let next_move_return = minimax(
-            node,
-            snakes,
+            node.clone(),
+            snakes.clone(),
             depth + 1,
             alpha,
             beta,
@@ -373,37 +372,48 @@ fn minimax(
     }
 }
 
-fn deepened_minimax(
-    node: &mut GameState,
-    snakes: &[Battlesnake],
-    max_depth: usize,
-) -> MinMaxReturn {
-    let mut current_depth = snakes.len();
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
-    let mut current_return = minimax(
-        node,
-        snakes,
-        0,
-        WORT_POSSIBLE_SCORE_STATE,
-        BEST_POSSIBLE_SCORE_STATE,
-        current_depth,
-        None,
-    );
+fn deepened_minimax(node: GameState, snakes: Vec<Battlesnake>) -> MinMaxReturn {
+    let started_at = Instant::now();
+    let current_turn = node.turn;
 
-    while current_depth < max_depth {
-        current_depth += snakes.len();
-        current_return = minimax(
-            node,
-            snakes,
-            0,
-            WORT_POSSIBLE_SCORE_STATE,
-            BEST_POSSIBLE_SCORE_STATE,
-            current_depth,
-            Some(current_return),
-        )
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let mut current_depth = snakes.len();
+        let mut current_return = None;
+        loop {
+            current_return = Some(minimax(
+                node.clone(),
+                snakes.clone(),
+                0,
+                WORT_POSSIBLE_SCORE_STATE,
+                BEST_POSSIBLE_SCORE_STATE,
+                current_depth,
+                current_return,
+            ));
+
+            if tx.send((current_depth, current_return.clone())).is_err() {
+                return;
+            }
+            current_depth += snakes.len();
+        }
+    });
+
+    let mut current = None;
+
+    while started_at.elapsed() < Duration::new(0, 400_000_000) {
+        if let Ok((depth, result)) = rx.try_recv() {
+            current = result;
+            println!("Turn {} Just finished depth: {}", current_turn, depth);
+        }
     }
 
-    current_return
+    current.unwrap_or(MinMaxReturn::Leaf {
+        score: WORT_POSSIBLE_SCORE_STATE,
+    })
 }
 
 #[cfg(test)]
