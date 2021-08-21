@@ -13,6 +13,7 @@ serde_derive = "1.0"
 rand = "0.8"
 itertools = "0.10.0"
 debug_print = "1.0.0"
+tracing = "0.1.26"
 
 [lib]
 name = "battlesnake_rs"

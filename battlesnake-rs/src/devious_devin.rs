@@ -2,6 +2,8 @@ use super::*;
 
 pub struct DeviousDevin {}
 
+use tracing::{info, info_span};
+
 #[derive(Serialize)]
 pub struct MoveOption {
     moves: Vec<SnakeMove>,
@@ -23,7 +25,12 @@ impl BattlesnakeAI for DeviousDevin {
         let mut sorted_snakes = game_state.board.snakes.clone();
         sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
 
-        let best_option = deepened_minimax(game_state, sorted_snakes);
+        let best_option = info_span!(
+            "deepened_minmax",
+            game_id = ?game_state.game.id,
+            turn = game_state.turn
+        )
+        .in_scope(|| deepened_minimax(game_state, sorted_snakes));
 
         Ok(MoveOutput {
             r#move: best_option
@@ -321,7 +328,6 @@ fn deepened_minimax(node: GameState, snakes: Vec<Battlesnake>) -> MinMaxReturn {
     const RUNAWAY_DEPTH_LIMIT: usize = 2_000;
 
     let started_at = Instant::now();
-    let current_turn = node.turn;
 
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
@@ -352,7 +358,7 @@ fn deepened_minimax(node: GameState, snakes: Vec<Battlesnake>) -> MinMaxReturn {
     while started_at.elapsed() < Duration::new(0, 400_000_000) {
         if let Ok((depth, result)) = rx.try_recv() {
             current = result;
-            println!("Turn {} Just finished depth: {}", current_turn, depth);
+            info!(depth, "Just finished depth");
 
             if depth > RUNAWAY_DEPTH_LIMIT {
                 break;
