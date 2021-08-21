@@ -340,8 +340,6 @@ pub struct MoveOutput {
     shout: Option<String>,
 }
 
-use std::sync::Arc;
-
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 pub trait BattlesnakeAI {
     fn start(&self) {}

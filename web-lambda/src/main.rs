@@ -17,7 +17,7 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let snakes: Vec<Arc<BoxedSnake>> = vec![
-        Arc::new(Box::new(AmphibiousArthur::new(Arc::new(None)))),
+        Arc::new(Box::new(AmphibiousArthur {})),
         Arc::new(Box::new(BombasticBob {})),
         Arc::new(Box::new(ConstantCarter {})),
         Arc::new(Box::new(DeviousDevin {})),

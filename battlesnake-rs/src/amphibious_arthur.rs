@@ -31,8 +31,6 @@ impl MoveToAndSpawn for GameState {
     }
 }
 
-use opentelemetry::trace::{Span, Tracer};
-
 fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
     const PREFERRED_HEALTH: i64 = 80;
 
@@ -75,15 +73,7 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
     current_score + recursed_score / 2
 }
 
-pub struct AmphibiousArthur {
-    tracer: Arc<Option<opentelemetry::sdk::trace::Tracer>>,
-}
-
-impl AmphibiousArthur {
-    pub fn new(tracer: Arc<Option<opentelemetry::sdk::trace::Tracer>>) -> Self {
-        Self { tracer }
-    }
-}
+pub struct AmphibiousArthur {}
 
 impl BattlesnakeAI for AmphibiousArthur {
     fn name(&self) -> String {
@@ -94,17 +84,7 @@ impl BattlesnakeAI for AmphibiousArthur {
         &self,
         game_state: GameState,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let possible_moves_span = self
-            .tracer
-            .as_ref()
-            .as_ref()
-            .map(|x| x.span_builder("possible_moves").start(x));
-
         let possible = game_state.you.head.possible_moves(&game_state.board);
-        if let Some(span) = possible_moves_span {
-            span.end();
-        }
-
         let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
             Ok(Ok(x)) => x,
             _ => 5,

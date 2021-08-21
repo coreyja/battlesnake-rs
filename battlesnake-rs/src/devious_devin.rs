@@ -14,53 +14,6 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-fn option_to_my_direction(option: &MinMaxReturn, game_state: &GameState) -> Option<Direction> {
-    option.direction_for(&game_state.you.id)
-}
-
-impl DeviousDevin {
-    // pub fn explain_move(
-    //     &self,
-    //     game_state: GameState,
-    // ) -> Result<EvaluateOutput, Box<dyn std::error::Error + Send + Sync>> {
-    //     let mut game_state = game_state;
-    //     let mut sorted_snakes = game_state.board.snakes.clone();
-    //     sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { 1 } else { -1 });
-
-    //     let max_depth = match sorted_snakes.len() {
-    //         2 => 10,
-    //         3 => 9,
-    //         4 => 8,
-    //         5 => 10,
-    //         _ => 10,
-    //     };
-
-    //     let options = minimax_options(
-    //         &mut game_state,
-    //         &sorted_snakes,
-    //         0,
-    //         WORT_POSSIBLE_SCORE_STATE,
-    //         BEST_POSSIBLE_SCORE_STATE,
-    //         vec![],
-    //         max_depth,
-    //     );
-
-    //     let mut options: Vec<MoveOption> = options
-    //         .into_iter()
-    //         .map(|(score, moves)| {
-    //             let dir = moves_to_my_direction(&moves, &game_state);
-
-    //             MoveOption { moves, score, dir }
-    //         })
-    //         .collect();
-
-    //     options.sort_by_key(|option| option.score);
-    //     options.reverse();
-
-    //     Ok(EvaluateOutput { options })
-    // }
-}
-
 impl BattlesnakeAI for DeviousDevin {
     fn make_move(
         &self,

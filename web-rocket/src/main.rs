@@ -14,10 +14,7 @@ use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
 
 use rocket::State;
 
-use async_executors::TokioTpBuilder;
-use opentelemetry_honeycomb::HoneycombApiKey;
 use rocket_contrib::json::Json;
-use std::sync::Arc;
 
 #[post("/<_snake>/start")]
 fn api_start(_snake: String) -> Status {
@@ -48,14 +45,6 @@ fn api_move(
     Some(Json(m))
 }
 
-// #[post("/devious-devin/explain", data = "<game_state>")]
-// fn custom_explain(game_state: Json<GameState>) -> Option<Json<EvaluateOutput>> {
-//     let devin = DeviousDevin {};
-//     let m = devin.explain_move(game_state.into_inner()).ok()?;
-
-//     Some(Json(m))
-// }
-
 #[get("/<snake>")]
 fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<AboutMe>> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
@@ -63,29 +52,8 @@ fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<About
 }
 
 fn main() {
-    let mut builder = TokioTpBuilder::new();
-    builder.tokio_builder().enable_io().enable_time();
-    let executor = Arc::new(builder.build().expect("Failed to build Tokio executor"));
-
-    let x = match (
-        std::env::var("HONEYCOMB_API_KEY"),
-        std::env::var("HONEYCOMB_DATASET"),
-    ) {
-        (Ok(api_key), Ok(dataset)) => Some(
-            opentelemetry_honeycomb::new_pipeline(
-                HoneycombApiKey::new(api_key),
-                dataset,
-                executor.clone(),
-                move |fut| executor.block_on(fut),
-            )
-            .install()
-            .unwrap(),
-        ),
-        _ => None,
-    };
-
     let snakes: Vec<BoxedSnake> = vec![
-        Box::new(AmphibiousArthur::new(Arc::new(x.map(|x| x.1)))),
+        Box::new(AmphibiousArthur {}),
         Box::new(BombasticBob {}),
         Box::new(ConstantCarter {}),
         Box::new(DeviousDevin {}),
