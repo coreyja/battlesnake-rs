@@ -18,27 +18,11 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    if let Ok(honeycomb_key) = std::env::var("HONEYCOMB_API_KEY") {
-        let honeycomb_config = libhoney::Config {
-            options: libhoney::client::Options {
-                api_key: honeycomb_key,
-                dataset: "battlesnake-rs".to_string(),
-                ..libhoney::client::Options::default()
-            },
-            transmission_options: libhoney::transmission::Options::default(),
-        };
+    let subscriber = tracing_subscriber::registry::Registry::default()
+        .with(tracing_subscriber::filter::LevelFilter::INFO)
+        .with(tracing_subscriber::fmt::Layer::default());
 
-        let telemetry_layer =
-            tracing_honeycomb::new_honeycomb_telemetry_layer("battlesnake-rs", honeycomb_config);
-
-        // NOTE: the underlying subscriber MUST be the Registry subscriber
-        let subscriber = tracing_subscriber::registry::Registry::default() // provide underlying span data store
-            .with(tracing_subscriber::filter::LevelFilter::INFO) // filter out low-level debug tracing (eg tokio executor)
-            .with(tracing_subscriber::fmt::Layer::default())
-            .with(telemetry_layer); // publish to honeycomb backend
-
-        tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
-    };
+    tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 
     let snakes: Vec<Arc<BoxedSnake>> = vec![
         Arc::new(Box::new(AmphibiousArthur {})),

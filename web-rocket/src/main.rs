@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate rocket;
 
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
 
 use battlesnake_rs::gigantic_george::GiganticGeorge;
 use rocket::http::Status;
@@ -54,13 +54,11 @@ fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<About
 }
 
 fn main() {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "battlesnake_rs=info")
-    }
+    let subscriber = tracing_subscriber::registry::Registry::default()
+        .with(tracing_subscriber::filter::LevelFilter::INFO)
+        .with(tracing_subscriber::fmt::Layer::default());
 
-    tracing_subscriber::fmt::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
+    tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 
     let snakes: Vec<BoxedSnake> = vec![
         Box::new(AmphibiousArthur {}),
