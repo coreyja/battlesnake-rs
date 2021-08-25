@@ -33,7 +33,7 @@ impl BattlesnakeAI for DeviousDevin {
             game_id = ?game_state.game.id,
             turn = game_state.turn
         )
-        .in_scope(|| deepened_minimax(game_state, sorted_snakes));
+        .in_scope(|| deepened_minimax(game_state, players));
 
         Ok(MoveOutput {
             r#move: best_option
@@ -296,6 +296,7 @@ fn minimax(
                 };
 
             for ((dir, coor), previous_return) in possible_zipped.into_iter() {
+                let original_node = node.clone();
                 let last_move = node.move_to(&coor, &snake.id);
                 let next_move_return = minimax(
                     node,
@@ -308,6 +309,7 @@ fn minimax(
                 );
                 let value = *next_move_return.score();
                 node.reverse_move(last_move);
+                assert_eq!(node, &original_node, "There is a bug in Snake move/unmove");
                 options.push((dir, next_move_return));
 
                 if is_maximizing {
@@ -335,6 +337,7 @@ fn minimax(
             }
         }
         Player::Nature => {
+            let original_node = node.clone();
             let nature_moves = node.nature_move();
             let return_value = minimax(
                 node,
@@ -348,6 +351,8 @@ fn minimax(
             for m in nature_moves.into_iter() {
                 node.reverse_nature(m)
             }
+
+            assert_eq!(node, &original_node, "Nature move/unmove is broken");
 
             MinMaxReturn::Nature {
                 score: *return_value.score(),

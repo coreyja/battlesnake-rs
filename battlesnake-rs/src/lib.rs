@@ -317,22 +317,20 @@ impl GameState {
     fn nature_move(&mut self) -> Vec<NatureMove> {
         let mut moves = vec![];
 
-        for f in self.board.food.iter() {
-            for s in self.board.snakes.iter_mut() {
-                if s.body[0] == *f {
-                    let pos = self.board.food.iter().position(|x| x == f).unwrap();
-                    moves.push(NatureMove::AteFood {
-                        snake_id: s.id.clone(),
-                        old_health: s.health,
-                        food_coor: *f,
-                        food_pos: pos,
-                    });
-                    s.health = 100;
-                    s.body.push(*s.body.last().unwrap());
-                }
+        for s in self.board.snakes.iter_mut() {
+            if let Some(pos) = self.board.food.iter().position(|x| x == &s.body[0]) {
+                moves.push(NatureMove::AteFood {
+                    snake_id: s.id.clone(),
+                    old_health: s.health,
+                    food_coor: self.board.food.remove(pos),
+                    food_pos: pos,
+                });
+                s.health = 100;
+                s.body.push(*s.body.last().unwrap());
             }
         }
 
+        moves.reverse();
         moves
     }
 
