@@ -272,12 +272,20 @@ pub struct GameState {
 }
 
 pub enum MoveResult {
-    AteFood(i16, Coordinate, usize), // old_health, food_coor, food_pos
-    MovedTail(i16, Coordinate),      //old_health, tail_was
+    MovedTail(i16, Coordinate), //old_health, tail_was
 }
 pub struct Move {
     snake_id: String,
     move_result: MoveResult,
+}
+
+pub enum NatureMove {
+    AteFood {
+        snake_id: String,
+        old_health: i16,
+        food_coor: Coordinate,
+        food_pos: usize,
+    },
 }
 
 impl GameState {
@@ -293,13 +301,7 @@ impl GameState {
         let old_health = to_move.health;
         to_move.health -= 1;
 
-        let move_result = if let Some(pos) = self.board.food.iter().position(|x| x == coor) {
-            self.board.food.remove(pos);
-            to_move.health = 100;
-            MoveResult::AteFood(old_health, *coor, pos)
-        } else {
-            MoveResult::MovedTail(old_health, to_move.body.pop().unwrap())
-        };
+        let move_result = MoveResult::MovedTail(old_health, to_move.body.pop().unwrap());
 
         if self.board.hazards.contains(coor) {
             to_move.health -= 15;
@@ -309,6 +311,49 @@ impl GameState {
         Move {
             snake_id,
             move_result,
+        }
+    }
+
+    fn nature_move(&mut self) -> Vec<NatureMove> {
+        let mut moves = vec![];
+
+        for f in self.board.food.iter() {
+            for s in self.board.snakes.iter_mut() {
+                if s.body[0] == *f {
+                    let pos = self.board.food.iter().position(|x| x == f).unwrap();
+                    moves.push(NatureMove::AteFood {
+                        snake_id: s.id.clone(),
+                        old_health: s.health,
+                        food_coor: *f,
+                        food_pos: pos,
+                    });
+                    s.health = 100;
+                    s.body.push(*s.body.last().unwrap());
+                }
+            }
+        }
+
+        moves
+    }
+
+    fn reverse_nature(&mut self, m: NatureMove) {
+        match m {
+            NatureMove::AteFood {
+                snake_id,
+                old_health,
+                food_coor,
+                food_pos,
+            } => {
+                let snake = self
+                    .board
+                    .snakes
+                    .iter_mut()
+                    .find(|s| s.id == snake_id)
+                    .unwrap();
+                snake.health = old_health;
+                snake.body.pop();
+                self.board.food.insert(food_pos, food_coor);
+            }
         }
     }
 
@@ -322,10 +367,6 @@ impl GameState {
         to_move.body.remove(0);
 
         match m.move_result {
-            MoveResult::AteFood(old_health, food_coor, food_pos) => {
-                to_move.health = old_health;
-                self.board.food.insert(food_pos, food_coor);
-            }
             MoveResult::MovedTail(old_health, tail) => {
                 to_move.health = old_health;
                 to_move.body.push(tail);
