@@ -403,6 +403,7 @@ fn deepened_minimax(node: GameState, players: Vec<Player>) -> MinMaxReturn {
         }
     }
 
+    info!(score = ?current.as_ref().map(|x| x.score()), "Finished deepened_minimax");
     current.unwrap_or(MinMaxReturn::Leaf {
         score: WORT_POSSIBLE_SCORE_STATE,
     })
