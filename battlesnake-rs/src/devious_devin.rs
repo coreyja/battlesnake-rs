@@ -395,7 +395,7 @@ fn deepened_minimax(node: GameState, players: Vec<Player>) -> MinMaxReturn {
     while started_at.elapsed() < Duration::new(0, 400_000_000) {
         if let Ok((depth, result)) = rx.try_recv() {
             current = result;
-            info!(depth, "Just finished depth");
+            info!(depth, current_score = ?current.as_ref().map(|x| x.score()), "Just finished depth");
 
             if depth > RUNAWAY_DEPTH_LIMIT {
                 break;
