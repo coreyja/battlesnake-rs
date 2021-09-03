@@ -210,108 +210,97 @@ pub fn shortest_path_next_direction(
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::Battlesnake;
-//     use serde_json::Value::Number;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Battlesnake, Coordinate, GameState};
+    use battlesnake_game_types::wire_representation::Game;
+    use serde_json::Value::Number;
 
-//     #[test]
-//     fn test_heuristic() {
-//         assert_eq!(
-//             hueristic(&Position { x: 1, y: 1 }, &[Position { x: 2, y: 2 }]),
-//             Some(2)
-//         );
-//     }
+    fn cell_index_from_position_default_width(pos: Position) -> CellIndex<u8> {
+        let width = ((11 * 11) as f32).sqrt() as u8;
 
-//     #[test]
-//     fn test_multi_target_heuristic() {
-//         assert_eq!(
-//             hueristic(
-//                 &Position { x: 1, y: 1 },
-//                 &[
-//                     Position { x: 3, y: 3 },
-//                     Position { x: 4, y: 4 },
-//                     Position { x: 5, y: 5 },
-//                 ]
-//             ),
-//             Some(4)
-//         );
-//     }
+        CellIndex::new(pos, width)
+    }
 
-//     #[test]
-//     fn test_basic_a_prime() {
-//         assert_eq!(
-//             shortest_distance(
-//                 &Board {
-//                     food: vec![],
-//                     hazards: vec![],
-//                     height: 11,
-//                     width: 11,
-//                     snakes: vec![],
-//                 },
-//                 &Position { x: 1, y: 1 },
-//                 &[
-//                     Position { x: 3, y: 3 },
-//                     Position { x: 4, y: 4 },
-//                     Position { x: 5, y: 5 },
-//                 ],
-//                 None
-//             ),
-//             Some(4)
-//         );
-//     }
+    #[test]
+    fn test_heuristic() {
+        assert_eq!(
+            hueristic(
+                &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
+                &[cell_index_from_position_default_width(Position {
+                    x: 2,
+                    y: 2
+                })]
+            ),
+            Some(2)
+        );
+    }
 
-//     #[test]
-//     fn test_real_example() {
-//         assert_eq!(
-//             shortest_distance(
-//                 &Board {
-//                     food: vec![],
-//                     hazards: vec![],
-//                     height: 11,
-//                     width: 11,
-//                     snakes: vec![
-//                         Battlesnake {
-//                             id: "".to_owned(),
-//                             name: "".to_owned(),
-//                             health: 93,
-//                             body: vec![
-//                                 Position { x: 7, y: 10 },
-//                                 Position { x: 6, y: 10 },
-//                                 Position { x: 5, y: 10 },
-//                                 Position { x: 4, y: 10 }
-//                             ],
-//                             latency: Number(84.into()),
-//                             head: Position { x: 0, y: 10 },
-//                             length: 4,
-//                             shout: Some("".to_owned()),
-//                             squad: Some("".to_owned())
-//                         },
-//                         Battlesnake {
-//                             id: "".to_owned(),
-//                             name: "".to_owned(),
-//                             health: 99,
-//                             body: vec![
-//                                 Position { x: 5, y: 4 },
-//                                 Position { x: 5, y: 5 },
-//                                 Position { x: 4, y: 5 },
-//                                 Position { x: 3, y: 5 },
-//                                 Position { x: 2, y: 5 }
-//                             ],
-//                             latency: Number(327.into()),
-//                             head: Position { x: 2, y: 4 },
-//                             length: 4,
-//                             shout: Some("".to_owned()),
-//                             squad: Some("".to_owned())
-//                         }
-//                     ],
-//                 },
-//                 &Position { x: 5, y: 4 },
-//                 &[Position { x: 7, y: 10 },],
-//                 None
-//             ),
-//             Some(8)
-//         );
-//     }
-// }
+    #[test]
+    fn test_multi_target_heuristic() {
+        assert_eq!(
+            hueristic(
+                &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
+                &[
+                    cell_index_from_position_default_width(Position { x: 3, y: 3 }),
+                    cell_index_from_position_default_width(Position { x: 4, y: 4 }),
+                    cell_index_from_position_default_width(Position { x: 5, y: 5 }),
+                ]
+            ),
+            Some(4)
+        );
+    }
+
+    #[test]
+    fn test_basic_a_prime() {
+        let width = ((11 * 11) as f32).sqrt() as u8;
+
+        let json = b"{\"game\":{\"id\":\"4e7c8fe2-a462-4015-95af-5eab3487d5ab\",\"ruleset\":{\"name\":\"royale\",\"version\":\"v1.0.17\"},\"timeout\":500},\"turn\":60,\"board\":{\"height\":11,\"width\":11,\"snakes\":[{\"id\":\"gs_MMxyjByhGFbtGSV8KJv3tqdV\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}],\"food\":[],\"hazards\":[]},\"you\":{\"id\":\"gs_MMxyjByhGFbtGSV8KJv3tqdV\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}}";
+        let game: Game = serde_json::from_slice(json).unwrap();
+        let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+        let compact: CellBoard4Snakes11x11 =
+            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+                game, &id_map,
+            )
+            .unwrap();
+        assert_eq!(
+            shortest_distance(
+                &compact,
+                &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
+                &[
+                    cell_index_from_position_default_width(Position { x: 3, y: 3 }),
+                    cell_index_from_position_default_width(Position { x: 4, y: 4 }),
+                    cell_index_from_position_default_width(Position { x: 5, y: 5 }),
+                ],
+                None
+            ),
+            Some(4)
+        );
+    }
+
+    #[test]
+    fn test_real_example() {
+        let board_json = r#"{"game":{"id":"4e7c8fe2-a462-4015-95af-5eab3487d5ab","ruleset":{"name":"royale","version":"v1.0.17"},"timeout":500},"turn":60,"board": {"height":11,"width":11,"food":[],"hazards":[],"snakes":[{"id":"","name":"","health":93,"body":[{"x":7,"y":10},{"x":6,"y":10},{"x":5,"y":10},{"x":4,"y":10}],"latency":84,"head":{"x":7,"y":10},"length":4,"shout":"","squad":""},{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}]},"you":{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}}"#;
+        let game: Game = serde_json::from_str(board_json).unwrap();
+        let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+        let compact: CellBoard4Snakes11x11 =
+            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+                game, &id_map,
+            )
+            .unwrap();
+
+        assert_eq!(
+            shortest_distance(
+                &compact,
+                &cell_index_from_position_default_width(Position { x: 5, y: 4 }),
+                &[cell_index_from_position_default_width(Position {
+                    x: 7,
+                    y: 10
+                }),],
+                None
+            ),
+            Some(8)
+        );
+    }
+}
