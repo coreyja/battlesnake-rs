@@ -42,9 +42,7 @@ impl BattlesnakeAI for DeviousDevin {
         let mut players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
 
         let best_option = deepened_minimax(game_state, players);
-        let dir = best_option
-            .my_best_move()
-            .expect("TODO: this needs to be handled");
+        let dir = best_option.my_best_move();
 
         Ok(MoveOutput {
             r#move: format!("{}", dir),
@@ -192,11 +190,15 @@ impl MinMaxReturn {
         }
     }
 
-    fn my_best_move(&self) -> Option<Move> {
+    fn my_best_move(&self) -> Move {
         match self {
-            MinMaxReturn::Leaf { .. } => None,
-            MinMaxReturn::MinLayer { .. } => None,
-            MinMaxReturn::MaxLayer { options, .. } => Some(options.first().unwrap().0),
+            MinMaxReturn::Leaf { .. } => {
+                unreachable!("We shouldn't ever get a leaf at the top level")
+            }
+            MinMaxReturn::MinLayer { .. } => {
+                unreachable!("We shouldn't ever get a min layer at the top level")
+            }
+            MinMaxReturn::MaxLayer { options, .. } => options.first().unwrap().0,
         }
     }
 }
