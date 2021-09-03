@@ -6,6 +6,7 @@ use std::{collections::HashSet, convert::TryInto};
 pub mod a_prime;
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
+pub mod compact_a_prime;
 pub mod constant_carter;
 pub mod devious_devin;
 pub mod eremetic_eric;
