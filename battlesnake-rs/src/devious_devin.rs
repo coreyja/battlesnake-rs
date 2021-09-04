@@ -89,10 +89,6 @@ fn score(
     max_depth: i64,
     num_players: i64,
 ) -> Option<ScoreEndState> {
-    if depth % num_players != 0 {
-        return None;
-    }
-
     let mut snake_ids = node.get_snake_ids().into_iter();
     snake_ids.next();
     let me_id = node.you_id();
@@ -193,10 +189,13 @@ impl MinMaxReturn {
     fn my_best_move(&self) -> Move {
         match self {
             MinMaxReturn::Leaf { .. } => {
-                unreachable!("We shouldn't ever get a leaf at the top level")
+                unreachable!("We shouldn't ever get a leaf at the top level {:?}", &self)
             }
             MinMaxReturn::MinLayer { .. } => {
-                unreachable!("We shouldn't ever get a min layer at the top level")
+                unreachable!(
+                    "We shouldn't ever get a min layer at the top level {:?}",
+                    &self
+                )
             }
             MinMaxReturn::MaxLayer { options, .. } => options.first().unwrap().0,
         }
@@ -293,9 +292,12 @@ fn minimax(
     let leafs = all_possible_next_moves
         .into_iter()
         .map(|(moves, new_board)| {
+            // TODO Determine if I actually want this filter. or if its a bug in the lib
             let (you_moves, other_moves): (Vec<(SnakeId, Move)>, Vec<(SnakeId, Move)>) =
                 moves.iter().partition(|(id, _)| id == you_id);
-            let you_move = you_moves.first().unwrap();
+            let you_move = you_moves
+                .first()
+                .expect("There should be a move by you in each move set");
 
             (*you_move, other_moves, new_board)
         });
@@ -352,13 +354,13 @@ fn deepened_minimax(
     node: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
     players: Vec<Player>,
 ) -> MinMaxReturn {
-    const RUNAWAY_DEPTH_LIMIT: usize = 2_000;
+    const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
     let started_at = Instant::now();
 
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
-        let mut current_depth = players.len();
+        let mut current_depth = 2;
         let mut current_return = None;
         let players = players;
         loop {
@@ -375,7 +377,7 @@ fn deepened_minimax(
             if tx.send((current_depth, current_return.clone())).is_err() {
                 return;
             }
-            current_depth += players.len();
+            current_depth += 2;
         }
     });
 
@@ -392,9 +394,7 @@ fn deepened_minimax(
         }
     }
 
-    current.unwrap_or(MinMaxReturn::Leaf {
-        score: WORT_POSSIBLE_SCORE_STATE,
-    })
+    current.expect("We weren't able to do even a single layer of minmax")
 }
 
 #[cfg(test)]
