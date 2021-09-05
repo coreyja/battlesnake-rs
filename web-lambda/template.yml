@@ -17,7 +17,7 @@ Resources:
       CodeUri: "../target/lambda/web-lambda.zip"
       Handler: N/A
       Runtime: provided
-      MemorySize: 1024
+      MemorySize: 2048
       Timeout: 1
       Environment:
         Variables:
