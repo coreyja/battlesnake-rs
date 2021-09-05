@@ -275,9 +275,10 @@ pub struct GameState {
 pub enum MoveResult {
     MovedTail(i16, Coordinate), //old_health, tail_was
 }
+
 pub struct Move {
-    snake_id: String,
-    move_result: MoveResult,
+    pub snake_id: String,
+    pub move_result: MoveResult,
 }
 
 pub enum NatureMove {
@@ -312,64 +313,6 @@ impl GameState {
         Move {
             snake_id,
             move_result,
-        }
-    }
-
-    fn nature_move(&mut self) -> Vec<NatureMove> {
-        let mut moves = vec![];
-
-        for s in self.board.snakes.iter_mut() {
-            if let Some(pos) = self.board.food.iter().position(|x| x == &s.body[0]) {
-                moves.push(NatureMove::AteFood {
-                    snake_id: s.id.clone(),
-                    old_health: s.health,
-                    food_coor: self.board.food.remove(pos),
-                    food_pos: pos,
-                });
-                s.health = 100;
-                s.body.push(*s.body.last().unwrap());
-            }
-        }
-
-        moves.reverse();
-        moves
-    }
-
-    fn reverse_nature(&mut self, m: NatureMove) {
-        match m {
-            NatureMove::AteFood {
-                snake_id,
-                old_health,
-                food_coor,
-                food_pos,
-            } => {
-                let snake = self
-                    .board
-                    .snakes
-                    .iter_mut()
-                    .find(|s| s.id == snake_id)
-                    .unwrap();
-                snake.health = old_health;
-                snake.body.pop();
-                self.board.food.insert(food_pos, food_coor);
-            }
-        }
-    }
-
-    fn reverse_move(&mut self, m: Move) {
-        let to_move = self
-            .board
-            .snakes
-            .iter_mut()
-            .find(|s| s.id == m.snake_id)
-            .unwrap();
-        to_move.body.remove(0);
-
-        match m.move_result {
-            MoveResult::MovedTail(old_health, tail) => {
-                to_move.health = old_health;
-                to_move.body.push(tail);
-            }
         }
     }
 }

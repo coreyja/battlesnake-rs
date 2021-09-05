@@ -2,15 +2,13 @@ use super::*;
 
 pub struct DeviousDevin {}
 
-use battlesnake_game_types::compact_representation::{
-    CellBoard, CellBoard4Snakes11x11, CellIndex, CellNum,
-};
+use battlesnake_game_types::compact_representation::CellBoard;
 use battlesnake_game_types::types::{
     build_snake_id_map, FoodGettableGame, HeadGettableGame, LengthGettableGame, Move,
     SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
     YouDeterminableGame,
 };
-use tracing::{info, info_span};
+use tracing::info;
 
 #[derive(Serialize)]
 pub struct MoveOption {
@@ -40,7 +38,7 @@ impl BattlesnakeAI for DeviousDevin {
         let mut sorted_snakes = game_state.get_snake_ids();
         sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
 
-        let mut players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+        let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
 
         let best_option = deepened_minimax(game_state, players);
         let dir = best_option.my_best_move();
@@ -86,26 +84,10 @@ const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
 
 fn score(
     node: &battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
-    depth: i64,
-    max_depth: i64,
-    num_players: i64,
-) -> Option<ScoreEndState> {
+) -> ScoreEndState {
     let mut snake_ids = node.get_snake_ids().into_iter();
     snake_ids.next();
     let me_id = node.you_id();
-
-    if node.is_over() {
-        return Some(match node.get_winner() {
-            Some(s) => {
-                if s == *me_id {
-                    ScoreEndState::Win(-depth)
-                } else {
-                    ScoreEndState::Lose(depth)
-                }
-            }
-            None => ScoreEndState::Tie(depth),
-        });
-    }
 
     let opponents: Vec<SnakeId> = snake_ids.collect();
 
@@ -117,38 +99,31 @@ fn score(
 
     let my_length = node.get_length(*me_id);
 
-    if depth >= max_depth {
-        let max_opponent_length = opponents.iter().map(|o| node.get_length(*o)).max().unwrap();
-        let length_difference = my_length - max_opponent_length;
-        let my_health = node.get_health(*me_id);
+    let max_opponent_length = opponents.iter().map(|o| node.get_length(*o)).max().unwrap();
+    let length_difference = my_length - max_opponent_length;
+    let my_health = node.get_health(*me_id);
 
-        let foods: Vec<_> = node.get_all_food_as_native_positions();
-        if max_opponent_length >= my_length || my_health < 20 {
-            let negative_closest_food_distance =
-                compact_a_prime::shortest_distance(&node, &my_head, &foods, None).map(|x| -x);
+    let foods: Vec<_> = node.get_all_food_as_native_positions();
+    if max_opponent_length >= my_length || my_health < 20 {
+        let negative_closest_food_distance =
+            compact_a_prime::shortest_distance(node, &my_head, &foods, None).map(|x| -x);
 
-            return Some(ScoreEndState::ShorterThanOpponent(
-                length_difference.into(),
-                negative_closest_food_distance,
-                my_health.max(50),
-            ));
-        }
-
-        let negative_distance_to_opponent =
-            compact_a_prime::shortest_distance(&node, &my_head, &opponent_heads, None)
-                .map(|dist| -dist);
-
-        return Some(ScoreEndState::LongerThanOpponent(
-            negative_distance_to_opponent,
-            length_difference.max(4).into(),
+        return ScoreEndState::ShorterThanOpponent(
+            length_difference.into(),
+            negative_closest_food_distance,
             my_health.max(50),
-        ));
+        );
     }
 
-    None
-}
+    let negative_distance_to_opponent =
+        compact_a_prime::shortest_distance(node, &my_head, &opponent_heads, None).map(|dist| -dist);
 
-use std::convert::TryInto;
+    ScoreEndState::LongerThanOpponent(
+        negative_distance_to_opponent,
+        length_difference.max(4).into(),
+        my_health.max(50),
+    )
+}
 
 #[derive(Clone, Debug, Serialize)]
 struct SnakeMove {
@@ -269,6 +244,8 @@ fn minimax_min(
     }
 }
 
+type SnakeMoves = Vec<(SnakeId, Move)>;
+
 fn minimax(
     node: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
     players: &[Player],
@@ -278,18 +255,33 @@ fn minimax(
     max_depth: usize,
     previous_return: Option<MinMaxReturn>,
 ) -> MinMaxReturn {
-    let new_depth = depth.try_into().unwrap();
-    if let Some(s) = score(&node, new_depth, max_depth as i64, players.len() as i64) {
-        return MinMaxReturn::Leaf { score: s };
+    let you_id = node.you_id();
+
+    if node.is_over() {
+        let score = match node.get_winner() {
+            Some(s) => {
+                if s == *you_id {
+                    ScoreEndState::Win(-(depth as i64))
+                } else {
+                    ScoreEndState::Lose(depth as i64)
+                }
+            }
+            None => ScoreEndState::Tie(depth as i64),
+        };
+
+        return MinMaxReturn::Leaf { score };
     }
 
-    let you_id = node.you_id();
+    if depth >= max_depth {
+        let score = score(&node);
+        return MinMaxReturn::Leaf { score };
+    }
+
     let all_possible_next_moves = node.simulate(&Instruments, node.get_snake_ids());
     let leafs = all_possible_next_moves
         .into_iter()
         .map(|(moves, new_board)| {
-            // TODO Determine if I actually want this filter. or if its a bug in the lib
-            let (you_moves, other_moves): (Vec<(SnakeId, Move)>, Vec<(SnakeId, Move)>) =
+            let (you_moves, other_moves): (SnakeMoves, SnakeMoves) =
                 moves.iter().partition(|(id, _)| id == you_id);
             let you_move = you_moves
                 .first()

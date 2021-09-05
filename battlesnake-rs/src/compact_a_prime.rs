@@ -2,7 +2,7 @@ use battlesnake_game_types::compact_representation::{CellBoard4Snakes11x11, Cell
 use battlesnake_game_types::types::Move;
 use battlesnake_game_types::wire_representation::Position;
 
-use crate::{Board, Direction};
+use crate::Direction;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -94,8 +94,6 @@ fn a_prime_inner(
             });
         }
 
-        let width = ((11 * 11) as f32).sqrt() as u8;
-
         let neighbor_distance = if board.cell_is_hazard(coordinate) {
             HAZARD_PENALTY + NEIGHBOR_DISTANCE
         } else if board.cell_is_food(coordinate) {
@@ -124,7 +122,7 @@ fn a_prime_inner(
         }
 
         let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
-        let neighbors = neighbors(&coordinate, &board);
+        let neighbors = neighbors(&coordinate, board);
         for neighbor in neighbors
             .into_iter()
             .filter(|n| targets.contains(n) || !board.cell_is_snake_body_piece(coordinate))
@@ -179,20 +177,6 @@ pub fn shortest_path(
     path
 }
 
-fn direction_from_coordinate(from: &Position, to: &Position) -> Option<Direction> {
-    if from.x == to.x && from.y + 1 == to.y {
-        Some(Direction::Up)
-    } else if from.x == to.x && from.y - 1 == to.y {
-        Some(Direction::Down)
-    } else if from.x - 1 == to.x && from.y == to.y {
-        Some(Direction::Left)
-    } else if from.x + 1 == to.x && from.y == to.y {
-        Some(Direction::Right)
-    } else {
-        None
-    }
-}
-
 pub fn shortest_path_next_direction(
     board: &CellBoard4Snakes11x11,
     start: &CellIndex<u8>,
@@ -202,7 +186,7 @@ pub fn shortest_path_next_direction(
     let shortest_path = shortest_path(board, start, targets, options);
     let next_coordinate = shortest_path.get(1);
 
-    if let Some(c) = next_coordinate {
+    if next_coordinate.is_some() {
         // direction_from_coordinate(start, c)
         todo!("The above method needs to be re-implemented")
     } else {
