@@ -2,12 +2,13 @@ use super::*;
 
 pub struct DeviousDevin {}
 
-use battlesnake_game_types::compact_representation::CellBoard;
+use battlesnake_game_types::compact_representation::{CellBoard, CellBoard4Snakes11x11};
 use battlesnake_game_types::types::{
     build_snake_id_map, FoodGettableGame, HeadGettableGame, LengthGettableGame, Move,
     SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
     YouDeterminableGame,
 };
+use itertools::Itertools;
 use tracing::info;
 
 #[derive(Serialize)]
@@ -100,7 +101,7 @@ fn score(
     let my_length = node.get_length(*me_id);
 
     let max_opponent_length = opponents.iter().map(|o| node.get_length(*o)).max().unwrap();
-    let length_difference = my_length - max_opponent_length;
+    let length_difference = (my_length as i64) - (max_opponent_length as i64);
     let my_health = node.get_health(*me_id);
 
     let foods: Vec<_> = node.get_all_food_as_native_positions();
@@ -109,7 +110,7 @@ fn score(
             compact_a_prime::shortest_distance(node, &my_head, &foods, None).map(|x| -x);
 
         return ScoreEndState::ShorterThanOpponent(
-            length_difference.into(),
+            length_difference,
             negative_closest_food_distance,
             my_health.max(50),
         );
@@ -120,7 +121,7 @@ fn score(
 
     ScoreEndState::LongerThanOpponent(
         negative_distance_to_opponent,
-        length_difference.max(4).into(),
+        length_difference.max(4),
         my_health.max(50),
     )
 }
@@ -173,6 +174,45 @@ impl MinMaxReturn {
     }
 }
 
+fn ordered_moves(
+    mut grouped: HashMap<(SnakeId, Move), Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>>,
+    previous_return: Option<MinMaxReturn>,
+) -> Vec<(
+    (SnakeId, Move),
+    Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>,
+    Option<MinMaxReturn>,
+)> {
+    match previous_return {
+        None | Some(MinMaxReturn::Leaf { .. }) => grouped
+            .into_iter()
+            .map(|(m, others)| (m, others, None))
+            .collect(),
+        Some(MinMaxReturn::MaxLayer { options, .. }) => {
+            let mut sorted_moves = options
+                .into_iter()
+                .map(|(m, prev)| (m, Some(prev)))
+                .collect_vec();
+            let mut missing_options = grouped
+                .keys()
+                .map(|(_, m)| m)
+                .filter(|m| !sorted_moves.iter().map(|x| x.0).contains(m))
+                .cloned()
+                .map(|m| (m, None))
+                .collect_vec();
+            sorted_moves.append(&mut missing_options);
+
+            sorted_moves
+                .into_iter()
+                .map(|(m, prev)| {
+                    let key = (SnakeId(0), m);
+                    (key, grouped.remove(&key).unwrap(), prev)
+                })
+                .collect_vec()
+        }
+        _ => unreachable!(),
+    }
+}
+
 enum Player {
     Snake(SnakeId),
 }
@@ -208,11 +248,29 @@ fn minimax_min(
     max_depth: usize,
     previous_return: Option<MinMaxReturn>,
 ) -> MinMaxReturn {
+    let mut prev_options = match previous_return {
+        Some(MinMaxReturn::MinLayer { options, .. }) => options,
+        None => vec![],
+        _ => unreachable!("We got a bad previous return in a min node"),
+    };
+
     let mut options: Vec<(Vec<(SnakeId, Move)>, MinMaxReturn)> = vec![];
     let is_maximizing = false;
 
-    for (moves, board) in other_moves_and_baords.into_iter() {
-        let next_move_return = minimax(board, players, depth + 1, alpha, beta, max_depth, None);
+    let mut other_moves_and_baords = other_moves_and_baords
+        .into_iter()
+        .map(|(other_moves, board)| {
+            let i = prev_options.iter().position(|(ms, _)| ms == &other_moves);
+            let prev = i.map(|i| prev_options.remove(i).1);
+
+            (i, prev, other_moves, board)
+        })
+        .collect_vec();
+
+    other_moves_and_baords.sort_by_key(|(i, _prev, _other_moves, _board)| i.unwrap_or(usize::MAX));
+
+    for (_, prev, moves, board) in other_moves_and_baords.into_iter() {
+        let next_move_return = minimax(board, players, depth + 1, alpha, beta, max_depth, prev);
 
         let value = *next_move_return.score();
         options.push((moves, next_move_return));
@@ -255,6 +313,13 @@ fn minimax(
     max_depth: usize,
     previous_return: Option<MinMaxReturn>,
 ) -> MinMaxReturn {
+    if let Some(MinMaxReturn::MinLayer { .. }) = previous_return {
+        unreachable!(
+            "We got a bad previous return in a max node {:?}",
+            previous_return
+        );
+    };
+
     let you_id = node.you_id();
 
     if node.is_over() {
@@ -294,7 +359,9 @@ fn minimax(
     let mut options: Vec<(Move, MinMaxReturn)> = vec![];
     let is_maximizing = true;
 
-    for (you_move, other_moves_and_baords) in grouped.into_iter() {
+    for (you_move, other_moves_and_baords, previous_return) in
+        ordered_moves(grouped, previous_return).into_iter()
+    {
         let next_move_return = minimax_min(
             other_moves_and_baords,
             players,
@@ -302,7 +369,7 @@ fn minimax(
             alpha,
             beta,
             max_depth,
-            None,
+            previous_return,
         );
         let value = *next_move_return.score();
         options.push((you_move.1, next_move_return));
