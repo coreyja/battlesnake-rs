@@ -1,4 +1,4 @@
-use battlesnake_game_types::compact_representation::{Cell, CellBoard4Snakes11x11, CellIndex};
+use battlesnake_game_types::compact_representation::{CellBoard4Snakes11x11, CellIndex};
 use battlesnake_game_types::types::Move;
 use battlesnake_game_types::wire_representation::Position;
 
@@ -47,7 +47,7 @@ fn hueristic(start: &CellIndex<u8>, targets: &[CellIndex<u8>]) -> Option<i32> {
 
     targets
         .iter()
-        .map(|coor| dist_between(&coor.to_position(width), &start.to_position(width)))
+        .map(|coor| dist_between(&coor.into_position(width), &start.into_position(width)))
         .min()
 }
 

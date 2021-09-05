@@ -6,8 +6,9 @@ use battlesnake_game_types::compact_representation::{
     CellBoard, CellBoard4Snakes11x11, CellIndex, CellNum,
 };
 use battlesnake_game_types::types::{
-    build_snake_id_map, Move, SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId,
-    SnakeLocationDeterminableGame, VictorDeterminableGame, YouDeterminableGame,
+    build_snake_id_map, FoodGettableGame, HeadGettableGame, LengthGettableGame, Move,
+    SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
+    YouDeterminableGame,
 };
 use tracing::{info, info_span};
 
@@ -110,29 +111,24 @@ fn score(
 
     let opponent_heads: Vec<_> = opponents
         .iter()
-        .map(|s| node.get_snake_head_position(s).unwrap())
+        .map(|s| node.get_head_as_native_position(s))
         .collect();
-    let my_head = node.get_snake_head_position(me_id).unwrap();
+    let my_head = node.get_head_as_native_position(me_id);
 
-    let my_length = node.lengths[me_id.0 as usize] as i64;
+    let my_length = node.get_length(*me_id);
 
     if depth >= max_depth {
-        let max_opponent_length = *node.lengths.iter().max().unwrap() as i64;
+        let max_opponent_length = opponents.iter().map(|o| node.get_length(*o)).max().unwrap();
         let length_difference = my_length - max_opponent_length;
-        let my_health = node.healths[me_id.0 as usize];
+        let my_health = node.get_health(*me_id);
 
-        let foods: Vec<_> = node
-            .cells
-            .iter()
-            .filter(|c| c.is_food())
-            .map(|c| c.idx)
-            .collect();
+        let foods: Vec<_> = node.get_all_food_as_native_positions();
         if max_opponent_length >= my_length || my_health < 20 {
             let negative_closest_food_distance =
                 compact_a_prime::shortest_distance(&node, &my_head, &foods, None).map(|x| -x);
 
             return Some(ScoreEndState::ShorterThanOpponent(
-                length_difference,
+                length_difference.into(),
                 negative_closest_food_distance,
                 my_health.max(50),
             ));
@@ -144,7 +140,7 @@ fn score(
 
         return Some(ScoreEndState::LongerThanOpponent(
             negative_distance_to_opponent,
-            length_difference.max(4),
+            length_difference.max(4).into(),
             my_health.max(50),
         ));
     }
