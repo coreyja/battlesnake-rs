@@ -3,7 +3,9 @@ extern crate serde_derive;
 
 use std::{collections::HashSet, convert::TryInto};
 
-pub mod a_prime;
+pub use battlesnake_game_types::types::Move;
+pub use battlesnake_game_types::wire_representation::Game;
+
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod compact_a_prime;
@@ -11,7 +13,6 @@ pub mod constant_carter;
 pub mod devious_devin;
 pub mod eremetic_eric;
 pub mod famished_frank;
-pub mod flood_fill;
 pub mod gigantic_george;
 
 #[derive(Serialize)]
@@ -35,19 +36,6 @@ impl Default for AboutMe {
             version: None,
         }
     }
-}
-
-#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
-pub struct Ruleset {
-    name: String,
-    version: String,
-}
-
-#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
-pub struct Game {
-    id: serde_json::Value,
-    ruleset: Option<Ruleset>,
-    timeout: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
@@ -152,6 +140,10 @@ pub struct Battlesnake {
     squad: Option<String>,
 }
 
+use battlesnake_game_types::{
+    types::SnakeIDGettableGame,
+    wire_representation::{Board, Position},
+};
 use rand::seq::SliceRandom;
 
 impl Battlesnake {
@@ -171,146 +163,57 @@ impl Battlesnake {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
-pub struct Board {
-    height: u32,
-    width: u32,
-    food: Vec<Coordinate>,
-    hazards: Vec<Coordinate>,
-    snakes: Vec<Battlesnake>,
-}
-
-impl Board {
-    pub fn empty_coordiates(&self) -> Vec<Coordinate> {
-        let filled_coordinates = self.filled_coordinates();
-        self.all_coordinates()
-            .into_iter()
-            .filter(|c| !filled_coordinates.contains(c))
-            .collect()
-    }
-
-    pub fn all_coordinates(&self) -> Vec<Coordinate> {
-        let mut all = vec![];
-
-        for x in 0..self.width {
-            for y in 0..self.height {
-                all.push(Coordinate {
-                    x: x.into(),
-                    y: y.into(),
-                })
-            }
-        }
-
-        all
-    }
-
-    pub fn filled_coordinates(&self) -> Vec<Coordinate> {
-        let mut filled = vec![];
-
-        filled.append(&mut self.food.clone());
-
-        for s in &self.snakes {
-            filled.append(&mut s.body.clone());
-        }
-
-        filled
-    }
-
-    pub fn to_grid(&self) -> BoardGrid {
-        let mut grid: Vec<Vec<Option<BoardGridItem>>> =
-            vec![vec![None; self.width.try_into().unwrap()]; self.height.try_into().unwrap()];
-
-        for h in &self.hazards {
-            let (x, y) = h.to_usize();
-            grid[x][y] = Some(BoardGridItem::Hazard);
-        }
-
-        for f in &self.food {
-            let (x, y) = f.to_usize();
-            grid[x][y] = Some(BoardGridItem::Food);
-        }
-
-        for s in &self.snakes {
-            for b in &s.body {
-                let (x, y) = b.to_usize();
-                grid[x][y] = Some(BoardGridItem::Snake(&s.id));
-            }
-        }
-
-        BoardGrid(grid)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum BoardGridItem<'snake_id> {
-    Snake(&'snake_id str),
-    Food,
-    Hazard,
-}
-
-pub struct BoardGrid<'a>(Vec<Vec<Option<BoardGridItem<'a>>>>);
-
-impl<'a> BoardGrid<'a> {
-    fn is_full(&self) -> bool {
-        for inner in &self.0 {
-            for item in inner {
-                if item.is_none() {
-                    return false;
-                }
-            }
-        }
-
-        true
-    }
-}
-
-#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
-pub struct GameState {
-    game: Game,
-    turn: u64,
-    board: Board,
-    you: Battlesnake,
-}
-
 pub enum MoveResult {
-    MovedTail(i16, Coordinate), //old_health, tail_was
+    MovedTail(i32, Position), //old_health, tail_was
 }
 
-pub struct Move {
-    pub snake_id: String,
+pub struct SnakeMove<T> {
+    pub snake_id: T,
     pub move_result: MoveResult,
 }
 
 pub enum NatureMove {
     AteFood {
         snake_id: String,
-        old_health: i16,
+        old_health: i32,
         food_coor: Coordinate,
         food_pos: usize,
     },
 }
 
-impl GameState {
-    fn move_to(&mut self, coor: &Coordinate, snake_id: &str) -> Move {
+trait MoveableGame: SnakeIDGettableGame {
+    fn move_to(
+        &mut self,
+        coor: &Position,
+        snake_id: &Self::SnakeIDType,
+    ) -> SnakeMove<Self::SnakeIDType>;
+}
+
+impl MoveableGame for Game {
+    fn move_to(
+        &mut self,
+        coor: &Position,
+        snake_id: &Self::SnakeIDType,
+    ) -> SnakeMove<Self::SnakeIDType> {
         let to_move = self
             .board
             .snakes
             .iter_mut()
-            .find(|s| s.id == snake_id)
+            .find(|s| &s.id == snake_id)
             .unwrap();
         to_move.body.insert(0, *coor);
 
         let old_health = to_move.health;
         to_move.health -= 1;
 
-        let move_result = MoveResult::MovedTail(old_health, to_move.body.pop().unwrap());
+        let move_result = MoveResult::MovedTail(old_health, to_move.body.pop_back().unwrap());
 
         if self.board.hazards.contains(coor) {
             to_move.health -= 15;
         }
 
         let snake_id = snake_id.to_owned();
-        Move {
+        SnakeMove {
             snake_id,
             move_result,
         }
@@ -326,10 +229,10 @@ pub struct MoveOutput {
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 pub trait BattlesnakeAI {
     fn start(&self) {}
-    fn end(&self, _state: GameState) {}
+    fn end(&self, _state: Game) {}
     fn make_move(
         &self,
-        state: GameState,
+        state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
     fn name(&self) -> String;
 
@@ -340,6 +243,8 @@ pub trait BattlesnakeAI {
 
 #[cfg(test)]
 mod tests {
+    use battlesnake_game_types::wire_representation::Board;
+
     use super::*;
 
     #[test]

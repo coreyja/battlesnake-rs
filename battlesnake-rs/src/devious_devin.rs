@@ -26,14 +26,14 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl DeviousDevin {
-    pub fn make_move_new(
+impl BattlesnakeAI for DeviousDevin {
+    fn make_move(
         &self,
-        game_state: Game,
+        game: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let id_map = build_snake_id_map(&game_state);
+        let id_map = build_snake_id_map(&game);
         let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
-            CellBoard::convert_from_game(game_state, &id_map).unwrap();
+            CellBoard::convert_from_game(game, &id_map).unwrap();
         let my_id = game_state.you_id();
         let mut sorted_snakes = game_state.get_snake_ids();
         sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
@@ -47,20 +47,6 @@ impl DeviousDevin {
             r#move: format!("{}", dir),
             shout: None,
         })
-    }
-}
-
-impl BattlesnakeAI for DeviousDevin {
-    fn make_move(
-        &self,
-        game_state: GameState,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let json_value: serde_json::Value = serde_json::json!(game_state);
-        let game_state: battlesnake_game_types::wire_representation::Game =
-            serde_json::from_value::<battlesnake_game_types::wire_representation::Game>(json_value)
-                .unwrap();
-
-        self.make_move_new(game_state)
     }
 
     fn name(&self) -> String {

@@ -1,13 +1,17 @@
+use std::collections::VecDeque;
+
+use crate::compact_a_prime::NeighborDeterminableGame;
+
 use super::*;
 
-trait MoveToAndSpawn {
-    fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self;
+trait MoveToAndSpawn: NeighborDeterminableGame {
+    fn move_to_and_opponent_sprawl(&self, coor: &Position) -> Self;
 }
 
 use rand::seq::SliceRandom;
 
-impl MoveToAndSpawn for GameState {
-    fn move_to_and_opponent_sprawl(&self, coor: &Coordinate) -> Self {
+impl MoveToAndSpawn for Game {
+    fn move_to_and_opponent_sprawl(&self, coor: &Position) -> Self {
         let mut cloned = self.clone();
         cloned.move_to(coor, &self.you.id);
 
@@ -18,20 +22,16 @@ impl MoveToAndSpawn for GameState {
             .filter(|s| s.id == self.you.id);
 
         for s in opponents {
-            let mut new_body: Vec<Coordinate> = s
-                .head
-                .possible_moves(&self.board)
-                .map(|(_dir, coor)| coor)
-                .collect();
+            let mut new_body = self.neighbors(&s.head);
             s.head = *new_body.choose(&mut rand::thread_rng()).unwrap();
-            s.body.append(&mut new_body);
+            s.body.append(&mut VecDeque::from(new_body));
         }
 
         cloned
     }
 }
 
-fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64 {
+fn score(game_state: &Game, coor: &Position, times_to_recurse: u8) -> i64 {
     const PREFERRED_HEALTH: i64 = 80;
 
     if game_state.you.body.contains(coor) {
@@ -59,9 +59,10 @@ fn score(game_state: &GameState, coor: &Coordinate, times_to_recurse: u8) -> i64
         return current_score;
     }
 
-    let recursed_score: i64 = coor
-        .possible_moves(&game_state.board)
-        .map(|(_d, c)| {
+    let recursed_score: i64 = game_state
+        .neighbors(coor)
+        .into_iter()
+        .map(|c| {
             score(
                 &game_state.move_to_and_opponent_sprawl(coor),
                 &c,
@@ -82,22 +83,24 @@ impl BattlesnakeAI for AmphibiousArthur {
 
     fn make_move(
         &self,
-        game_state: GameState,
+        game_state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let possible = game_state.you.head.possible_moves(&game_state.board);
+        let possible = game_state.possible_moves(&game_state.you.head);
         let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
             Ok(Ok(x)) => x,
             _ => 5,
         };
-        let next_move =
-            possible.max_by_key(|(_dir, coor)| score(&game_state, coor, recursion_limit));
+        let next_move = possible
+            .iter()
+            .max_by_key(|(_mv, coor)| score(&game_state, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: Direction::Up.value(),
             shout: Some("Oh NO we are stuck".to_owned()),
         };
+
         let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
-            r#move: dir.value(),
+            r#move: format!("{}", dir),
             shout: None,
         });
 

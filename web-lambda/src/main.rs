@@ -10,7 +10,7 @@ use battlesnake_rs::devious_devin::DeviousDevin;
 use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
 use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
 use battlesnake_rs::{constant_carter::ConstantCarter, gigantic_george::GiganticGeorge};
-use battlesnake_rs::{BoxedSnake, GameState};
+use battlesnake_rs::{BoxedSnake, Game};
 
 use tracing_subscriber::layer::SubscriberExt;
 
@@ -71,12 +71,12 @@ async fn api_move(
         Some(&"start") => Ok(json!(snake.start())),
         Some(&"end") => {
             let string_body = string_body.ok_or("Body was not a string")?;
-            let state: GameState = serde_json::from_str(string_body)?;
+            let state: Game = serde_json::from_str(string_body)?;
             Ok(json!(snake.end(state)))
         }
         Some(&"move") => {
             let string_body = string_body.ok_or("Body was not a string")?;
-            let state: GameState = serde_json::from_str(string_body)?;
+            let state: Game = serde_json::from_str(string_body)?;
             Ok(serde_json::to_value(snake.make_move(state)?)?)
         }
         _ => Err("unknown-action".into()),

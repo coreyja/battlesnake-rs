@@ -1,34 +1,44 @@
+use itertools::Itertools;
+
+use crate::compact_a_prime::NeighborDeterminableGame;
+
 use crate::eremetic_eric::EremeticEric;
 
 use super::*;
 
 pub struct GiganticGeorge {}
 
-fn path_to_full_board(
-    reversed_body: &[Coordinate],
-    board: &Board,
-) -> Option<Vec<(Direction, Coordinate)>> {
-    let max_size = board.width * board.height;
+fn path_to_full_board(reversed_body: &[Position], game: &Game) -> Option<Vec<(Move, Position)>> {
+    let max_size = game.board.width * game.board.height;
     if reversed_body.len() == max_size as usize {
         return Some(vec![]);
     }
 
-    for (dir, coor) in reversed_body
-        .last()
-        .unwrap()
-        .possible_moves(board)
+    for (dir, coor) in game
+        .possible_moves(reversed_body.last().unwrap())
+        .iter()
         .filter(|(_, c)| !reversed_body.contains(c))
     {
         let mut new_body = reversed_body.to_vec();
-        new_body.push(coor);
+        new_body.push(*coor);
 
-        if let Some(mut path) = path_to_full_board(&new_body, board) {
-            path.push((dir, coor));
+        if let Some(mut path) = path_to_full_board(&new_body, game) {
+            path.push((*dir, *coor));
             return Some(path);
         }
     }
 
     None
+}
+
+trait FullBoardDeterminable {
+    fn is_full(&self) -> bool;
+}
+
+impl FullBoardDeterminable for Game {
+    fn is_full(&self) -> bool {
+        todo!()
+    }
 }
 
 impl BattlesnakeAI for GiganticGeorge {
@@ -46,10 +56,8 @@ impl BattlesnakeAI for GiganticGeorge {
 
     fn make_move(
         &self,
-        state: GameState,
+        state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let grid = state.board.to_grid();
-
         if let Some(s) = &state.you.shout {
             if s.starts_with("PATH:") {
                 let path = s.split("PATH:").nth(1).unwrap();
@@ -72,24 +80,25 @@ impl BattlesnakeAI for GiganticGeorge {
             }
         }
 
-        if grid.is_full() {
+        if state.is_full() {
             println!("Ok now can we complete the board?");
 
             let reversed_body = {
-                let mut x = state.you.body.clone();
+                let mut x = Vec::from(state.you.body.clone());
                 x.pop(); // Remove my current tail cause I will need to fill that space too
                 x.reverse();
                 x
             };
-            if let Some(mut path) = path_to_full_board(&reversed_body, &state.board) {
+
+            if let Some(mut path) = path_to_full_board(&reversed_body, &state) {
                 println!("Yup lets go that way");
                 let new = path.pop();
                 let path_string: String = path
                     .iter()
-                    .map(|(d, _)| d.value().chars().next().unwrap())
+                    .map(|(d, _)| format!("{}", d).chars().next().unwrap())
                     .collect();
                 return Ok(MoveOutput {
-                    r#move: new.unwrap().0.value(),
+                    r#move: format!("{}", new.unwrap().0),
                     shout: Some("PATH:".to_string() + &path_string),
                 });
             } else {

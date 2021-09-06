@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use itertools::Itertools;
 
-use crate::a_prime::APrimeOptions;
+use crate::compact_a_prime::{dist_between, APrimeCalculable, APrimeNextDirection, APrimeOptions};
 
 use super::*;
 
@@ -21,7 +21,7 @@ impl BattlesnakeAI for EremeticEric {
         }
     }
 
-    fn end(&self, state: GameState) {
+    fn end(&self, state: Game) {
         println!("Died at turn: {}", state.turn);
         let body_set: HashSet<_> = state.you.body.iter().collect();
         if body_set.len() != state.you.body.len() {
@@ -31,16 +31,16 @@ impl BattlesnakeAI for EremeticEric {
 
     fn make_move(
         &self,
-        state: GameState,
+        state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let body = {
             let mut body = state.you.body.clone();
             let mut path_to_complete_circle =
-                a_prime::shortest_path(&state.board, &body[0], &[*body.last().unwrap()], None);
+                state.shortest_path(&body[0], &[*body.back().unwrap()], None);
             path_to_complete_circle.reverse();
             for c in path_to_complete_circle.into_iter() {
                 if !body.contains(&c) {
-                    body.push(c);
+                    body.push_back(c);
                 }
             }
             body
@@ -59,7 +59,7 @@ impl BattlesnakeAI for EremeticEric {
             .map(|food| {
                 let body_options = body
                     .iter()
-                    .map(|body_part| (body_part, food.dist_from(body_part)))
+                    .map(|body_part| (body_part, dist_between(food, body_part)))
                     .collect_vec();
                 let best = body_options.iter().cloned().min_by_key(|x| x.1).unwrap();
                 body_options
@@ -97,9 +97,14 @@ impl BattlesnakeAI for EremeticEric {
                 };
                 let would_be_tail = body[tail_index];
 
-                let dist_back_from_food_to_tail =
-                    a_prime::shortest_distance(&modified_board, food, &[would_be_tail], None)
-                        .unwrap_or(5000);
+                let dist_back_from_food_to_tail = {
+                    let mut modified_state = state.clone();
+                    modified_state.board = modified_board.clone();
+
+                    modified_state
+                        .shortest_distance(food, &[would_be_tail], None)
+                        .unwrap_or(5000)
+                };
 
                 let cost_to_get_to_closest: u64 = if closest_index == 0 {
                     0
@@ -136,44 +141,38 @@ impl BattlesnakeAI for EremeticEric {
             health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
 
         if &state.you.head == closest_body_part && cant_survive_another_loop {
-            let d = a_prime::shortest_path_next_direction(
-                &state.board,
-                &state.you.head,
-                &[*best_food],
-                None,
-            )
-            .unwrap();
+            let d = state
+                .shortest_path_next_direction(&state.you.head, &[*best_food], None)
+                .unwrap();
 
             return Ok(MoveOutput {
-                r#move: d.value(),
+                r#move: format!("{}", d),
                 shout: None,
             });
         }
 
         if state.turn < 3 {
             return Ok(MoveOutput {
-                r#move: a_prime::shortest_path_next_direction(
-                    &state.board,
-                    &state.you.head,
-                    &state.board.food,
-                    None,
-                )
-                .unwrap()
-                .value(),
+                r#move: format!(
+                    "{}",
+                    state
+                        .shortest_path_next_direction(&state.you.head, &state.board.food, None)
+                        .unwrap()
+                ),
                 shout: None,
             });
         }
 
-        let dir = a_prime::shortest_path_next_direction(
-            &state.board,
-            &state.you.head,
-            &[state.you.tail()],
-            Some(APrimeOptions { food_penalty: 1 }),
-        )
-        .unwrap_or(Direction::Up);
+        let dir = state
+            .shortest_path_next_direction(
+                &state.you.head,
+                &[*state.you.body.back().unwrap()],
+                Some(APrimeOptions { food_penalty: 1 }),
+            )
+            .unwrap();
 
         Ok(MoveOutput {
-            r#move: dir.value(),
+            r#move: format!("{}", dir),
             shout: None,
         })
     }

@@ -2,7 +2,6 @@ use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellN
 use battlesnake_game_types::types::{Move, PositionGettableGame};
 use battlesnake_game_types::wire_representation::{Game, Position};
 
-use crate::Direction;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -18,6 +17,30 @@ pub struct APrimeResult<T> {
 
 pub struct APrimeOptions {
     pub food_penalty: i32,
+}
+
+pub trait APrimeNextDirection: APrimeCalculable {
+    fn shortest_path_next_direction(
+        &self,
+        start: &battlesnake_game_types::wire_representation::Position,
+        targets: &[battlesnake_game_types::wire_representation::Position],
+        options: Option<APrimeOptions>,
+    ) -> Option<Move>;
+}
+
+impl APrimeNextDirection for Game {
+    fn shortest_path_next_direction(
+        &self,
+        start: &battlesnake_game_types::wire_representation::Position,
+        targets: &[battlesnake_game_types::wire_representation::Position],
+        options: Option<APrimeOptions>,
+    ) -> Option<Move> {
+        let shortest_path = self.shortest_path(start, targets, options);
+        let next_coordinate = shortest_path.get(1);
+        let start_vec = start.to_vector();
+
+        next_coordinate.map(|c| Move::from_vector(c.sub_vec(start_vec).to_vector()))
+    }
 }
 
 pub trait APrimeCalculable: PositionGettableGame + NeighborDeterminableGame {
@@ -59,23 +82,6 @@ pub trait APrimeCalculable: PositionGettableGame + NeighborDeterminableGame {
         path
     }
 
-    fn shortest_path_next_direction(
-        &self,
-        start: &Self::NativePositionType,
-        targets: &[Self::NativePositionType],
-        options: Option<APrimeOptions>,
-    ) -> Option<Direction> {
-        let shortest_path = self.shortest_path(start, targets, options);
-        let next_coordinate = shortest_path.get(1);
-
-        if next_coordinate.is_some() {
-            // direction_from_coordinate(start, c)
-            todo!("The above method needs to be re-implemented")
-        } else {
-            None
-        }
-    }
-
     fn a_prime_inner(
         &self,
         start: &Self::NativePositionType,
@@ -113,13 +119,38 @@ struct Node<T> {
 }
 
 pub trait NeighborDeterminableGame: PositionGettableGame {
-    fn valid_neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType>;
+    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType>;
+
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)>;
 }
 
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> NeighborDeterminableGame
     for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
 {
-    fn valid_neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)> {
+        let width = ((11 * 11) as f32).sqrt() as u8;
+
+        Move::all()
+            .into_iter()
+            .map(|mv| {
+                let head_pos = pos.into_position(width);
+                let new_head = head_pos.add_vec(mv.to_vector());
+                let ci = CellIndex::new(new_head, width);
+
+                (mv, new_head, ci)
+            })
+            .filter(|(_mv, new_head, _)| !self.off_board(*new_head, width))
+            .map(|(mv, _, ci)| (mv, ci))
+            .collect()
+    }
+
+    fn neighbors(&self, pos: &Self::NativePositionType) -> std::vec::Vec<Self::NativePositionType> {
         let width = ((11 * 11) as f32).sqrt() as u8;
 
         Move::all()
@@ -131,9 +162,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> NeighborDeter
 
                 (new_head, ci)
             })
-            .filter(|(new_head, ci)| {
-                !self.off_board(*new_head, width) && !self.cell_is_snake_body_piece(*ci)
-            })
+            .filter(|(new_head, _)| !self.off_board(*new_head, width))
             .map(|(_, ci)| ci)
             .collect()
     }
@@ -185,7 +214,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
             };
 
             let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
-            let neighbors = self.valid_neighbors(&coordinate);
+            let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
                 .filter(|n| targets.contains(n) || !self.cell_is_snake_body_piece(coordinate))
@@ -205,7 +234,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
     }
 }
 
-fn dist_between(a: &Position, b: &Position) -> i32 {
+pub fn dist_between(a: &Position, b: &Position) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
 
@@ -223,14 +252,22 @@ fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
 }
 
 impl NeighborDeterminableGame for Game {
-    fn valid_neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
+    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
         Move::all()
             .into_iter()
             .map(|mv| pos.add_vec(mv.to_vector()))
-            .filter(|new_head| {
-                !self.off_board(*new_head)
-                    && !self.board.snakes.iter().any(|s| s.body.contains(new_head))
-            })
+            .filter(|new_head| !self.off_board(*new_head))
+            .collect()
+    }
+
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)> {
+        Move::all()
+            .into_iter()
+            .map(|mv| (mv, pos.add_vec(mv.to_vector())))
+            .filter(|(_mv, new_head)| !self.off_board(*new_head))
             .collect()
     }
 }
@@ -278,7 +315,7 @@ impl APrimeCalculable for Game {
             };
 
             let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
-            for neighbor in self.valid_neighbors(&coordinate).into_iter().filter(|n| {
+            for neighbor in self.neighbors(&coordinate).into_iter().filter(|n| {
                 targets.contains(n)
                     || self
                         .board
@@ -349,11 +386,6 @@ mod tests {
         let json = b"{\"game\":{\"id\":\"\",\"ruleset\":{\"name\":\"royale\",\"version\":\"v1.0.17\"},\"timeout\":500},\"turn\":60,\"board\":{\"height\":11,\"width\":11,\"snakes\":[{\"id\":\"\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}],\"food\":[],\"hazards\":[]},\"you\":{\"id\":\"\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}}";
         let game: Game = serde_json::from_slice(json).unwrap();
         let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
-        let compact: CellBoard4Snakes11x11 =
-            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
-                game, &id_map,
-            )
-            .unwrap();
 
         assert_eq!(
             game.shortest_distance(
@@ -367,6 +399,12 @@ mod tests {
             ),
             Some(4)
         );
+
+        let compact: CellBoard4Snakes11x11 =
+            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+                game, &id_map,
+            )
+            .unwrap();
 
         assert_eq!(
             compact.shortest_distance(
@@ -387,16 +425,17 @@ mod tests {
         let board_json = r#"{"game":{"id":"","ruleset":{"name":"royale","version":"v1.0.17"},"timeout":500},"turn":60,"board": {"height":11,"width":11,"food":[],"hazards":[],"snakes":[{"id":"","name":"","health":93,"body":[{"x":7,"y":10},{"x":6,"y":10},{"x":5,"y":10},{"x":4,"y":10}],"latency":84,"head":{"x":7,"y":10},"length":4,"shout":"","squad":""},{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}]},"you":{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}}"#;
         let game: Game = serde_json::from_str(board_json).unwrap();
         let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
-        let compact: CellBoard4Snakes11x11 =
-            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
-                game, &id_map,
-            )
-            .unwrap();
 
         assert_eq!(
             game.shortest_distance(&Position { x: 5, y: 4 }, &[Position { x: 7, y: 10 },], None),
             Some(8)
         );
+
+        let compact: CellBoard4Snakes11x11 =
+            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+                game, &id_map,
+            )
+            .unwrap();
 
         assert_eq!(
             compact.shortest_distance(

@@ -12,7 +12,7 @@ use battlesnake_rs::constant_carter::ConstantCarter;
 use battlesnake_rs::devious_devin::DeviousDevin;
 use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
 use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
-use battlesnake_rs::{AboutMe, BoxedSnake, GameState, MoveOutput};
+use battlesnake_rs::{AboutMe, BoxedSnake, Game, MoveOutput};
 
 use rocket::State;
 
@@ -27,7 +27,7 @@ fn api_start(_snake: String) -> Status {
 fn api_end(
     snake: String,
     snakes: State<Vec<BoxedSnake>>,
-    game_state: Json<GameState>,
+    game_state: Json<Game>,
 ) -> Option<Status> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
     snake_ai.end(game_state.into_inner());
@@ -39,7 +39,7 @@ fn api_end(
 fn api_move(
     snake: String,
     snakes: State<Vec<BoxedSnake>>,
-    game_state: Json<GameState>,
+    game_state: Json<Game>,
 ) -> Option<Json<MoveOutput>> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
     let m = snake_ai.make_move(game_state.into_inner()).ok()?;

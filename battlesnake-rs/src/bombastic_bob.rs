@@ -1,3 +1,5 @@
+use battlesnake_game_types::types::YouDeterminableGame;
+
 use super::*;
 
 pub struct BombasticBob;
@@ -5,13 +7,17 @@ pub struct BombasticBob;
 impl BattlesnakeAI for BombasticBob {
     fn make_move(
         &self,
-        state: GameState,
+        state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let chosen = state.you.random_possible_move(&state.board);
-        let dir = chosen.map(|x| x.0).unwrap_or(Direction::Right);
+        let chosen = state
+            .random_reasonable_move_for_each_snake()
+            .into_iter()
+            .find(|(s, _)| s == state.you_id())
+            .map(|x| x.1);
+        let dir = chosen.unwrap_or(Move::Right);
 
         Ok(MoveOutput {
-            r#move: dir.value(),
+            r#move: format!("{}", dir),
             shout: None,
         })
     }

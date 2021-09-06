@@ -1,3 +1,7 @@
+use battlesnake_game_types::types::YouDeterminableGame;
+
+use crate::compact_a_prime::APrimeNextDirection;
+
 use super::*;
 
 pub struct FamishedFrank {}
@@ -17,25 +21,25 @@ impl BattlesnakeAI for FamishedFrank {
 
     fn make_move(
         &self,
-        state: GameState,
+        state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let target_length = state.board.height * 2 + state.board.width;
-        let targets = if state.you.length < target_length.into() {
+        let targets = if state.you.body.len() < target_length as usize {
             state.board.food.clone()
         } else {
             vec![
-                Coordinate { x: 0, y: 0 },
-                Coordinate {
-                    x: (state.board.width - 1).into(),
+                Position { x: 0, y: 0 },
+                Position {
+                    x: (state.board.width - 1) as i32,
                     y: 0,
                 },
-                Coordinate {
+                Position {
                     x: 0,
-                    y: (state.board.height - 1).into(),
+                    y: (state.board.height - 1) as i32,
                 },
-                Coordinate {
-                    x: (state.board.width - 1).into(),
-                    y: (state.board.height - 1).into(),
+                Position {
+                    x: (state.board.width - 1) as i32,
+                    y: (state.board.height - 1) as i32,
                 },
             ]
         };
@@ -45,29 +49,29 @@ impl BattlesnakeAI for FamishedFrank {
             .filter(|t| !state.you.body.contains(t))
             .collect();
 
-        let dir =
-            a_prime::shortest_path_next_direction(&state.board, &state.you.head, &targets, None);
+        let dir = state.shortest_path_next_direction(&state.you.head, &targets, None);
 
         let dir = if let Some(s) = dir {
             s
         } else {
-            a_prime::shortest_path_next_direction(
-                &state.board,
-                &state.you.head,
-                &state.you.body[state.you.body.len() - 1..],
-                None,
-            )
-            .unwrap_or_else(|| {
-                state
-                    .you
-                    .random_possible_move(&state.board)
-                    .map(|x| x.0)
-                    .unwrap_or(Direction::Right)
-            })
+            state
+                .shortest_path_next_direction(
+                    &state.you.head,
+                    &[*state.you.body.back().unwrap()],
+                    None,
+                )
+                .unwrap_or_else(|| {
+                    state
+                        .random_reasonable_move_for_each_snake()
+                        .into_iter()
+                        .find(|(s, _)| s == state.you_id())
+                        .map(|x| x.1)
+                        .unwrap_or(Move::Right)
+                })
         };
 
         Ok(MoveOutput {
-            r#move: dir.value(),
+            r#move: format!("{}", dir),
             shout: None,
         })
     }
