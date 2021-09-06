@@ -28,13 +28,6 @@ fn bench_minmax_to_depth(c: &mut Criterion, max_depth: usize) {
         })
     });
 
-    group.bench_function("Iterative deepened with no move reordering", |b| {
-        b.iter(|| {
-            let game: Game = serde_json::from_str(game_json).unwrap();
-            minmax_deepened_bench_entry_no_ordering(black_box(game), max_depth)
-        })
-    });
-
     group.finish();
 }
 

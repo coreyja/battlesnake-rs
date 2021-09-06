@@ -12,6 +12,8 @@ use battlesnake_game_types::wire_representation::Game;
 use itertools::Itertools;
 use tracing::info;
 
+use crate::compact_a_prime::APrimeCalculable;
+
 #[derive(Serialize)]
 pub struct MoveOption {
     moves: Vec<SnakeMove>,
@@ -118,7 +120,7 @@ fn score(
     let foods: Vec<_> = node.get_all_food_as_native_positions();
     if max_opponent_length >= my_length || my_health < 20 {
         let negative_closest_food_distance =
-            compact_a_prime::shortest_distance(node, &my_head, &foods, None).map(|x| -x);
+            node.shortest_distance(&my_head, &foods, None).map(|x| -x);
 
         return ScoreEndState::ShorterThanOpponent(
             length_difference,
@@ -127,8 +129,9 @@ fn score(
         );
     }
 
-    let negative_distance_to_opponent =
-        compact_a_prime::shortest_distance(node, &my_head, &opponent_heads, None).map(|dist| -dist);
+    let negative_distance_to_opponent = node
+        .shortest_distance(&my_head, &opponent_heads, None)
+        .map(|dist| -dist);
 
     ScoreEndState::LongerThanOpponent(
         negative_distance_to_opponent,
