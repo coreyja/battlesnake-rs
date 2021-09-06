@@ -65,7 +65,7 @@ jobs:
           keys:
             - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
-      - run: cd battlesnake_rs/
+      - run: cd battlesnake-rs/
       - run: cargo bench
       - store_artifacts:
           path: target/criterion
@@ -86,7 +86,7 @@ jobs:
           keys:
             - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
-      - run: cd battlesnake_rs/
+      - run: cd battlesnake-rs/
       - run: cargo bench --bench my_benchmark -- --profile-time 60
       - store_artifacts:
           path: target/criterion
