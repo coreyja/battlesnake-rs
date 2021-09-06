@@ -131,11 +131,11 @@ workflows:
       - lint-rust
       - profile-devin
       - bench-devin:
-          filter:
+          filters:
             branches:
               ignore: master
       - bench-devin-set-baseline:
-          filter:
+          filters:
             branches:
               only: master
 
