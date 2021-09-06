@@ -1,7 +1,5 @@
-use battlesnake_game_types::compact_representation::{
-    CellBoard, CellBoard4Snakes11x11, CellIndex, CellNum,
-};
-use battlesnake_game_types::types::{HeadGettableGame, Move, SnakeIDGettableGame};
+use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellNum};
+use battlesnake_game_types::types::{HeadGettableGame, Move, PositionGettableGame};
 use battlesnake_game_types::wire_representation::Position;
 
 use crate::Direction;
@@ -22,7 +20,7 @@ pub struct APrimeOptions {
     pub food_penalty: i32,
 }
 
-pub trait APrimeCalculable: HeadGettableGame + NeighborDeterminableGame {
+pub trait APrimeCalculable: PositionGettableGame + NeighborDeterminableGame {
     fn shortest_distance(
         &self,
         start: &Self::NativePositionType,
