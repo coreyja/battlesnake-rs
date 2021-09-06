@@ -49,10 +49,32 @@ jobs:
           paths:
             - /usr/local/cargo
             - target/debug
+
+  profile-devin:
+    docker:
+      - image: rust:latest
+    resource_class: small
+    steps:
+      - checkout
+
+      - run:
+          name: Print Rust Versions
+          command: rustc --version; cargo --version; rustup --version
+
+      - restore_cache:
+          keys:
+            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+      - run: cd battlesnake_rs/
+      - run: cargo bench --bench my_benchmark -- --profile-time 60
+      - store_artifacts:
+          path: target/criterion
+          destination: criterion
 workflows:
   version: 2
   ci:
     jobs:
       - test-rust
       - lint-rust
+      - profile-devin
 
