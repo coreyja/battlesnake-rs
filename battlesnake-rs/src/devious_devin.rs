@@ -4,8 +4,8 @@ pub struct DeviousDevin {}
 
 use battlesnake_game_types::compact_representation::{CellBoard, CellBoard4Snakes11x11};
 use battlesnake_game_types::types::{
-    build_snake_id_map, FoodGettableGame, HeadGettableGame, LengthGettableGame, Move,
-    SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
+    build_snake_id_map, FoodGettableGame, HeadGettableGame, Move, SimulableGame,
+    SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
     YouDeterminableGame,
 };
 use battlesnake_game_types::wire_representation::Game;
@@ -188,14 +188,19 @@ impl MinMaxReturn {
     }
 }
 
-fn ordered_moves(
-    mut grouped: HashMap<(SnakeId, Move), Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>>,
-    previous_return: Option<MinMaxReturn>,
-) -> Vec<(
+type AllPossibleStatesHashedByMyMove =
+    HashMap<(SnakeId, Move), Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>>;
+
+type AllPossibleStatesGroupedByMyMove = Vec<(
     (SnakeId, Move),
     Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>,
     Option<MinMaxReturn>,
-)> {
+)>;
+
+fn ordered_moves(
+    mut grouped: AllPossibleStatesHashedByMyMove,
+    previous_return: Option<MinMaxReturn>,
+) -> AllPossibleStatesGroupedByMyMove {
     match previous_return {
         None | Some(MinMaxReturn::Leaf { .. }) => grouped
             .into_iter()

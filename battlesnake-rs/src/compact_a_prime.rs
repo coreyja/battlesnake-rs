@@ -1,6 +1,6 @@
 use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellNum};
-use battlesnake_game_types::types::{HeadGettableGame, Move, PositionGettableGame};
-use battlesnake_game_types::wire_representation::Position;
+use battlesnake_game_types::types::{Move, PositionGettableGame};
+use battlesnake_game_types::wire_representation::{Game, Position};
 
 use crate::Direction;
 use std::cmp::Ordering;
@@ -112,7 +112,7 @@ struct Node<T> {
     coordinate: T,
 }
 
-pub trait NeighborDeterminableGame: HeadGettableGame {
+pub trait NeighborDeterminableGame: PositionGettableGame {
     fn valid_neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType>;
 }
 
@@ -218,10 +218,96 @@ fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>]) -> Opti
         .min()
 }
 
+fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
+    targets.iter().map(|coor| dist_between(coor, start)).min()
+}
+
+impl NeighborDeterminableGame for Game {
+    fn valid_neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
+        Move::all()
+            .into_iter()
+            .map(|mv| pos.add_vec(mv.to_vector()))
+            .filter(|new_head| {
+                !self.off_board(*new_head)
+                    && !self.board.snakes.iter().any(|s| s.body.contains(new_head))
+            })
+            .collect()
+    }
+}
+
+impl APrimeCalculable for Game {
+    fn a_prime_inner(
+        &self,
+        start: &Position,
+        targets: &[Position],
+        options: Option<APrimeOptions>,
+    ) -> Option<APrimeResult<Position>> {
+        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let mut paths_from: HashMap<Position, Option<Position>> = HashMap::new();
+
+        if targets.is_empty() {
+            return None;
+        }
+
+        let mut to_search: BinaryHeap<Node<Position>> = BinaryHeap::new();
+
+        let mut known_score: HashMap<Position, i32> = HashMap::new();
+
+        to_search.push(Node {
+            cost: 0,
+            coordinate: *start,
+        });
+        known_score.insert(*start, 0);
+        paths_from.insert(*start, None);
+
+        while let Some(Node { cost, coordinate }) = to_search.pop() {
+            if targets.contains(&coordinate) {
+                return Some(APrimeResult {
+                    best_cost: cost,
+                    paths_from,
+                    best_target: coordinate,
+                });
+            }
+
+            let neighbor_distance = if self.board.hazards.contains(&coordinate) {
+                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+            } else if self.board.food.contains(&coordinate) {
+                NEIGHBOR_DISTANCE + options.food_penalty
+            } else {
+                NEIGHBOR_DISTANCE
+            };
+
+            let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
+            for neighbor in self.valid_neighbors(&coordinate).into_iter().filter(|n| {
+                targets.contains(n)
+                    || self
+                        .board
+                        .snakes
+                        .iter()
+                        .all(|snake| !snake.body.contains(n))
+            }) {
+                if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
+                    known_score.insert(neighbor, tentative);
+                    paths_from.insert(neighbor, Some(coordinate));
+                    to_search.push(Node {
+                        coordinate: neighbor,
+                        cost: tentative
+                            + hueristic_wire(&neighbor, targets).unwrap_or(HEURISTIC_MAX),
+                    });
+                }
+            }
+        }
+
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use battlesnake_game_types::wire_representation::Game;
+    use battlesnake_game_types::{
+        compact_representation::CellBoard4Snakes11x11, wire_representation::Game,
+    };
 
     fn cell_index_from_position_default_width(pos: Position) -> CellIndex<u8> {
         let width = ((11 * 11) as f32).sqrt() as u8;
@@ -268,6 +354,20 @@ mod tests {
                 game, &id_map,
             )
             .unwrap();
+
+        assert_eq!(
+            game.shortest_distance(
+                &Position { x: 1, y: 1 },
+                &[
+                    Position { x: 3, y: 3 },
+                    Position { x: 4, y: 4 },
+                    Position { x: 5, y: 5 },
+                ],
+                None
+            ),
+            Some(4)
+        );
+
         assert_eq!(
             compact.shortest_distance(
                 &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
@@ -292,6 +392,11 @@ mod tests {
                 game, &id_map,
             )
             .unwrap();
+
+        assert_eq!(
+            game.shortest_distance(&Position { x: 5, y: 4 }, &[Position { x: 7, y: 10 },], None),
+            Some(8)
+        );
 
         assert_eq!(
             compact.shortest_distance(
