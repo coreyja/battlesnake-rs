@@ -8,6 +8,7 @@ use battlesnake_game_types::types::{
     SimulableGame, SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
     YouDeterminableGame,
 };
+use battlesnake_game_types::wire_representation::Game;
 use itertools::Itertools;
 use tracing::info;
 
@@ -23,15 +24,11 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl BattlesnakeAI for DeviousDevin {
-    fn make_move(
+impl DeviousDevin {
+    pub fn make_move_new(
         &self,
-        game_state: GameState,
+        game_state: Game,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let json_value: serde_json::Value = serde_json::json!(game_state);
-        let game_state: battlesnake_game_types::wire_representation::Game =
-            serde_json::from_value::<battlesnake_game_types::wire_representation::Game>(json_value)
-                .unwrap();
         let id_map = build_snake_id_map(&game_state);
         let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
             CellBoard::convert_from_game(game_state, &id_map).unwrap();
@@ -48,6 +45,20 @@ impl BattlesnakeAI for DeviousDevin {
             r#move: format!("{}", dir),
             shout: None,
         })
+    }
+}
+
+impl BattlesnakeAI for DeviousDevin {
+    fn make_move(
+        &self,
+        game_state: GameState,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let json_value: serde_json::Value = serde_json::json!(game_state);
+        let game_state: battlesnake_game_types::wire_representation::Game =
+            serde_json::from_value::<battlesnake_game_types::wire_representation::Game>(json_value)
+                .unwrap();
+
+        self.make_move_new(game_state)
     }
 
     fn name(&self) -> String {
@@ -303,6 +314,80 @@ fn minimax_min(
 }
 
 type SnakeMoves = Vec<(SnakeId, Move)>;
+
+pub fn minmax_bench_entry(game_state: Game, max_depth: usize) {
+    let id_map = build_snake_id_map(&game_state);
+    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+        CellBoard::convert_from_game(game_state, &id_map).unwrap();
+    let my_id = game_state.you_id();
+    let mut sorted_snakes = game_state.get_snake_ids();
+    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
+
+    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+
+    minimax(
+        game_state,
+        &players,
+        0,
+        devious_devin::WORT_POSSIBLE_SCORE_STATE,
+        devious_devin::BEST_POSSIBLE_SCORE_STATE,
+        max_depth,
+        None,
+    );
+}
+
+pub fn minmax_deepened_bench_entry(game_state: Game, max_depth: usize) {
+    let id_map = build_snake_id_map(&game_state);
+    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+        CellBoard::convert_from_game(game_state, &id_map).unwrap();
+    let my_id = game_state.you_id();
+    let mut sorted_snakes = game_state.get_snake_ids();
+    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
+
+    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+
+    let mut current_depth = 2;
+    let mut current_return = None;
+    while current_depth <= max_depth {
+        current_return = Some(minimax(
+            game_state,
+            &players,
+            0,
+            WORT_POSSIBLE_SCORE_STATE,
+            BEST_POSSIBLE_SCORE_STATE,
+            current_depth,
+            current_return,
+        ));
+
+        current_depth += 2;
+    }
+}
+
+pub fn minmax_deepened_bench_entry_no_ordering(game_state: Game, max_depth: usize) {
+    let id_map = build_snake_id_map(&game_state);
+    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+        CellBoard::convert_from_game(game_state, &id_map).unwrap();
+    let my_id = game_state.you_id();
+    let mut sorted_snakes = game_state.get_snake_ids();
+    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
+
+    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+
+    let mut current_depth = 2;
+    while current_depth <= max_depth {
+        minimax(
+            game_state,
+            &players,
+            0,
+            WORT_POSSIBLE_SCORE_STATE,
+            BEST_POSSIBLE_SCORE_STATE,
+            current_depth,
+            None,
+        );
+
+        current_depth += 2;
+    }
+}
 
 fn minimax(
     node: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,

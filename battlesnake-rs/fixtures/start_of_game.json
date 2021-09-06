@@ -1,0 +1,104 @@
+{
+  "game": {
+    "id": "2503b549-4cf9-4653-b35c-6ef8a3e2c3d9",
+    "ruleset": {
+      "damagePerTurn": "14",
+      "foodSpawnChance": "15",
+      "minimumFood": "1",
+      "name": "royale",
+      "shrinkEveryNTurns": "25",
+      "version": "1"
+    },
+    "timeout": 500
+  },
+  "turn": 0,
+  "board": {
+    "width": 11,
+    "height": 11,
+    "food": [
+      { "x": 6, "y": 8 },
+      { "x": 10, "y": 4 },
+      { "x": 0, "y": 2 },
+      { "x": 8, "y": 2 },
+      { "x": 5, "y": 5 }
+    ],
+    "hazards": [],
+    "snakes": [
+      {
+        "id": "gs_CDy4gVQtGbBBy7hQpPxh3FkV",
+        "name": "",
+        "body": [
+          { "x": 5, "y": 9 },
+          { "x": 5, "y": 9 },
+          { "x": 5, "y": 9 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 5, "y": 9 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_3yM8vfc7QG66t9gBVBvHT8FY",
+        "name": "",
+        "body": [
+          { "x": 9, "y": 5 },
+          { "x": 9, "y": 5 },
+          { "x": 9, "y": 5 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 9, "y": 5 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_rpv6WJqdJcYG3MwPCcrH3vbK",
+        "name": "",
+        "body": [
+          { "x": 1, "y": 1 },
+          { "x": 1, "y": 1 },
+          { "x": 1, "y": 1 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 1, "y": 1 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_4G7SBw8bD7H98KSfcTbMc8j4",
+        "name": "",
+        "body": [
+          { "x": 9, "y": 1 },
+          { "x": 9, "y": 1 },
+          { "x": 9, "y": 1 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 9, "y": 1 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      }
+    ]
+  },
+  "you": {
+    "id": "gs_3yM8vfc7QG66t9gBVBvHT8FY",
+    "name": "",
+    "body": [
+      { "x": 9, "y": 5 },
+      { "x": 9, "y": 5 },
+      { "x": 9, "y": 5 }
+    ],
+    "health": 100,
+    "latency": null,
+    "head": { "x": 9, "y": 5 },
+    "length": 3,
+    "shout": "",
+    "squad": ""
+  }
+}
