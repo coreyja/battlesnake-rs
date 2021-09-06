@@ -39,8 +39,6 @@ fn bench_minmax_to_depth(c: &mut Criterion, max_depth: usize) {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    bench_minmax_to_depth(c, 2);
-    bench_minmax_to_depth(c, 4);
     bench_minmax_to_depth(c, 6);
 }
 
