@@ -98,4 +98,5 @@ workflows:
       - test-rust
       - lint-rust
       - profile-devin
+      - bench-devin
 
