@@ -1,3 +1,5 @@
+use battlesnake_game_types::types::{PositionGettableGame, YouDeterminableGame};
+
 use crate::compact_a_prime::NeighborDeterminableGame;
 
 use crate::eremetic_eric::EremeticEric;
@@ -6,8 +8,16 @@ use super::*;
 
 pub struct GiganticGeorge {}
 
-fn path_to_full_board(reversed_body: &[Position], game: &Game) -> Option<Vec<(Move, Position)>> {
-    let max_size = game.board.width * game.board.height;
+trait SizeDeterminableGame {
+    fn get_width(&self) -> u32;
+    fn get_height(&self) -> u32;
+}
+
+fn path_to_full_board<T: NeighborDeterminableGame + SizeDeterminableGame + PositionGettableGame>(
+    reversed_body: &[T::NativePositionType],
+    game: &T,
+) -> Option<Vec<(Move, T::NativePositionType)>> {
+    let max_size = game.get_width() * game.get_height();
     if reversed_body.len() == max_size as usize {
         return Some(vec![]);
     }
@@ -33,13 +43,24 @@ trait FullBoardDeterminable {
     fn is_full(&self) -> bool;
 }
 
-impl FullBoardDeterminable for Game {
-    fn is_full(&self) -> bool {
-        todo!()
-    }
+trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
+    fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType>;
 }
 
-impl<T> BattlesnakeAI<T> for GiganticGeorge {
+trait ShoutGettableGame: SnakeIDGettableGame {
+    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<&str>;
+}
+
+impl<
+        T: FullBoardDeterminable
+            + ShoutGettableGame
+            + YouDeterminableGame
+            + NeighborDeterminableGame
+            + SizeDeterminableGame
+            + PositionGettableGame
+            + SnakeBodyGettableGame,
+    > BattlesnakeAI<T> for GiganticGeorge
+{
     fn name(&self) -> String {
         "gigantic-george".to_owned()
     }
@@ -53,7 +74,9 @@ impl<T> BattlesnakeAI<T> for GiganticGeorge {
     }
 
     fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        if let Some(s) = &state.you.shout {
+        let you_id = state.you_id();
+
+        if let Some(s) = state.get_shout(you_id) {
             if s.starts_with("PATH:") {
                 let path = s.split("PATH:").nth(1).unwrap();
 
@@ -79,7 +102,7 @@ impl<T> BattlesnakeAI<T> for GiganticGeorge {
             println!("Ok now can we complete the board?");
 
             let reversed_body = {
-                let mut x = Vec::from(state.you.body.clone());
+                let mut x = Vec::from(state.get_snake_body_vec(you_id));
                 x.pop(); // Remove my current tail cause I will need to fill that space too
                 x.reverse();
                 x
