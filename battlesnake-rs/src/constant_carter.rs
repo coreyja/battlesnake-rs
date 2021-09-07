@@ -2,7 +2,7 @@ use super::*;
 
 pub struct ConstantCarter {}
 
-impl BattlesnakeAI for ConstantCarter {
+impl<T> BattlesnakeAI<T> for ConstantCarter {
     fn name(&self) -> String {
         "constant-carter".to_owned()
     }

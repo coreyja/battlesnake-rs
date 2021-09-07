@@ -8,7 +8,7 @@ use super::*;
 
 pub struct EremeticEric {}
 
-impl BattlesnakeAI for EremeticEric {
+impl<T> BattlesnakeAI<T> for EremeticEric {
     fn name(&self) -> String {
         "eremetic-eric".to_owned()
     }
@@ -29,10 +29,7 @@ impl BattlesnakeAI for EremeticEric {
         }
     }
 
-    fn make_move(
-        &self,
-        state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let body = {
             let mut body = state.you.body.clone();
             let mut path_to_complete_circle =

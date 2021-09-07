@@ -103,14 +103,12 @@ pub struct MoveOutput {
     shout: Option<String>,
 }
 
-pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
-pub trait BattlesnakeAI {
+pub type BoxedSnake<T> = Box<dyn BattlesnakeAI<T> + Send + Sync>;
+
+pub trait BattlesnakeAI<T> {
     fn start(&self) {}
-    fn end(&self, _state: Game) {}
-    fn make_move(
-        &self,
-        state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
+    fn end(&self, _state: T) {}
+    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
     fn name(&self) -> String;
 
     fn about(&self) -> AboutMe {

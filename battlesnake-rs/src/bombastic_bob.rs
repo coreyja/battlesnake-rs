@@ -4,11 +4,8 @@ use super::*;
 
 pub struct BombasticBob;
 
-impl BattlesnakeAI for BombasticBob {
-    fn make_move(
-        &self,
-        state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+impl<T> BattlesnakeAI<T> for BombasticBob {
+    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let chosen = state
             .random_reasonable_move_for_each_snake()
             .into_iter()

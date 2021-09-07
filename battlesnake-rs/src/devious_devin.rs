@@ -26,11 +26,8 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl BattlesnakeAI for DeviousDevin {
-    fn make_move(
-        &self,
-        game: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+impl<T> BattlesnakeAI<T> for DeviousDevin {
+    fn make_move(&self, game: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let id_map = build_snake_id_map(&game);
         let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
             CellBoard::convert_from_game(game, &id_map).unwrap();

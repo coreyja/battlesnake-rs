@@ -4,10 +4,13 @@ use crate::compact_a_prime::NeighborDeterminableGame;
 
 use super::*;
 
-trait MoveToAndSpawn: NeighborDeterminableGame {
-    fn move_to_and_opponent_sprawl(&self, coor: &Position) -> Self;
+trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {
+    fn move_to_and_opponent_sprawl(&self, coor: &Self::NativePositionType) -> Self;
 }
 
+use battlesnake_game_types::types::{
+    HeadGettableGame, HealthGettableGame, PositionGettableGame, YouDeterminableGame,
+};
 use rand::seq::SliceRandom;
 
 impl MoveToAndSpawn for Game {
@@ -31,27 +34,25 @@ impl MoveToAndSpawn for Game {
     }
 }
 
-fn score(game_state: &Game, coor: &Position, times_to_recurse: u8) -> i64 {
+fn score<
+    T: NeighborDeterminableGame + YouDeterminableGame + HealthGettableGame + MoveToAndSpawn,
+>(
+    game_state: &T,
+    coor: &T::NativePositionType,
+    times_to_recurse: u8,
+) -> i64 {
     const PREFERRED_HEALTH: i64 = 80;
+    let you_id = game_state.you_id();
 
-    if game_state.you.body.contains(coor) {
+    if game_state.position_is_snake_body(*coor) {
         return 0;
     }
 
-    if game_state.you.health == 0 {
+    if !game_state.is_alive(you_id) {
         return 0;
     }
 
-    if game_state
-        .board
-        .snakes
-        .iter()
-        .any(|x| x.body.contains(coor))
-    {
-        return 0;
-    }
-
-    let ihealth: i64 = game_state.you.health.into();
+    let ihealth = game_state.get_health_i64(you_id);
     let current_score: i64 = (ihealth - PREFERRED_HEALTH).abs();
     let current_score = PREFERRED_HEALTH - current_score;
 
@@ -76,16 +77,25 @@ fn score(game_state: &Game, coor: &Position, times_to_recurse: u8) -> i64 {
 
 pub struct AmphibiousArthur {}
 
-impl BattlesnakeAI for AmphibiousArthur {
+impl<
+        T: NeighborDeterminableGame
+            + SnakeIDGettableGame
+            + HeadGettableGame
+            + YouDeterminableGame
+            + MoveToAndSpawn
+            + HealthGettableGame,
+    > BattlesnakeAI<T> for AmphibiousArthur
+{
     fn name(&self) -> String {
         "amphibious-arthur".to_owned()
     }
 
     fn make_move(
         &self,
-        game_state: Game,
+        game_state: T,
     ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let possible = game_state.possible_moves(&game_state.you.head);
+        let you_id = game_state.you_id();
+        let possible = game_state.possible_moves(&game_state.get_head_as_native_position(you_id));
         let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
             Ok(Ok(x)) => x,
             _ => 5,

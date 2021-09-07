@@ -39,7 +39,7 @@ impl FullBoardDeterminable for Game {
     }
 }
 
-impl BattlesnakeAI for GiganticGeorge {
+impl<T> BattlesnakeAI<T> for GiganticGeorge {
     fn name(&self) -> String {
         "gigantic-george".to_owned()
     }
@@ -52,10 +52,7 @@ impl BattlesnakeAI for GiganticGeorge {
         }
     }
 
-    fn make_move(
-        &self,
-        state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(s) = &state.you.shout {
             if s.starts_with("PATH:") {
                 let path = s.split("PATH:").nth(1).unwrap();

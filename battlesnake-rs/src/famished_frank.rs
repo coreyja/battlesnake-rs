@@ -6,7 +6,7 @@ use super::*;
 
 pub struct FamishedFrank {}
 
-impl BattlesnakeAI for FamishedFrank {
+impl<T> BattlesnakeAI<T> for FamishedFrank {
     fn name(&self) -> String {
         "famished-frank".to_owned()
     }
@@ -19,10 +19,7 @@ impl BattlesnakeAI for FamishedFrank {
         }
     }
 
-    fn make_move(
-        &self,
-        state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let target_length = state.board.height * 2 + state.board.width;
         let targets = if state.you.body.len() < target_length as usize {
             state.board.food.clone()
