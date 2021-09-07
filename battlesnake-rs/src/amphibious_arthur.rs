@@ -22,7 +22,7 @@ impl MoveToAndSpawn for Game {
             .filter(|s| s.id == self.you.id);
 
         for s in opponents {
-            let mut new_body = self.neighbors(&s.head);
+            let new_body = self.neighbors(&s.head);
             s.head = *new_body.choose(&mut rand::thread_rng()).unwrap();
             s.body.append(&mut VecDeque::from(new_body));
         }
@@ -95,7 +95,7 @@ impl BattlesnakeAI for AmphibiousArthur {
             .max_by_key(|(_mv, coor)| score(&game_state, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
-            r#move: Direction::Up.value(),
+            r#move: format!("{}", Move::Up),
             shout: Some("Oh NO we are stuck".to_owned()),
         };
 

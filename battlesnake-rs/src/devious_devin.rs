@@ -18,7 +18,7 @@ use crate::compact_a_prime::APrimeCalculable;
 pub struct MoveOption {
     moves: Vec<SnakeMove>,
     score: ScoreEndState,
-    dir: Direction,
+    dir: Move,
 }
 
 #[derive(Serialize)]
@@ -130,8 +130,8 @@ fn score(
 struct SnakeMove {
     snake_name: String,
     snake_id: String,
-    dir: Direction,
-    move_to: Coordinate,
+    dir: Move,
+    move_to: Position,
 }
 
 #[derive(Debug, Clone, Serialize)]

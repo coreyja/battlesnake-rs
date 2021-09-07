@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::compact_a_prime::NeighborDeterminableGame;
 
 use crate::eremetic_eric::EremeticEric;
@@ -64,16 +62,16 @@ impl BattlesnakeAI for GiganticGeorge {
 
                 let next_char = path.to_lowercase().chars().last().unwrap();
                 let dir = match next_char {
-                    'l' => Some(Direction::Left),
-                    'r' => Some(Direction::Right),
-                    'u' => Some(Direction::Up),
-                    'd' => Some(Direction::Down),
+                    'l' => Some(Move::Left),
+                    'r' => Some(Move::Right),
+                    'u' => Some(Move::Up),
+                    'd' => Some(Move::Down),
                     _ => None,
                 };
 
                 if let Some(d) = dir {
                     return Ok(MoveOutput {
-                        r#move: d.value(),
+                        r#move: format!("{}", d),
                         shout: Some(path[..path.len() - 2].to_string()),
                     });
                 }
