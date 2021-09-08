@@ -44,7 +44,7 @@ fn score<
     const PREFERRED_HEALTH: i64 = 80;
     let you_id = game_state.you_id();
 
-    if game_state.position_is_snake_body(*coor) {
+    if game_state.position_is_snake_body(coor.clone()) {
         return 0;
     }
 

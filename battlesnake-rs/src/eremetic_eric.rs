@@ -1,14 +1,40 @@
 use std::convert::TryInto;
 
+use battlesnake_game_types::types::{
+    FoodGettableGame, HeadGettableGame, HealthGettableGame, YouDeterminableGame,
+};
 use itertools::Itertools;
 
-use crate::compact_a_prime::{dist_between, APrimeCalculable, APrimeNextDirection, APrimeOptions};
+use crate::{
+    compact_a_prime::{
+        dist_between, dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions,
+    },
+    gigantic_george::SnakeBodyGettableGame,
+};
 
 use super::*;
 
 pub struct EremeticEric {}
 
-impl<T> BattlesnakeAI<T> for EremeticEric {
+pub trait TurnDeterminableGame {
+    fn turn(&self) -> u64;
+}
+
+impl<
+        T: TurnDeterminableGame
+            + SnakeBodyGettableGame
+            + YouDeterminableGame
+            + APrimeCalculable
+            + APrimeNextDirection
+            + SnakeTailPushableGame
+            + Clone
+            + FoodGettableGame
+            + HealthGettableGame
+            + APrimeNextDirection
+            + HeadGettableGame
+            + FoodGettableGame,
+    > BattlesnakeAI<T> for EremeticEric
+{
     fn name(&self) -> String {
         "eremetic-eric".to_owned()
     }
@@ -21,42 +47,39 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
         }
     }
 
-    fn end(&self, state: Game) {
-        println!("Died at turn: {}", state.turn);
-        let body_set: HashSet<_> = state.you.body.iter().collect();
-        if body_set.len() != state.you.body.len() {
+    fn end(&self, state: T) {
+        println!("Died at turn: {}", state.turn());
+        let you_vec = state.get_snake_body_vec(state.you_id());
+        let body_set: HashSet<_> = you_vec.iter().collect();
+        if body_set.len() != you_vec.len() {
             println!("Ran into yourself");
         }
     }
 
     fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let body = {
-            let mut body = state.you.body.clone();
+        let you_id = state.you_id();
+        let body = state.get_snake_body_vec(state.you_id());
+        let modified_board = {
+            let mut b = state.clone();
             let mut path_to_complete_circle =
-                state.shortest_path(&body[0], &[*body.back().unwrap()], None);
+                state.shortest_path(&body[0], &[body.last().unwrap().clone()], None);
             path_to_complete_circle.reverse();
             for c in path_to_complete_circle.into_iter() {
                 if !body.contains(&c) {
-                    body.push_back(c);
+                    b.push_tail(you_id, c);
                 }
             }
-            body
-        };
-        let modified_board = {
-            let mut b = state.board.clone();
-            let mut clone_me = state.you.clone();
-            clone_me.body = body.clone();
-            b.snakes = vec![clone_me];
+
             b
         };
-        let food_options: Vec<_> = state
-            .board
-            .food
+        let all_food = state.get_all_food_as_native_positions();
+
+        let food_options: Vec<_> = all_food
             .iter()
             .map(|food| {
                 let body_options = body
                     .iter()
-                    .map(|body_part| (body_part, dist_between(food, body_part)))
+                    .map(|body_part| (body_part, dist_between_new(&state, food, body_part)))
                     .collect_vec();
                 let best = body_options.iter().cloned().min_by_key(|x| x.1).unwrap();
                 body_options
@@ -92,13 +115,10 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
                 } else {
                     closest_index - 1
                 };
-                let would_be_tail = body[tail_index];
+                let would_be_tail = body[tail_index].clone();
 
                 let dist_back_from_food_to_tail = {
-                    let mut modified_state = state.clone();
-                    modified_state.board = modified_board.clone();
-
-                    modified_state
+                    modified_board
                         .shortest_distance(food, &[would_be_tail], None)
                         .unwrap_or(5000)
                 };
@@ -113,7 +133,7 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
                 let cost_to_get_food_and_then_get_back_if_at_closest_point: u64 =
                     best_cost_u64 + dist_back_from_food_to_tail as u64;
 
-                let health: u64 = state.you.health.try_into().unwrap();
+                let health = state.get_health_i64(you_id) as u64;
                 let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
                     let health_when_at_closest = health - cost_to_get_to_closest;
 
@@ -132,14 +152,15 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
 
         let (&best_food, (&closest_body_part, best_cost)) = matching_food_options[0].0;
 
-        let health: u64 = state.you.health.try_into()?;
+        let health: u64 = state.get_health_i64(you_id).try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
         let cant_survive_another_loop =
             health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
+        let you_head = state.get_head_as_native_position(you_id);
 
-        if &state.you.head == closest_body_part && cant_survive_another_loop {
+        if &you_head == closest_body_part && cant_survive_another_loop {
             let d = state
-                .shortest_path_next_direction(&state.you.head, &[*best_food], None)
+                .shortest_path_next_direction(&you_head, &[best_food.clone()], None)
                 .unwrap();
 
             return Ok(MoveOutput {
@@ -148,12 +169,16 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
             });
         }
 
-        if state.turn < 3 {
+        if state.turn() < 3 {
             return Ok(MoveOutput {
                 r#move: format!(
                     "{}",
                     state
-                        .shortest_path_next_direction(&state.you.head, &state.board.food, None)
+                        .shortest_path_next_direction(
+                            &you_head,
+                            &state.get_all_food_as_native_positions(),
+                            None
+                        )
                         .unwrap()
                 ),
                 shout: None,
@@ -162,8 +187,8 @@ impl<T> BattlesnakeAI<T> for EremeticEric {
 
         let dir = state
             .shortest_path_next_direction(
-                &state.you.head,
-                &[*state.you.body.back().unwrap()],
+                &you_head,
+                &[state.get_snake_body_vec(you_id).last().unwrap().clone()],
                 Some(APrimeOptions { food_penalty: 1 }),
             )
             .unwrap();

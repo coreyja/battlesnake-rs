@@ -38,7 +38,10 @@ impl Default for AboutMe {
     }
 }
 
-use battlesnake_game_types::{types::SnakeIDGettableGame, wire_representation::Position};
+use battlesnake_game_types::{
+    types::{PositionGettableGame, SnakeIDGettableGame},
+    wire_representation::Position,
+};
 
 pub enum MoveResult {
     MovedTail(i32, Position), //old_health, tail_was
@@ -114,4 +117,8 @@ pub trait BattlesnakeAI<T> {
     fn about(&self) -> AboutMe {
         Default::default()
     }
+}
+
+pub trait SnakeTailPushableGame: SnakeIDGettableGame + PositionGettableGame {
+    fn push_tail(&mut self, snake_id: &Self::SnakeIDType, pos: Self::NativePositionType);
 }

@@ -1,10 +1,14 @@
-use battlesnake_game_types::types::YouDeterminableGame;
+use battlesnake_game_types::types::{
+    RandomReasonableMovesGame, SnakeIDGettableGame, YouDeterminableGame,
+};
 
 use super::*;
 
 pub struct BombasticBob;
 
-impl<T> BattlesnakeAI<T> for BombasticBob {
+impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> BattlesnakeAI<T>
+    for BombasticBob
+{
     fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let chosen = state
             .random_reasonable_move_for_each_snake()

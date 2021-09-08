@@ -2,14 +2,15 @@ use super::*;
 
 pub struct DeviousDevin {}
 
-use battlesnake_game_types::compact_representation::{CellBoard, CellBoard4Snakes11x11};
+use battlesnake_game_types::compact_representation::CellBoard;
 use battlesnake_game_types::types::{
-    build_snake_id_map, FoodGettableGame, HeadGettableGame, Move, SimulableGame,
-    SimulatorInstruments, SnakeIDGettableGame, SnakeId, VictorDeterminableGame,
+    build_snake_id_map, FoodGettableGame, HeadGettableGame, HealthGettableGame, LengthGettableGame,
+    Move, SimulableGame, SimulatorInstruments, SnakeIDGettableGame, VictorDeterminableGame,
     YouDeterminableGame,
 };
 use battlesnake_game_types::wire_representation::Game;
 use itertools::Itertools;
+use std::clone::Clone;
 use tracing::info;
 
 use crate::compact_a_prime::APrimeCalculable;
@@ -26,18 +27,28 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl<T> BattlesnakeAI<T> for DeviousDevin {
-    fn make_move(&self, game: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let id_map = build_snake_id_map(&game);
-        let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
-            CellBoard::convert_from_game(game, &id_map).unwrap();
-        let my_id = game_state.you_id();
-        let mut sorted_snakes = game_state.get_snake_ids();
-        sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
-
-        let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
-
-        let best_option = deepened_minimax(game_state, players);
+impl<
+        T: SnakeIDGettableGame
+            + YouDeterminableGame
+            + PositionGettableGame
+            + HeadGettableGame
+            + LengthGettableGame
+            + HealthGettableGame
+            + VictorDeterminableGame
+            + HeadGettableGame
+            + SimulableGame<Instruments>
+            + Clone
+            + APrimeCalculable
+            + FoodGettableGame
+            + Send
+            + 'static,
+    > BattlesnakeAI<T> for DeviousDevin
+{
+    fn make_move(
+        &self,
+        game_state: T,
+    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let best_option = deepened_minimax(game_state);
         let dir = best_option.my_best_move();
 
         Ok(MoveOutput {
@@ -69,9 +80,9 @@ enum ScoreEndState {
     /// depth: i64
     Tie(i64),
     /// difference_in_snake_length: u16, negative_distance_to_nearest_food: Option<i32>, health: u8
-    ShorterThanOpponent(i64, Option<i32>, u8),
+    ShorterThanOpponent(i64, Option<i32>, i64),
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(Option<i32>, i64, u8),
+    LongerThanOpponent(Option<i32>, i64, i64),
     /// depth: i64
     Win(i64),
 }
@@ -79,14 +90,24 @@ enum ScoreEndState {
 const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
 const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
 
-fn score(
-    node: &battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
+fn score<
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + HeadGettableGame
+        + APrimeCalculable
+        + FoodGettableGame,
+>(
+    node: &T,
 ) -> ScoreEndState {
     let mut snake_ids = node.get_snake_ids().into_iter();
     snake_ids.next();
     let me_id = node.you_id();
 
-    let opponents: Vec<SnakeId> = snake_ids.collect();
+    let opponents: Vec<T::SnakeIDType> = snake_ids.collect();
 
     let opponent_heads: Vec<_> = opponents
         .iter()
@@ -94,11 +115,15 @@ fn score(
         .collect();
     let my_head = node.get_head_as_native_position(me_id);
 
-    let my_length = node.get_length(*me_id);
+    let my_length = node.get_length_i64(me_id);
 
-    let max_opponent_length = opponents.iter().map(|o| node.get_length(*o)).max().unwrap();
+    let max_opponent_length = opponents
+        .iter()
+        .map(|o| node.get_length_i64(o))
+        .max()
+        .unwrap();
     let length_difference = (my_length as i64) - (max_opponent_length as i64);
-    let my_health = node.get_health(*me_id);
+    let my_health = node.get_health_i64(me_id);
 
     let foods: Vec<_> = node.get_all_food_as_native_positions();
     if max_opponent_length >= my_length || my_health < 20 {
@@ -132,13 +157,13 @@ struct SnakeMove {
 }
 
 #[derive(Debug, Clone, Serialize)]
-enum MinMaxReturn {
+enum MinMaxReturn<T: SnakeIDGettableGame + Clone + Debug> {
     MinLayer {
-        options: Vec<(Vec<(SnakeId, Move)>, MinMaxReturn)>,
+        options: Vec<(Vec<(T::SnakeIDType, Move)>, MinMaxReturn<T>)>,
         score: ScoreEndState,
     },
     MaxLayer {
-        options: Vec<(Move, MinMaxReturn)>,
+        options: Vec<(Move, MinMaxReturn<T>)>,
         score: ScoreEndState,
     },
     Leaf {
@@ -146,7 +171,7 @@ enum MinMaxReturn {
     },
 }
 
-impl MinMaxReturn {
+impl<T: SnakeIDGettableGame + Clone + Debug> MinMaxReturn<T> {
     fn score(&self) -> &ScoreEndState {
         match self {
             MinMaxReturn::MinLayer { score, .. } => score,
@@ -171,19 +196,35 @@ impl MinMaxReturn {
     }
 }
 
-type AllPossibleStatesHashedByMyMove =
-    HashMap<(SnakeId, Move), Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>>;
+type AllPossibleStatesHashedByMyMove<T> = HashMap<
+    (<T as SnakeIDGettableGame>::SnakeIDType, Move),
+    Vec<(Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>, T)>,
+>;
 
-type AllPossibleStatesGroupedByMyMove = Vec<(
-    (SnakeId, Move),
-    Vec<(Vec<(SnakeId, Move)>, CellBoard4Snakes11x11)>,
-    Option<MinMaxReturn>,
+type AllPossibleStatesGroupedByMyMove<T> = Vec<(
+    (<T as SnakeIDGettableGame>::SnakeIDType, Move),
+    Vec<(Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>, T)>,
+    Option<MinMaxReturn<T>>,
 )>;
 
-fn ordered_moves(
-    mut grouped: AllPossibleStatesHashedByMyMove,
-    previous_return: Option<MinMaxReturn>,
-) -> AllPossibleStatesGroupedByMyMove {
+fn ordered_moves<
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + SimulableGame<Instruments>
+        + Clone
+        + APrimeCalculable
+        + FoodGettableGame,
+>(
+    mut grouped: AllPossibleStatesHashedByMyMove<T>,
+    previous_return: Option<MinMaxReturn<T>>,
+    you_id: T::SnakeIDType,
+) -> AllPossibleStatesGroupedByMyMove<T> {
     match previous_return {
         None | Some(MinMaxReturn::Leaf { .. }) => grouped
             .into_iter()
@@ -206,8 +247,8 @@ fn ordered_moves(
             sorted_moves
                 .into_iter()
                 .map(|(m, prev)| {
-                    let key = (SnakeId(0), m);
-                    (key, grouped.remove(&key).unwrap(), prev)
+                    let key = (you_id.clone(), m);
+                    (key.clone(), grouped.remove(&key).unwrap(), prev)
                 })
                 .collect_vec()
         }
@@ -215,12 +256,8 @@ fn ordered_moves(
     }
 }
 
-enum Player {
-    Snake(SnakeId),
-}
-
 #[derive(Debug)]
-struct Instruments;
+pub struct Instruments;
 impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _: std::time::Duration) {}
 }
@@ -238,25 +275,34 @@ where
     })
 }
 
-fn minimax_min(
-    other_moves_and_baords: Vec<(
-        Vec<(SnakeId, Move)>,
-        battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
-    )>,
-    players: &[Player],
+fn minimax_min<
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + SimulableGame<Instruments>
+        + Clone
+        + APrimeCalculable
+        + FoodGettableGame,
+>(
+    other_moves_and_baords: Vec<(Vec<(T::SnakeIDType, Move)>, T)>,
     depth: usize,
     mut alpha: ScoreEndState,
     mut beta: ScoreEndState,
     max_depth: usize,
-    previous_return: Option<MinMaxReturn>,
-) -> MinMaxReturn {
+    previous_return: Option<MinMaxReturn<T>>,
+) -> MinMaxReturn<T> {
     let mut prev_options = match previous_return {
         Some(MinMaxReturn::MinLayer { options, .. }) => options,
         None => vec![],
         _ => unreachable!("We got a bad previous return in a min node"),
     };
 
-    let mut options: Vec<(Vec<(SnakeId, Move)>, MinMaxReturn)> = vec![];
+    let mut options: Vec<(Vec<(T::SnakeIDType, Move)>, MinMaxReturn<T>)> = vec![];
     let is_maximizing = false;
 
     let mut other_moves_and_baords = other_moves_and_baords
@@ -272,7 +318,7 @@ fn minimax_min(
     other_moves_and_baords.sort_by_key(|(i, _prev, _other_moves, _board)| i.unwrap_or(usize::MAX));
 
     for (_, prev, moves, board) in other_moves_and_baords.into_iter() {
-        let next_move_return = minimax(board, players, depth + 1, alpha, beta, max_depth, prev);
+        let next_move_return = minimax(&board, depth + 1, alpha, beta, max_depth, prev);
 
         let value = *next_move_return.score();
         options.push((moves, next_move_return));
@@ -304,21 +350,15 @@ fn minimax_min(
     }
 }
 
-type SnakeMoves = Vec<(SnakeId, Move)>;
+type SnakeMoves<T> = Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>;
 
 pub fn minmax_bench_entry(game_state: Game, max_depth: usize) {
     let id_map = build_snake_id_map(&game_state);
     let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
         CellBoard::convert_from_game(game_state, &id_map).unwrap();
-    let my_id = game_state.you_id();
-    let mut sorted_snakes = game_state.get_snake_ids();
-    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
-
-    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
 
     minimax(
-        game_state,
-        &players,
+        &game_state,
         0,
         devious_devin::WORT_POSSIBLE_SCORE_STATE,
         devious_devin::BEST_POSSIBLE_SCORE_STATE,
@@ -331,18 +371,12 @@ pub fn minmax_deepened_bench_entry(game_state: Game, max_depth: usize) {
     let id_map = build_snake_id_map(&game_state);
     let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
         CellBoard::convert_from_game(game_state, &id_map).unwrap();
-    let my_id = game_state.you_id();
-    let mut sorted_snakes = game_state.get_snake_ids();
-    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
-
-    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
 
     let mut current_depth = 2;
     let mut current_return = None;
     while current_depth <= max_depth {
         current_return = Some(minimax(
-            game_state,
-            &players,
+            &game_state,
             0,
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
@@ -362,13 +396,10 @@ pub fn minmax_deepened_bench_entry_no_ordering(game_state: Game, max_depth: usiz
     let mut sorted_snakes = game_state.get_snake_ids();
     sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
 
-    let players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
-
     let mut current_depth = 2;
     while current_depth <= max_depth {
         minimax(
-            game_state,
-            &players,
+            &game_state,
             0,
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
@@ -380,15 +411,26 @@ pub fn minmax_deepened_bench_entry_no_ordering(game_state: Game, max_depth: usiz
     }
 }
 
-fn minimax(
-    node: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
-    players: &[Player],
+fn minimax<T>(
+    node: &T,
     depth: usize,
     mut alpha: ScoreEndState,
     mut beta: ScoreEndState,
     max_depth: usize,
-    previous_return: Option<MinMaxReturn>,
-) -> MinMaxReturn {
+    previous_return: Option<MinMaxReturn<T>>,
+) -> MinMaxReturn<T>
+where
+    T: YouDeterminableGame
+        + VictorDeterminableGame
+        + SnakeIDGettableGame
+        + FoodGettableGame
+        + APrimeCalculable
+        + HealthGettableGame
+        + LengthGettableGame
+        + HeadGettableGame
+        + std::clone::Clone
+        + SimulableGame<Instruments>,
+{
     if let Some(MinMaxReturn::MinLayer { .. }) = previous_return {
         unreachable!(
             "We got a bad previous return in a max node {:?}",
@@ -414,7 +456,7 @@ fn minimax(
     }
 
     if depth >= max_depth {
-        let score = score(&node);
+        let score = score(node);
         return MinMaxReturn::Leaf { score };
     }
 
@@ -422,25 +464,24 @@ fn minimax(
     let leafs = all_possible_next_moves
         .into_iter()
         .map(|(moves, new_board)| {
-            let (you_moves, other_moves): (SnakeMoves, SnakeMoves) =
-                moves.iter().partition(|(id, _)| id == you_id);
+            let (you_moves, other_moves): (SnakeMoves<T>, SnakeMoves<T>) =
+                moves.into_iter().partition(|(id, _)| id == you_id);
             let you_move = you_moves
                 .first()
                 .expect("There should be a move by you in each move set");
 
-            (*you_move, other_moves, new_board)
+            (you_move.clone(), other_moves, new_board)
         });
-    let grouped = group_pairs(leafs);
+    let grouped: AllPossibleStatesHashedByMyMove<T> = group_pairs(leafs);
 
-    let mut options: Vec<(Move, MinMaxReturn)> = vec![];
+    let mut options: Vec<(Move, MinMaxReturn<T>)> = vec![];
     let is_maximizing = true;
 
     for (you_move, other_moves_and_baords, previous_return) in
-        ordered_moves(grouped, previous_return).into_iter()
+        ordered_moves(grouped, previous_return, you_id.clone()).into_iter()
     {
         let next_move_return = minimax_min(
             other_moves_and_baords,
-            players,
             depth + 1,
             alpha,
             beta,
@@ -477,14 +518,36 @@ fn minimax(
     }
 }
 
+use std::fmt::Debug;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-fn deepened_minimax(
-    node: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11,
-    players: Vec<Player>,
-) -> MinMaxReturn {
+fn deepened_minimax<
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + SimulableGame<Instruments>
+        + Clone
+        + APrimeCalculable
+        + FoodGettableGame,
+>(
+    node: T,
+) -> MinMaxReturn<T>
+where
+    T: SnakeIDGettableGame
+        + std::clone::Clone
+        + YouDeterminableGame
+        + SimulableGame<Instruments>
+        + VictorDeterminableGame
+        + Send
+        + 'static,
+{
     const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
     let started_at = Instant::now();
@@ -493,11 +556,9 @@ fn deepened_minimax(
     thread::spawn(move || {
         let mut current_depth = 2;
         let mut current_return = None;
-        let players = players;
         loop {
             current_return = Some(minimax(
-                node,
-                &players,
+                &node,
                 0,
                 WORT_POSSIBLE_SCORE_STATE,
                 BEST_POSSIBLE_SCORE_STATE,

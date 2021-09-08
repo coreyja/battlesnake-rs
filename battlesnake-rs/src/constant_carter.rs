@@ -15,10 +15,7 @@ impl<T> BattlesnakeAI<T> for ConstantCarter {
         }
     }
 
-    fn make_move(
-        &self,
-        _state: Game,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self, _state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         Ok(MoveOutput {
             r#move: format!("{}", Move::Right),
             shout: None,

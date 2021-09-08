@@ -22,8 +22,8 @@ pub struct APrimeOptions {
 pub trait APrimeNextDirection: APrimeCalculable {
     fn shortest_path_next_direction(
         &self,
-        start: &battlesnake_game_types::wire_representation::Position,
-        targets: &[battlesnake_game_types::wire_representation::Position],
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
         options: Option<APrimeOptions>,
     ) -> Option<Move>;
 }
@@ -31,8 +31,8 @@ pub trait APrimeNextDirection: APrimeCalculable {
 impl APrimeNextDirection for Game {
     fn shortest_path_next_direction(
         &self,
-        start: &battlesnake_game_types::wire_representation::Position,
-        targets: &[battlesnake_game_types::wire_representation::Position],
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
         options: Option<APrimeOptions>,
     ) -> Option<Move> {
         let shortest_path = self.shortest_path(start, targets, options);
@@ -232,6 +232,17 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
 
         None
     }
+}
+
+pub fn dist_between_new<T: PositionGettableGame>(
+    game: &T,
+    a: &T::NativePositionType,
+    b: &T::NativePositionType,
+) -> i32 {
+    dist_between(
+        &game.position_from_native(a.clone()),
+        &game.position_from_native(b.clone()),
+    )
 }
 
 pub fn dist_between(a: &Position, b: &Position) -> i32 {

@@ -1,4 +1,4 @@
-use battlesnake_game_types::types::{PositionGettableGame, YouDeterminableGame};
+use battlesnake_game_types::types::{HeadGettableGame, PositionGettableGame, YouDeterminableGame};
 
 use crate::compact_a_prime::NeighborDeterminableGame;
 
@@ -8,7 +8,7 @@ use super::*;
 
 pub struct GiganticGeorge {}
 
-trait SizeDeterminableGame {
+pub trait SizeDeterminableGame {
     fn get_width(&self) -> u32;
     fn get_height(&self) -> u32;
 }
@@ -28,10 +28,10 @@ fn path_to_full_board<T: NeighborDeterminableGame + SizeDeterminableGame + Posit
         .filter(|(_, c)| !reversed_body.contains(c))
     {
         let mut new_body = reversed_body.to_vec();
-        new_body.push(*coor);
+        new_body.push(coor.clone());
 
         if let Some(mut path) = path_to_full_board(&new_body, game) {
-            path.push((*dir, *coor));
+            path.push((*dir, coor.clone()));
             return Some(path);
         }
     }
@@ -43,7 +43,7 @@ trait FullBoardDeterminable {
     fn is_full(&self) -> bool;
 }
 
-trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
+pub trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
     fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType>;
 }
 
@@ -51,15 +51,22 @@ trait ShoutGettableGame: SnakeIDGettableGame {
     fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<&str>;
 }
 
-impl<
-        T: FullBoardDeterminable
-            + ShoutGettableGame
-            + YouDeterminableGame
-            + NeighborDeterminableGame
-            + SizeDeterminableGame
-            + PositionGettableGame
-            + SnakeBodyGettableGame,
-    > BattlesnakeAI<T> for GiganticGeorge
+impl<T> BattlesnakeAI<T> for GiganticGeorge
+where
+    T: FullBoardDeterminable
+        + ShoutGettableGame
+        + YouDeterminableGame
+        + NeighborDeterminableGame
+        + SizeDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + SnakeBodyGettableGame
+        + SnakeTailPushableGame
+        + battlesnake_game_types::types::FoodGettableGame
+        + battlesnake_game_types::types::HealthGettableGame
+        + compact_a_prime::APrimeNextDirection
+        + eremetic_eric::TurnDeterminableGame
+        + std::clone::Clone,
 {
     fn name(&self) -> String {
         "gigantic-george".to_owned()
