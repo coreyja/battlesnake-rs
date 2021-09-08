@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use crate::compact_a_prime::NeighborDeterminableGame;
-
 use super::*;
 
 trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {

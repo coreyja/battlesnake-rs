@@ -39,6 +39,7 @@ impl Default for AboutMe {
 }
 
 use battlesnake_game_types::{
+    compact_representation::{CellBoard, CellIndex, CellNum},
     types::{PositionGettableGame, SnakeIDGettableGame},
     wire_representation::Position,
 };
@@ -121,4 +122,92 @@ pub trait BattlesnakeAI<T> {
 
 pub trait SnakeTailPushableGame: SnakeIDGettableGame + PositionGettableGame {
     fn push_tail(&mut self, snake_id: &Self::SnakeIDType, pos: Self::NativePositionType);
+}
+
+pub trait TurnDeterminableGame {
+    fn turn(&self) -> u64;
+}
+
+pub trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
+    fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType>;
+}
+
+trait ShoutGettableGame: SnakeIDGettableGame {
+    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<&str>;
+}
+
+pub trait SizeDeterminableGame {
+    fn get_width(&self) -> u32;
+    fn get_height(&self) -> u32;
+}
+
+pub trait NeighborDeterminableGame: PositionGettableGame {
+    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType>;
+
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)>;
+}
+
+impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> NeighborDeterminableGame
+    for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
+{
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)> {
+        let width = ((11 * 11) as f32).sqrt() as u8;
+
+        Move::all()
+            .into_iter()
+            .map(|mv| {
+                let head_pos = pos.into_position(width);
+                let new_head = head_pos.add_vec(mv.to_vector());
+                let ci = CellIndex::new(new_head, width);
+
+                (mv, new_head, ci)
+            })
+            .filter(|(_mv, new_head, _)| !self.off_board(*new_head, width))
+            .map(|(mv, _, ci)| (mv, ci))
+            .collect()
+    }
+
+    fn neighbors(&self, pos: &Self::NativePositionType) -> std::vec::Vec<Self::NativePositionType> {
+        let width = ((11 * 11) as f32).sqrt() as u8;
+
+        Move::all()
+            .into_iter()
+            .map(|mv| {
+                let head_pos = pos.into_position(width);
+                let new_head = head_pos.add_vec(mv.to_vector());
+                let ci = CellIndex::new(new_head, width);
+
+                (new_head, ci)
+            })
+            .filter(|(new_head, _)| !self.off_board(*new_head, width))
+            .map(|(_, ci)| ci)
+            .collect()
+    }
+}
+
+impl NeighborDeterminableGame for Game {
+    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
+        Move::all()
+            .into_iter()
+            .map(|mv| pos.add_vec(mv.to_vector()))
+            .filter(|new_head| !self.off_board(*new_head))
+            .collect()
+    }
+
+    fn possible_moves(
+        &self,
+        pos: &Self::NativePositionType,
+    ) -> Vec<(Move, Self::NativePositionType)> {
+        Move::all()
+            .into_iter()
+            .map(|mv| (mv, pos.add_vec(mv.to_vector())))
+            .filter(|(_mv, new_head)| !self.off_board(*new_head))
+            .collect()
+    }
 }

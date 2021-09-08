@@ -5,6 +5,8 @@ use battlesnake_game_types::wire_representation::{Game, Position};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
+use crate::NeighborDeterminableGame;
+
 const NEIGHBOR_DISTANCE: i32 = 1;
 const HAZARD_PENALTY: i32 = 1;
 const HEURISTIC_MAX: i32 = 500;
@@ -118,56 +120,6 @@ struct Node<T> {
     coordinate: T,
 }
 
-pub trait NeighborDeterminableGame: PositionGettableGame {
-    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType>;
-
-    fn possible_moves(
-        &self,
-        pos: &Self::NativePositionType,
-    ) -> Vec<(Move, Self::NativePositionType)>;
-}
-
-impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> NeighborDeterminableGame
-    for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
-{
-    fn possible_moves(
-        &self,
-        pos: &Self::NativePositionType,
-    ) -> Vec<(Move, Self::NativePositionType)> {
-        let width = ((11 * 11) as f32).sqrt() as u8;
-
-        Move::all()
-            .into_iter()
-            .map(|mv| {
-                let head_pos = pos.into_position(width);
-                let new_head = head_pos.add_vec(mv.to_vector());
-                let ci = CellIndex::new(new_head, width);
-
-                (mv, new_head, ci)
-            })
-            .filter(|(_mv, new_head, _)| !self.off_board(*new_head, width))
-            .map(|(mv, _, ci)| (mv, ci))
-            .collect()
-    }
-
-    fn neighbors(&self, pos: &Self::NativePositionType) -> std::vec::Vec<Self::NativePositionType> {
-        let width = ((11 * 11) as f32).sqrt() as u8;
-
-        Move::all()
-            .into_iter()
-            .map(|mv| {
-                let head_pos = pos.into_position(width);
-                let new_head = head_pos.add_vec(mv.to_vector());
-                let ci = CellIndex::new(new_head, width);
-
-                (new_head, ci)
-            })
-            .filter(|(new_head, _)| !self.off_board(*new_head, width))
-            .map(|(_, ci)| ci)
-            .collect()
-    }
-}
-
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
     for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
 {
@@ -260,27 +212,6 @@ fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>]) -> Opti
 
 fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
     targets.iter().map(|coor| dist_between(coor, start)).min()
-}
-
-impl NeighborDeterminableGame for Game {
-    fn neighbors(&self, pos: &Self::NativePositionType) -> Vec<Self::NativePositionType> {
-        Move::all()
-            .into_iter()
-            .map(|mv| pos.add_vec(mv.to_vector()))
-            .filter(|new_head| !self.off_board(*new_head))
-            .collect()
-    }
-
-    fn possible_moves(
-        &self,
-        pos: &Self::NativePositionType,
-    ) -> Vec<(Move, Self::NativePositionType)> {
-        Move::all()
-            .into_iter()
-            .map(|mv| (mv, pos.add_vec(mv.to_vector())))
-            .filter(|(_mv, new_head)| !self.off_board(*new_head))
-            .collect()
-    }
 }
 
 impl APrimeCalculable for Game {

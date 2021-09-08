@@ -5,20 +5,13 @@ use battlesnake_game_types::types::{
 };
 use itertools::Itertools;
 
-use crate::{
-    compact_a_prime::{
-        dist_between, dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions,
-    },
-    gigantic_george::SnakeBodyGettableGame,
+use crate::compact_a_prime::{
+    dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions,
 };
 
 use super::*;
 
 pub struct EremeticEric {}
-
-pub trait TurnDeterminableGame {
-    fn turn(&self) -> u64;
-}
 
 impl<
         T: TurnDeterminableGame

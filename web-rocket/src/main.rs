@@ -26,7 +26,7 @@ fn api_start(_snake: String) -> Status {
 #[post("/<snake>/end", data = "<game_state>")]
 fn api_end(
     snake: String,
-    snakes: State<Vec<BoxedSnake>>,
+    snakes: State<Vec<BoxedSnake<Game>>>,
     game_state: Json<Game>,
 ) -> Option<Status> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
@@ -38,7 +38,7 @@ fn api_end(
 #[post("/<snake>/move", data = "<game_state>")]
 fn api_move(
     snake: String,
-    snakes: State<Vec<BoxedSnake>>,
+    snakes: State<Vec<BoxedSnake<Game>>>,
     game_state: Json<Game>,
 ) -> Option<Json<MoveOutput>> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
@@ -48,7 +48,7 @@ fn api_move(
 }
 
 #[get("/<snake>")]
-fn api_about(snake: String, snakes: State<Vec<BoxedSnake>>) -> Option<Json<AboutMe>> {
+fn api_about(snake: String, snakes: State<Vec<BoxedSnake<Game>>>) -> Option<Json<AboutMe>> {
     let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
     Some(Json(snake_ai.about()))
 }
@@ -60,14 +60,14 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 
-    let snakes: Vec<BoxedSnake> = vec![
+    let snakes: Vec<BoxedSnake<Game>> = vec![
         Box::new(AmphibiousArthur {}),
         Box::new(BombasticBob {}),
         Box::new(ConstantCarter {}),
         Box::new(DeviousDevin {}),
-        Box::new(EremeticEric {}),
-        Box::new(FamishedFrank {}),
-        Box::new(GiganticGeorge {}),
+        // Box::new(EremeticEric {}),
+        // Box::new(FamishedFrank {}),
+        // Box::new(GiganticGeorge {}),
     ];
 
     let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();

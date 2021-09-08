@@ -1,17 +1,10 @@
 use battlesnake_game_types::types::{HeadGettableGame, PositionGettableGame, YouDeterminableGame};
 
-use crate::compact_a_prime::NeighborDeterminableGame;
-
 use crate::eremetic_eric::EremeticEric;
 
 use super::*;
 
 pub struct GiganticGeorge {}
-
-pub trait SizeDeterminableGame {
-    fn get_width(&self) -> u32;
-    fn get_height(&self) -> u32;
-}
 
 fn path_to_full_board<T: NeighborDeterminableGame + SizeDeterminableGame + PositionGettableGame>(
     reversed_body: &[T::NativePositionType],
@@ -43,14 +36,6 @@ trait FullBoardDeterminable {
     fn is_full(&self) -> bool;
 }
 
-pub trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
-    fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType>;
-}
-
-trait ShoutGettableGame: SnakeIDGettableGame {
-    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<&str>;
-}
-
 impl<T> BattlesnakeAI<T> for GiganticGeorge
 where
     T: FullBoardDeterminable
@@ -65,7 +50,7 @@ where
         + battlesnake_game_types::types::FoodGettableGame
         + battlesnake_game_types::types::HealthGettableGame
         + compact_a_prime::APrimeNextDirection
-        + eremetic_eric::TurnDeterminableGame
+        + TurnDeterminableGame
         + std::clone::Clone,
 {
     fn name(&self) -> String {
