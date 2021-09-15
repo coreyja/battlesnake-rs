@@ -352,11 +352,19 @@ fn minimax_min<
 
 type SnakeMoves<T> = Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>;
 
-pub fn minmax_bench_entry(game_state: Game, max_depth: usize) {
-    let id_map = build_snake_id_map(&game_state);
-    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
-        CellBoard::convert_from_game(game_state, &id_map).unwrap();
-
+pub fn minmax_bench_entry<T>(game_state: T, max_depth: usize)
+where
+    T: YouDeterminableGame
+        + VictorDeterminableGame
+        + SnakeIDGettableGame
+        + FoodGettableGame
+        + APrimeCalculable
+        + HealthGettableGame
+        + LengthGettableGame
+        + HeadGettableGame
+        + std::clone::Clone
+        + SimulableGame<Instruments>,
+{
     minimax(
         &game_state,
         0,
@@ -367,11 +375,19 @@ pub fn minmax_bench_entry(game_state: Game, max_depth: usize) {
     );
 }
 
-pub fn minmax_deepened_bench_entry(game_state: Game, max_depth: usize) {
-    let id_map = build_snake_id_map(&game_state);
-    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
-        CellBoard::convert_from_game(game_state, &id_map).unwrap();
-
+pub fn minmax_deepened_bench_entry<T>(game_state: T, max_depth: usize)
+where
+    T: YouDeterminableGame
+        + VictorDeterminableGame
+        + SnakeIDGettableGame
+        + FoodGettableGame
+        + APrimeCalculable
+        + HealthGettableGame
+        + LengthGettableGame
+        + HeadGettableGame
+        + std::clone::Clone
+        + SimulableGame<Instruments>,
+{
     let mut current_depth = 2;
     let mut current_return = None;
     while current_depth <= max_depth {

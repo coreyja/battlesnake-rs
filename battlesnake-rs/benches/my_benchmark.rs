@@ -1,5 +1,7 @@
 use battlesnake_game_types::{
-    compact_representation::CellBoard4Snakes11x11, wire_representation::Game,
+    compact_representation::{CellBoard, CellBoard4Snakes11x11},
+    types::build_snake_id_map,
+    wire_representation::Game,
 };
 use battlesnake_rs::devious_devin::{
     minmax_bench_entry, minmax_deepened_bench_entry, minmax_deepened_bench_entry_no_ordering,
@@ -14,17 +16,37 @@ fn bench_minmax_to_depth(c: &mut Criterion, max_depth: usize) {
 
     let mut group = c.benchmark_group(format!("Devin Depth {}", max_depth));
 
-    group.bench_function("minmax", |b| {
+    group.bench_function("wire minmax", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
             minmax_bench_entry(black_box(game), max_depth)
         })
     });
 
-    group.bench_function("Iterative Deepend with last state ", |b| {
+    group.bench_function("wire Iterative Deepend with last state ", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
             minmax_deepened_bench_entry(black_box(game), max_depth)
+        })
+    });
+
+    group.bench_function("compact minmax", |b| {
+        b.iter(|| {
+            let game_state: Game = serde_json::from_str(game_json).unwrap();
+            let id_map = build_snake_id_map(&game_state);
+            let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+                CellBoard::convert_from_game(game_state, &id_map).unwrap();
+            minmax_bench_entry(black_box(game_state), max_depth)
+        })
+    });
+
+    group.bench_function("compact Iterative Deepend with last state ", |b| {
+        b.iter(|| {
+            let game_state: Game = serde_json::from_str(game_json).unwrap();
+            let id_map = build_snake_id_map(&game_state);
+            let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+                CellBoard::convert_from_game(game_state, &id_map).unwrap();
+            minmax_deepened_bench_entry(black_box(game_state), max_depth)
         })
     });
 
