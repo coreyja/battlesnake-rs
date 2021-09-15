@@ -3,6 +3,7 @@ extern crate serde_derive;
 
 use std::{collections::HashSet, convert::TryInto};
 
+pub use battlesnake_game_types::compact_representation::CellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::Move;
 pub use battlesnake_game_types::wire_representation::Game;
 
