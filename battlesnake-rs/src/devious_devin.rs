@@ -61,7 +61,7 @@ impl BattlesnakeAI for DeviousDevin {
 }
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
-enum ScoreEndState {
+pub enum ScoreEndState {
     /// depth: i64
     HitSelfLose(i64),
     /// depth: i64
@@ -190,7 +190,7 @@ struct SnakeMove {
 }
 
 #[derive(Debug, Clone)]
-enum MinMaxReturn {
+pub enum MinMaxReturn {
     Node {
         is_maximizing: bool,
         options: Vec<(Direction, MinMaxReturn)>,
@@ -408,6 +408,51 @@ fn deepened_minimax(node: GameState, players: Vec<Player>) -> MinMaxReturn {
     current.unwrap_or(MinMaxReturn::Leaf {
         score: WORT_POSSIBLE_SCORE_STATE,
     })
+}
+
+pub fn minmax_bench_entry(mut game_state: GameState, max_turns: usize) -> MinMaxReturn {
+    let mut sorted_snakes = game_state.board.snakes.clone();
+    sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { -1 } else { 1 });
+
+    let mut players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+    players.push(Player::Nature);
+
+    minimax(
+        &mut game_state,
+        &players,
+        0,
+        devious_devin::WORT_POSSIBLE_SCORE_STATE,
+        devious_devin::BEST_POSSIBLE_SCORE_STATE,
+        max_turns * players.len(),
+        None,
+    )
+}
+
+pub fn minmax_deepened_bench_entry(mut game_state: GameState, max_turns: usize) -> MinMaxReturn {
+    let mut sorted_snakes = game_state.board.snakes.clone();
+    sorted_snakes.sort_by_key(|snake| if snake.id == game_state.you.id { -1 } else { 1 });
+
+    let mut players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
+    players.push(Player::Nature);
+
+    let max_depth = max_turns * players.len();
+    let mut current_depth = 2;
+    let mut current_return = None;
+    while current_depth <= max_depth {
+        current_return = Some(minimax(
+            &mut game_state,
+            &players,
+            0,
+            WORT_POSSIBLE_SCORE_STATE,
+            BEST_POSSIBLE_SCORE_STATE,
+            current_depth,
+            current_return,
+        ));
+
+        current_depth += 2;
+    }
+
+    current_return.unwrap()
 }
 
 #[cfg(test)]
