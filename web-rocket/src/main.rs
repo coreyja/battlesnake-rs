@@ -55,7 +55,7 @@ fn api_about(snake: String, snakes: State<Vec<BoxedSnake<Game>>>) -> Option<Json
 
 fn main() {
     let subscriber = tracing_subscriber::registry::Registry::default()
-        .with(tracing_subscriber::filter::LevelFilter::INFO)
+        .with(tracing_subscriber::filter::LevelFilter::DEBUG)
         .with(tracing_subscriber::fmt::Layer::default());
 
     tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
@@ -65,9 +65,9 @@ fn main() {
         Box::new(BombasticBob {}),
         Box::new(ConstantCarter {}),
         Box::new(DeviousDevin {}),
-        // Box::new(EremeticEric {}),
-        // Box::new(FamishedFrank {}),
-        // Box::new(GiganticGeorge {}),
+        Box::new(EremeticEric {}),
+        Box::new(FamishedFrank {}),
+        Box::new(GiganticGeorge {}),
     ];
 
     let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();

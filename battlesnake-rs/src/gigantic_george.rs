@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use battlesnake_game_types::types::{HeadGettableGame, PositionGettableGame, YouDeterminableGame};
 
 use crate::eremetic_eric::EremeticEric;
@@ -32,8 +34,27 @@ fn path_to_full_board<T: NeighborDeterminableGame + SizeDeterminableGame + Posit
     None
 }
 
-trait FullBoardDeterminable {
-    fn is_full(&self) -> bool;
+pub trait FullBoardDeterminable {
+    fn contains_empty_squares(&self) -> bool;
+}
+impl FullBoardDeterminable for Game {
+    fn contains_empty_squares(&self) -> bool {
+        let mut map: HashSet<Position> = HashSet::new();
+
+        for c in self.board.food.iter() {
+            map.insert(*c);
+        }
+
+        for s in self.board.snakes.iter() {
+            for c in s.body.iter() {
+                map.insert(*c);
+            }
+        }
+
+        let full_size: usize = (self.get_height() * self.get_width()).try_into().unwrap();
+
+        full_size != map.len()
+    }
 }
 
 impl<T> BattlesnakeAI<T> for GiganticGeorge
@@ -84,24 +105,23 @@ where
                 if let Some(d) = dir {
                     return Ok(MoveOutput {
                         r#move: format!("{}", d),
-                        shout: Some(path[..path.len() - 2].to_string()),
+                        shout: Some(format!("PATH:{}", &path[..path.len() - 1])),
                     });
                 }
             }
         }
 
-        if state.is_full() {
+        if !state.contains_empty_squares() {
             println!("Ok now can we complete the board?");
 
             let reversed_body = {
-                let mut x = Vec::from(state.get_snake_body_vec(you_id));
+                let mut x = state.get_snake_body_vec(you_id);
                 x.pop(); // Remove my current tail cause I will need to fill that space too
                 x.reverse();
                 x
             };
 
             if let Some(mut path) = path_to_full_board(&reversed_body, &state) {
-                println!("Yup lets go that way");
                 let new = path.pop();
                 let path_string: String = path
                     .iter()

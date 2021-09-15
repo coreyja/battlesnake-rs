@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, convert::TryInto};
 
 pub use battlesnake_game_types::types::Move;
 pub use battlesnake_game_types::wire_representation::Game;
@@ -124,21 +124,75 @@ pub trait SnakeTailPushableGame: SnakeIDGettableGame + PositionGettableGame {
     fn push_tail(&mut self, snake_id: &Self::SnakeIDType, pos: Self::NativePositionType);
 }
 
+impl SnakeTailPushableGame for Game {
+    fn push_tail(&mut self, snake_id: &Self::SnakeIDType, pos: Self::NativePositionType) {
+        self.board
+            .snakes
+            .iter_mut()
+            .find(|s| &s.id == snake_id)
+            .unwrap()
+            .body
+            .push_back(pos)
+    }
+}
+
 pub trait TurnDeterminableGame {
     fn turn(&self) -> u64;
+}
+
+impl TurnDeterminableGame for Game {
+    fn turn(&self) -> u64 {
+        self.turn.try_into().unwrap()
+    }
 }
 
 pub trait SnakeBodyGettableGame: PositionGettableGame + SnakeIDGettableGame {
     fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType>;
 }
 
-trait ShoutGettableGame: SnakeIDGettableGame {
-    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<&str>;
+impl SnakeBodyGettableGame for Game {
+    fn get_snake_body_vec(&self, snake_id: &Self::SnakeIDType) -> Vec<Self::NativePositionType> {
+        self.board
+            .snakes
+            .iter()
+            .find(|s| &s.id == snake_id)
+            .unwrap()
+            .body
+            .clone()
+            .into_iter()
+            .collect()
+    }
+}
+
+pub trait ShoutGettableGame: SnakeIDGettableGame {
+    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<String>;
+}
+
+impl ShoutGettableGame for Game {
+    fn get_shout(&self, snake_id: &Self::SnakeIDType) -> Option<String> {
+        self.board
+            .snakes
+            .iter()
+            .find(|s| &s.id == snake_id)
+            .unwrap()
+            .shout
+            .clone()
+    }
 }
 
 pub trait SizeDeterminableGame {
     fn get_width(&self) -> u32;
     fn get_height(&self) -> u32;
+}
+
+impl SizeDeterminableGame for Game {
+    fn get_width(&self) -> u32 {
+        self.board.width
+    }
+
+    fn get_height(&self) -> u32 {
+        self.board.height
+    }
 }
 
 pub trait NeighborDeterminableGame: PositionGettableGame {

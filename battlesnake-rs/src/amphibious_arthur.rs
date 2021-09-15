@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use super::*;
 
-trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {
+pub trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {
     fn move_to_and_opponent_sprawl(&self, coor: &Self::NativePositionType) -> Self;
 }
 
