@@ -76,7 +76,7 @@ jobs:
           path: target/criterion
           destination: criterion
 
-    bench-devin:
+  bench-devin:
     docker:
       - image: rust:latest
     resource_class: small
