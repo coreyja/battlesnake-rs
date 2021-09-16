@@ -434,9 +434,10 @@ pub fn minmax_deepened_bench_entry(mut game_state: GameState, max_turns: usize) 
 
     let mut players: Vec<_> = sorted_snakes.into_iter().map(Player::Snake).collect();
     players.push(Player::Nature);
+    let players = players;
 
     let max_depth = max_turns * players.len();
-    let mut current_depth = 2;
+    let mut current_depth = players.len();
     let mut current_return = None;
     while current_depth <= max_depth {
         current_return = Some(minimax(
@@ -449,7 +450,7 @@ pub fn minmax_deepened_bench_entry(mut game_state: GameState, max_turns: usize) 
             current_return,
         ));
 
-        current_depth += 2;
+        current_depth += players.len();
     }
 
     current_return.unwrap()
