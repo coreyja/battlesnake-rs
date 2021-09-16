@@ -27,7 +27,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    bench_minmax_to_turn(c, 4);
+    bench_minmax_to_turn(c, 3);
 }
 
 criterion_group! {

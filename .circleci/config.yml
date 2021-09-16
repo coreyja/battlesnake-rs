@@ -68,7 +68,7 @@ jobs:
       - run: cd battlesnake-rs/
       - restore_cache:
           keys:
-            - v2-criterion-baseline-{{ arch }}
+            - v2-criterion-baseline
 
       - run: cargo bench --bench my_benchmark -- --baseline main
 
@@ -99,7 +99,7 @@ jobs:
           destination: criterion
 
       - save_cache:
-          key: v2-criterion-baseline-{{ arch }}
+          key: v2-criterion-baseline-{{ epoch }}
           paths:
             - target/criterion
 
