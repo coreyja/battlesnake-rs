@@ -352,7 +352,7 @@ fn minimax_min<
 
 type SnakeMoves<T> = Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>;
 
-pub fn minmax_bench_entry<T>(game_state: T, max_depth: usize)
+pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize)
 where
     T: YouDeterminableGame
         + VictorDeterminableGame
@@ -365,6 +365,7 @@ where
         + std::clone::Clone
         + SimulableGame<Instruments>,
 {
+    let max_depth = max_turns * 2;
     minimax(
         &game_state,
         0,
@@ -375,7 +376,7 @@ where
     );
 }
 
-pub fn minmax_deepened_bench_entry<T>(game_state: T, max_depth: usize)
+pub fn minmax_deepened_bench_entry<T>(game_state: T, max_turns: usize)
 where
     T: YouDeterminableGame
         + VictorDeterminableGame
@@ -388,6 +389,7 @@ where
         + std::clone::Clone
         + SimulableGame<Instruments>,
 {
+    let max_depth = max_turns * 2;
     let mut current_depth = 2;
     let mut current_return = None;
     while current_depth <= max_depth {

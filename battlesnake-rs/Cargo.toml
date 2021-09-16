@@ -18,13 +18,13 @@ tracing = "0.1.26"
 battlesnake-game-types = { path = "../../battlesnake-game-types" }
 
 [dev-dependencies]
-criterion = "0.3"
-pprof = { version = "0.5.0", features = [ "criterion", "flamegraph" ] }
-
-[[bench]]
-name = "my_benchmark"
-harness = false
+criterion = { version = "0.3", features = ["html_reports"] }
+pprof = { version = "0.5", features = ["flamegraph", "criterion"] }
 
 [lib]
 name = "battlesnake_rs"
 path = "src/lib.rs"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
