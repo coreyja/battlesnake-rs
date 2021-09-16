@@ -18,3 +18,11 @@ tracing = "0.1.26"
 [lib]
 name = "battlesnake_rs"
 path = "src/lib.rs"
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+pprof = { version = "0.5", features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "my_benchmark"
+harness = false
