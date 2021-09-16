@@ -133,9 +133,9 @@ workflows:
       - bench-devin:
           filters:
             branches:
-              ignore: master
+              ignore: main
       - bench-devin-set-baseline:
           filters:
             branches:
-              only: master
+              only: main
 
