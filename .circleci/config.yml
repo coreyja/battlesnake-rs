@@ -50,7 +50,7 @@ jobs:
             - /usr/local/cargo
             - target/debug
 
-  bench-devin:
+  bench-devin-with-baseline:
     docker:
       - image: rust:latest
     resource_class: small
@@ -71,6 +71,32 @@ jobs:
             - v2-criterion-baseline
 
       - run: cargo bench --bench my_benchmark -- --baseline main
+
+      - store_artifacts:
+          path: target/criterion
+          destination: criterion
+
+    bench-devin:
+    docker:
+      - image: rust:latest
+    resource_class: small
+    steps:
+      - checkout
+
+      - run:
+          name: Print Rust Versions
+          command: rustc --version; cargo --version; rustup --version
+
+      - restore_cache:
+          keys:
+            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+      - run: cd battlesnake-rs/
+      - restore_cache:
+          keys:
+            - v2-criterion-baseline
+
+      - run: cargo bench --bench my_benchmark
 
       - store_artifacts:
           path: target/criterion
@@ -130,7 +156,8 @@ workflows:
       - test-rust
       - lint-rust
       - profile-devin
-      - bench-devin:
+      - bench-devin
+      - bench-devin-with-baseline:
           filters:
             branches:
               ignore: main

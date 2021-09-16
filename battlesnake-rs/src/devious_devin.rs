@@ -74,7 +74,7 @@ impl<
 }
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
-enum ScoreEndState {
+pub enum ScoreEndState {
     /// depth: i64
     Lose(i64),
     /// depth: i64
@@ -157,7 +157,7 @@ struct SnakeMove {
 }
 
 #[derive(Debug, Clone, Serialize)]
-enum MinMaxReturn<T: SnakeIDGettableGame + Clone + Debug> {
+pub enum MinMaxReturn<T: SnakeIDGettableGame + Clone + Debug> {
     MinLayer {
         options: Vec<(Vec<(T::SnakeIDType, Move)>, MinMaxReturn<T>)>,
         score: ScoreEndState,
@@ -352,7 +352,7 @@ fn minimax_min<
 
 type SnakeMoves<T> = Vec<(<T as SnakeIDGettableGame>::SnakeIDType, Move)>;
 
-pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize)
+pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
 where
     T: YouDeterminableGame
         + VictorDeterminableGame
@@ -373,10 +373,10 @@ where
         devious_devin::BEST_POSSIBLE_SCORE_STATE,
         max_depth,
         None,
-    );
+    )
 }
 
-pub fn minmax_deepened_bench_entry<T>(game_state: T, max_turns: usize)
+pub fn minmax_deepened_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
 where
     T: YouDeterminableGame
         + VictorDeterminableGame
@@ -404,29 +404,8 @@ where
 
         current_depth += 2;
     }
-}
 
-pub fn minmax_deepened_bench_entry_no_ordering(game_state: Game, max_depth: usize) {
-    let id_map = build_snake_id_map(&game_state);
-    let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
-        CellBoard::convert_from_game(game_state, &id_map).unwrap();
-    let my_id = game_state.you_id();
-    let mut sorted_snakes = game_state.get_snake_ids();
-    sorted_snakes.sort_by_key(|snake| if snake == my_id { -1 } else { 1 });
-
-    let mut current_depth = 2;
-    while current_depth <= max_depth {
-        minimax(
-            &game_state,
-            0,
-            WORT_POSSIBLE_SCORE_STATE,
-            BEST_POSSIBLE_SCORE_STATE,
-            current_depth,
-            None,
-        );
-
-        current_depth += 2;
-    }
+    current_return.unwrap()
 }
 
 fn minimax<T>(

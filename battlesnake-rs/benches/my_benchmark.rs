@@ -4,8 +4,7 @@ use battlesnake_game_types::{
     wire_representation::Game,
 };
 use battlesnake_rs::devious_devin::{
-    minmax_bench_entry, minmax_deepened_bench_entry, minmax_deepened_bench_entry_no_ordering,
-    DeviousDevin,
+    minmax_bench_entry, minmax_deepened_bench_entry, DeviousDevin,
 };
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -23,7 +22,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
         })
     });
 
-    group.bench_function("wire Iterative Deepend with last state ", |b| {
+    group.bench_function("wire Iterative Deepend with last state", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
             minmax_deepened_bench_entry(black_box(game), max_turns)
