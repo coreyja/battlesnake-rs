@@ -2,7 +2,7 @@ use battlesnake_game_types::types::{
     FoodGettableGame, RandomReasonableMovesGame, YouDeterminableGame,
 };
 
-use crate::compact_a_prime::APrimeNextDirection;
+use crate::a_prime::APrimeNextDirection;
 
 use super::*;
 

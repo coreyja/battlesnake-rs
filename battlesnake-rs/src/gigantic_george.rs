@@ -70,7 +70,7 @@ where
         + SnakeTailPushableGame
         + battlesnake_game_types::types::FoodGettableGame
         + battlesnake_game_types::types::HealthGettableGame
-        + compact_a_prime::APrimeNextDirection
+        + a_prime::APrimeNextDirection
         + TurnDeterminableGame
         + std::clone::Clone,
 {

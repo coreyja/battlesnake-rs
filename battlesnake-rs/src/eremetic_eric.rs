@@ -5,9 +5,7 @@ use battlesnake_game_types::types::{
 };
 use itertools::Itertools;
 
-use crate::compact_a_prime::{
-    dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions,
-};
+use crate::a_prime::{dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions};
 
 use super::*;
 

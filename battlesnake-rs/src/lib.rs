@@ -7,9 +7,9 @@ pub use battlesnake_game_types::compact_representation::CellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::Move;
 pub use battlesnake_game_types::wire_representation::Game;
 
+pub mod a_prime;
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
-pub mod compact_a_prime;
 pub mod constant_carter;
 pub mod devious_devin;
 pub mod eremetic_eric;

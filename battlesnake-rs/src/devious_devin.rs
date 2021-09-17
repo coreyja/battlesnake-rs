@@ -13,7 +13,7 @@ use itertools::Itertools;
 use std::clone::Clone;
 use tracing::info;
 
-use crate::compact_a_prime::APrimeCalculable;
+use crate::a_prime::APrimeCalculable;
 
 #[derive(Serialize)]
 pub struct MoveOption {

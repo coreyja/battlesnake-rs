@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 
-    let snakes: Vec<Arc<BoxedSnake>> = vec![
+    let snakes: Vec<Arc<BoxedSnake<Game>>> = vec![
         Arc::new(Box::new(AmphibiousArthur {})),
         Arc::new(Box::new(BombasticBob {})),
         Arc::new(Box::new(ConstantCarter {})),
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn api_move(
-    snake: Option<Arc<BoxedSnake>>,
+    snake: Option<Arc<BoxedSnake<Game>>>,
     request: Request,
     _context: Context,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
