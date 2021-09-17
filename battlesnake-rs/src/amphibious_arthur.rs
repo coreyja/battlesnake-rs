@@ -7,7 +7,8 @@ pub trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {
 }
 
 use battlesnake_game_types::types::{
-    HeadGettableGame, HealthGettableGame, PositionGettableGame, YouDeterminableGame,
+    HeadGettableGame, HealthGettableGame, NeighborDeterminableGame, PositionGettableGame,
+    YouDeterminableGame,
 };
 use rand::seq::SliceRandom;
 

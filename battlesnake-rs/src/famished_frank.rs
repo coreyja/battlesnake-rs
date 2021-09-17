@@ -1,5 +1,6 @@
 use battlesnake_game_types::types::{
-    FoodGettableGame, RandomReasonableMovesGame, YouDeterminableGame,
+    FoodGettableGame, NeighborDeterminableGame, RandomReasonableMovesGame, SizeDeterminableGame,
+    SnakeBodyGettableGame, YouDeterminableGame,
 };
 
 use crate::a_prime::APrimeNextDirection;

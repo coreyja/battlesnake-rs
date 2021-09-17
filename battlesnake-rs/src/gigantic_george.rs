@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use battlesnake_game_types::types::{HeadGettableGame, PositionGettableGame, YouDeterminableGame};
+use battlesnake_game_types::types::{
+    HeadGettableGame, NeighborDeterminableGame, PositionGettableGame, ShoutGettableGame,
+    SizeDeterminableGame, SnakeBodyGettableGame, TurnDeterminableGame, YouDeterminableGame,
+};
 
 use crate::eremetic_eric::EremeticEric;
 

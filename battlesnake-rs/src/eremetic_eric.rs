@@ -1,8 +1,6 @@
 use std::convert::TryInto;
 
-use battlesnake_game_types::types::{
-    FoodGettableGame, HeadGettableGame, HealthGettableGame, YouDeterminableGame,
-};
+use battlesnake_game_types::types::*;
 use itertools::Itertools;
 
 use crate::a_prime::{dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions};

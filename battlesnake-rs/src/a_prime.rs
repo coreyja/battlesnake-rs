@@ -1,11 +1,9 @@
 use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellNum};
-use battlesnake_game_types::types::{Move, PositionGettableGame};
+use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::{Game, Position};
 
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-
-use crate::NeighborDeterminableGame;
 
 const NEIGHBOR_DISTANCE: i32 = 1;
 const HAZARD_PENALTY: i32 = 1;
