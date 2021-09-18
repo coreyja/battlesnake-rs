@@ -74,7 +74,9 @@ fn score<
     current_score + recursed_score / 2
 }
 
-pub struct AmphibiousArthur {}
+pub struct AmphibiousArthur<T> {
+    game: T,
+}
 
 impl<
         T: NeighborDeterminableGame
@@ -82,26 +84,26 @@ impl<
             + HeadGettableGame
             + YouDeterminableGame
             + MoveToAndSpawn
-            + HealthGettableGame,
-    > BattlesnakeAI<T> for AmphibiousArthur
+            + HealthGettableGame
+            + TryFromGame,
+    > BattlesnakeAI for AmphibiousArthur<T>
 {
     fn name(&self) -> String {
         "amphibious-arthur".to_owned()
     }
 
-    fn make_move(
-        &self,
-        game_state: T,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let you_id = game_state.you_id();
-        let possible = game_state.possible_moves(&game_state.get_head_as_native_position(you_id));
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let you_id = self.game.you_id();
+        let possible = self
+            .game
+            .possible_moves(&self.game.get_head_as_native_position(you_id));
         let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
             Ok(Ok(x)) => x,
             _ => 5,
         };
         let next_move = possible
             .iter()
-            .max_by_key(|(_mv, coor)| score(&game_state, coor, recursion_limit));
+            .max_by_key(|(_mv, coor)| score(&self.game, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: format!("{}", Move::Up),
@@ -125,5 +127,10 @@ impl<
             tail: Some("swirl".to_owned()),
             version: None,
         }
+    }
+
+    fn from_wire_game(game: Game) -> Self {
+        let game = T::try_from_game(game).unwrap();
+        Self { game }
     }
 }

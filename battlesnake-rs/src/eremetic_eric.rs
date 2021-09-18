@@ -7,23 +7,31 @@ use crate::a_prime::{dist_between_new, APrimeCalculable, APrimeNextDirection, AP
 
 use super::*;
 
-pub struct EremeticEric {}
+pub struct EremeticEric<T> {
+    pub game: T,
+}
 
-impl<
-        T: TurnDeterminableGame
-            + SnakeBodyGettableGame
-            + YouDeterminableGame
-            + APrimeCalculable
-            + APrimeNextDirection
-            + SnakeTailPushableGame
-            + Clone
-            + FoodGettableGame
-            + HealthGettableGame
-            + APrimeNextDirection
-            + HeadGettableGame
-            + FoodGettableGame,
-    > BattlesnakeAI<T> for EremeticEric
+impl<T> BattlesnakeAI for EremeticEric<T>
+where
+    T: TurnDeterminableGame
+        + SnakeBodyGettableGame
+        + YouDeterminableGame
+        + APrimeCalculable
+        + APrimeNextDirection
+        + SnakeTailPushableGame
+        + Clone
+        + FoodGettableGame
+        + HealthGettableGame
+        + APrimeNextDirection
+        + HeadGettableGame
+        + TryFromGame
+        + FoodGettableGame,
 {
+    fn from_wire_game(game: Game) -> Self {
+        let game = T::try_from_game(game).unwrap();
+        Self { game }
+    }
+
     fn name(&self) -> String {
         "eremetic-eric".to_owned()
     }
@@ -36,22 +44,23 @@ impl<
         }
     }
 
-    fn end(&self, state: T) {
-        println!("Died at turn: {}", state.turn());
-        let you_vec = state.get_snake_body_vec(state.you_id());
+    fn end(&self) {
+        println!("Died at turn: {}", self.game.turn());
+        let you_vec = self.game.get_snake_body_vec(self.game.you_id());
         let body_set: HashSet<_> = you_vec.iter().collect();
         if body_set.len() != you_vec.len() {
             println!("Ran into yourself");
         }
     }
 
-    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let you_id = state.you_id();
-        let body = state.get_snake_body_vec(state.you_id());
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let you_id = self.game.you_id();
+        let body = self.game.get_snake_body_vec(self.game.you_id());
         let modified_board = {
-            let mut b = state.clone();
+            let mut b = self.game.clone();
             let mut path_to_complete_circle =
-                state.shortest_path(&body[0], &[body.last().unwrap().clone()], None);
+                self.game
+                    .shortest_path(&body[0], &[body.last().unwrap().clone()], None);
             path_to_complete_circle.reverse();
             for c in path_to_complete_circle.into_iter() {
                 if !body.contains(&c) {
@@ -61,14 +70,14 @@ impl<
 
             b
         };
-        let all_food = state.get_all_food_as_native_positions();
+        let all_food = self.game.get_all_food_as_native_positions();
 
         let food_options: Vec<_> = all_food
             .iter()
             .map(|food| {
                 let body_options = body
                     .iter()
-                    .map(|body_part| (body_part, dist_between_new(&state, food, body_part)))
+                    .map(|body_part| (body_part, dist_between_new(&self.game, food, body_part)))
                     .collect_vec();
                 let best = body_options.iter().cloned().min_by_key(|x| x.1).unwrap();
                 body_options
@@ -122,7 +131,7 @@ impl<
                 let cost_to_get_food_and_then_get_back_if_at_closest_point: u64 =
                     best_cost_u64 + dist_back_from_food_to_tail as u64;
 
-                let health = state.get_health_i64(you_id) as u64;
+                let health = self.game.get_health_i64(you_id) as u64;
                 let health_cost: i64 = if health >= cost_to_get_to_nearest_food {
                     let health_when_at_closest = health - cost_to_get_to_closest;
 
@@ -141,14 +150,15 @@ impl<
 
         let (&best_food, (&closest_body_part, best_cost)) = matching_food_options[0].0;
 
-        let health: u64 = state.get_health_i64(you_id).try_into()?;
+        let health: u64 = self.game.get_health_i64(you_id).try_into()?;
         let best_cost: u64 = best_cost.try_into()?;
         let cant_survive_another_loop =
             health < TryInto::<u64>::try_into(cost_to_loop)? + best_cost;
-        let you_head = state.get_head_as_native_position(you_id);
+        let you_head = self.game.get_head_as_native_position(you_id);
 
         if &you_head == closest_body_part && cant_survive_another_loop {
-            let d = state
+            let d = self
+                .game
                 .shortest_path_next_direction(&you_head, &[best_food.clone()], None)
                 .unwrap();
 
@@ -158,14 +168,14 @@ impl<
             });
         }
 
-        if state.turn() < 3 {
+        if self.game.turn() < 3 {
             return Ok(MoveOutput {
                 r#move: format!(
                     "{}",
-                    state
+                    self.game
                         .shortest_path_next_direction(
                             &you_head,
-                            &state.get_all_food_as_native_positions(),
+                            &self.game.get_all_food_as_native_positions(),
                             None
                         )
                         .unwrap()
@@ -174,10 +184,11 @@ impl<
             });
         }
 
-        let dir = state
+        let dir = self
+            .game
             .shortest_path_next_direction(
                 &you_head,
-                &[state.get_snake_body_vec(you_id).last().unwrap().clone()],
+                &[self.game.get_snake_body_vec(you_id).last().unwrap().clone()],
                 Some(APrimeOptions { food_penalty: 1 }),
             )
             .unwrap();

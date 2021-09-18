@@ -1,7 +1,11 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::{collections::HashSet, convert::TryInto};
+use std::{
+    collections::HashSet,
+    convert::{TryFrom, TryInto},
+    fmt::Debug,
+};
 
 pub use battlesnake_game_types::compact_representation::CellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::Move;
@@ -107,12 +111,14 @@ pub struct MoveOutput {
     shout: Option<String>,
 }
 
-pub type BoxedSnake<T> = Box<dyn BattlesnakeAI<T> + Send + Sync>;
+pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
 
-pub trait BattlesnakeAI<T> {
+pub trait BattlesnakeAI {
+    fn from_wire_game(game: Game) -> Self;
+
     fn start(&self) {}
-    fn end(&self, _state: T) {}
-    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
+    fn end(&self) {}
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
     fn name(&self) -> String;
 
     fn about(&self) -> AboutMe {
@@ -134,4 +140,10 @@ impl SnakeTailPushableGame for Game {
             .body
             .push_back(pos)
     }
+}
+
+pub trait TryFromGame: TryFrom<Game> {
+    type TryError: Debug;
+
+    fn try_from_game(g: Game) -> Result<Self, Self::TryError>;
 }

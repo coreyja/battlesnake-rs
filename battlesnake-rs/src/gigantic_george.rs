@@ -1,17 +1,14 @@
-use std::collections::HashMap;
-
-use battlesnake_game_types::types::{
-    HeadGettableGame, NeighborDeterminableGame, PositionGettableGame, ShoutGettableGame,
-    SizeDeterminableGame, SnakeBodyGettableGame, TurnDeterminableGame, YouDeterminableGame,
-};
+use battlesnake_game_types::types::*;
 
 use crate::eremetic_eric::EremeticEric;
 
 use super::*;
 
-pub struct GiganticGeorge {}
+pub struct GiganticGeorge<T> {
+    game: T,
+}
 
-fn path_to_full_board<T: NeighborDeterminableGame + SizeDeterminableGame + PositionGettableGame>(
+fn path_to_full_board<T: PositionGettableGame + SizeDeterminableGame + NeighborDeterminableGame>(
     reversed_body: &[T::NativePositionType],
     game: &T,
 ) -> Option<Vec<(Move, T::NativePositionType)>> {
@@ -60,7 +57,7 @@ impl FullBoardDeterminable for Game {
     }
 }
 
-impl<T> BattlesnakeAI<T> for GiganticGeorge
+impl<T> BattlesnakeAI for GiganticGeorge<T>
 where
     T: FullBoardDeterminable
         + ShoutGettableGame
@@ -71,12 +68,17 @@ where
         + HeadGettableGame
         + SnakeBodyGettableGame
         + SnakeTailPushableGame
+        + TryFromGame
         + battlesnake_game_types::types::FoodGettableGame
         + battlesnake_game_types::types::HealthGettableGame
         + a_prime::APrimeNextDirection
         + TurnDeterminableGame
         + std::clone::Clone,
 {
+    fn from_wire_game(game: Game) -> Self {
+        let game = T::try_from_game(game).unwrap();
+        Self { game }
+    }
     fn name(&self) -> String {
         "gigantic-george".to_owned()
     }
@@ -89,10 +91,10 @@ where
         }
     }
 
-    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let you_id = state.you_id();
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let you_id = self.game.you_id();
 
-        if let Some(s) = state.get_shout(you_id) {
+        if let Some(s) = self.game.get_shout(you_id) {
             if s.starts_with("PATH:") {
                 let path = s.split("PATH:").nth(1).unwrap();
 
@@ -114,17 +116,17 @@ where
             }
         }
 
-        if !state.contains_empty_squares() {
+        if !self.game.contains_empty_squares() {
             println!("Ok now can we complete the board?");
 
             let reversed_body = {
-                let mut x = state.get_snake_body_vec(you_id);
+                let mut x = self.game.get_snake_body_vec(you_id);
                 x.pop(); // Remove my current tail cause I will need to fill that space too
                 x.reverse();
                 x
             };
 
-            if let Some(mut path) = path_to_full_board(&reversed_body, &state) {
+            if let Some(mut path) = path_to_full_board(&reversed_body, &self.game) {
                 let new = path.pop();
                 let path_string: String = path
                     .iter()
@@ -139,7 +141,9 @@ where
             }
         }
 
-        let eric = EremeticEric {};
-        eric.make_move(state)
+        let eric = EremeticEric {
+            game: self.game.clone(),
+        };
+        eric.make_move()
     }
 }

@@ -1,13 +1,10 @@
 use super::*;
 
-pub struct DeviousDevin {}
+pub struct DeviousDevin<T> {
+    game: T,
+}
 
-use battlesnake_game_types::compact_representation::CellBoard;
-use battlesnake_game_types::types::{
-    build_snake_id_map, FoodGettableGame, HeadGettableGame, HealthGettableGame, LengthGettableGame,
-    Move, SimulableGame, SimulatorInstruments, SnakeIDGettableGame, VictorDeterminableGame,
-    YouDeterminableGame,
-};
+use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::Game;
 use itertools::Itertools;
 use std::clone::Clone;
@@ -27,28 +24,31 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl<
-        T: SnakeIDGettableGame
-            + YouDeterminableGame
-            + PositionGettableGame
-            + HeadGettableGame
-            + LengthGettableGame
-            + HealthGettableGame
-            + VictorDeterminableGame
-            + HeadGettableGame
-            + SimulableGame<Instruments>
-            + Clone
-            + APrimeCalculable
-            + FoodGettableGame
-            + Send
-            + 'static,
-    > BattlesnakeAI<T> for DeviousDevin
+impl<T> BattlesnakeAI for DeviousDevin<T>
+where
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + SimulableGame<Instruments>
+        + Clone
+        + APrimeCalculable
+        + FoodGettableGame
+        + TryFromGame
+        + Send
+        + 'static,
 {
-    fn make_move(
-        &self,
-        game_state: T,
-    ) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let best_option = deepened_minimax(game_state);
+    fn from_wire_game(game: Game) -> Self {
+        let game = T::try_from_game(game).unwrap();
+        Self { game }
+    }
+
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let best_option = deepened_minimax(self.game.clone());
         let dir = best_option.my_best_move();
 
         Ok(MoveOutput {

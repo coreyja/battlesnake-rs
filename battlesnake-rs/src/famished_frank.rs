@@ -1,25 +1,29 @@
-use battlesnake_game_types::types::{
-    FoodGettableGame, NeighborDeterminableGame, RandomReasonableMovesGame, SizeDeterminableGame,
-    SnakeBodyGettableGame, YouDeterminableGame,
-};
+use battlesnake_game_types::types::*;
 
 use crate::a_prime::APrimeNextDirection;
 
 use super::*;
 
-pub struct FamishedFrank {}
+pub struct FamishedFrank<T> {
+    game: T,
+}
 
-impl<
-        T: SizeDeterminableGame
-            + FoodGettableGame
-            + PositionGettableGame
-            + SnakeBodyGettableGame
-            + APrimeNextDirection
-            + RandomReasonableMovesGame
-            + SnakeIDGettableGame
-            + YouDeterminableGame,
-    > BattlesnakeAI<T> for FamishedFrank
+impl<T> BattlesnakeAI for FamishedFrank<T>
+where
+    T: SizeDeterminableGame
+        + FoodGettableGame
+        + PositionGettableGame
+        + SnakeBodyGettableGame
+        + APrimeNextDirection
+        + RandomReasonableMovesGame
+        + TryFromGame
+        + SnakeIDGettableGame
+        + YouDeterminableGame,
 {
+    fn from_wire_game(game: Game) -> Self {
+        let game = T::try_from_game(game).unwrap();
+        Self { game }
+    }
     fn name(&self) -> String {
         "famished-frank".to_owned()
     }
@@ -32,29 +36,29 @@ impl<
         }
     }
 
-    fn make_move(&self, state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let target_length = state.get_height() * 2 + state.get_width();
-        let you_body = state.get_snake_body_vec(state.you_id());
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let target_length = self.game.get_height() * 2 + self.game.get_width();
+        let you_body = self.game.get_snake_body_vec(self.game.you_id());
         let targets = if you_body.len() < target_length as usize {
-            state.get_all_food_as_native_positions()
+            self.game.get_all_food_as_native_positions()
         } else {
             vec![
                 Position { x: 0, y: 0 },
                 Position {
-                    x: (state.get_width() - 1) as i32,
+                    x: (self.game.get_width() - 1) as i32,
                     y: 0,
                 },
                 Position {
                     x: 0,
-                    y: (state.get_height() - 1) as i32,
+                    y: (self.game.get_height() - 1) as i32,
                 },
                 Position {
-                    x: (state.get_width() - 1) as i32,
-                    y: (state.get_height() - 1) as i32,
+                    x: (self.game.get_width() - 1) as i32,
+                    y: (self.game.get_height() - 1) as i32,
                 },
             ]
             .iter()
-            .map(|c| state.native_from_position(*c))
+            .map(|c| self.game.native_from_position(*c))
             .collect()
         };
 
@@ -64,16 +68,18 @@ impl<
             .collect();
 
         let head = you_body.first().unwrap();
-        let dir = state.shortest_path_next_direction(&head, &targets, None);
+        let dir = self
+            .game
+            .shortest_path_next_direction(&head, &targets, None);
 
         let dir = if let Some(s) = dir {
             s
         } else {
-            let you_id = state.you_id();
-            state
+            let you_id = self.game.you_id();
+            self.game
                 .shortest_path_next_direction(&head, &[you_body.last().unwrap().clone()], None)
                 .unwrap_or_else(|| {
-                    state
+                    self.game
                         .random_reasonable_move_for_each_snake()
                         .into_iter()
                         .find(|(s, _)| s == you_id)

@@ -2,7 +2,7 @@ use super::*;
 
 pub struct ConstantCarter {}
 
-impl<T> BattlesnakeAI<T> for ConstantCarter {
+impl BattlesnakeAI for ConstantCarter {
     fn name(&self) -> String {
         "constant-carter".to_owned()
     }
@@ -15,10 +15,14 @@ impl<T> BattlesnakeAI<T> for ConstantCarter {
         }
     }
 
-    fn make_move(&self, _state: T) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         Ok(MoveOutput {
             r#move: format!("{}", Move::Right),
             shout: None,
         })
+    }
+
+    fn from_wire_game(_game: Game) -> Self {
+        Self {}
     }
 }
