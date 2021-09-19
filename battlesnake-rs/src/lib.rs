@@ -12,7 +12,7 @@ pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
 pub mod devious_devin;
-pub mod devious_devin_two;
+pub mod devious_devin_full;
 pub mod eremetic_eric;
 pub mod famished_frank;
 pub mod gigantic_george;
@@ -47,7 +47,7 @@ use battlesnake_game_types::{
 
 use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
-    constant_carter::ConstantCarterFactory, devious_devin::DeviousDevinFactory,
+    constant_carter::ConstantCarterFactory, devious_devin_full::FullDeviousDevinFactory,
     eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
     gigantic_george::GiganticGeorgeFactory,
 };
@@ -215,8 +215,8 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(AmphibiousArthurFactory {}),
         Box::new(BombasticBobFactory {}),
         Box::new(ConstantCarterFactory {}),
-        Box::new(DeviousDevinFactory {}),
-        Box::new(devious_devin_two::DeviousDevinFactory {}),
+        Box::new(FullDeviousDevinFactory {}),
+        Box::new(devious_devin::DeviousDevinFactory {}),
         Box::new(EremeticEricFactory {}),
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
