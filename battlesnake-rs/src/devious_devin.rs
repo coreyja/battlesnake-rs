@@ -66,10 +66,10 @@ pub enum ScoreEndState {
     Win(i64),
 }
 
-const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
-const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
+pub const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
+pub const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
 
-fn score<
+pub fn score<
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
@@ -82,11 +82,12 @@ fn score<
 >(
     node: &T,
 ) -> ScoreEndState {
-    let mut snake_ids = node.get_snake_ids().into_iter();
-    snake_ids.next();
     let me_id = node.you_id();
-
-    let opponents: Vec<T::SnakeIDType> = snake_ids.collect();
+    let opponents: Vec<T::SnakeIDType> = node
+        .get_snake_ids()
+        .into_iter()
+        .filter(|x| x != me_id)
+        .collect();
 
     let opponent_heads: Vec<_> = opponents
         .iter()
@@ -499,30 +500,21 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-fn deepened_minimax<
-    T: SnakeIDGettableGame
-        + YouDeterminableGame
-        + PositionGettableGame
-        + HeadGettableGame
-        + LengthGettableGame
-        + HealthGettableGame
-        + VictorDeterminableGame
-        + HeadGettableGame
-        + SimulableGame<Instruments>
-        + Clone
-        + APrimeCalculable
-        + FoodGettableGame,
->(
-    node: T,
-) -> MinMaxReturn<T>
+fn deepened_minimax<T>(node: T) -> MinMaxReturn<T>
 where
     T: SnakeIDGettableGame
-        + std::clone::Clone
         + YouDeterminableGame
         + SimulableGame<Instruments>
         + VictorDeterminableGame
         + Send
-        + 'static,
+        + 'static
+        + PositionGettableGame
+        + HeadGettableGame
+        + LengthGettableGame
+        + HealthGettableGame
+        + Clone
+        + APrimeCalculable
+        + FoodGettableGame,
 {
     const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
