@@ -33,7 +33,6 @@ where
         + APrimeCalculable
         + MoveableGame
         + FoodGettableGame
-        + SnakeBodyGettableGame
         + Send
         + 'static,
 {
@@ -63,27 +62,19 @@ where
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
 pub enum ScoreEndState {
     /// depth: i64
-    HitSelfLose(i64),
+    Lose(i64),
     /// depth: i64
-    RanIntoOtherLose(i64),
-    /// depth: i64
-    OutOfHealthLose(i64),
-    /// depth: i64
-    HeadToHeadLose(i64),
-    /// difference_in_snake_length: i64, negative_distance_to_nearest_food: Option<i64>, health: u8
+    Tie(i64),
+    /// difference_in_snake_length: u16, negative_distance_to_nearest_food: Option<i32>, health: u8
     ShorterThanOpponent(i64, Option<i32>, i64),
     /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
     LongerThanOpponent(Option<i32>, i64, i64),
-    /// negative_depth: i64
-    HitSelfWin(i64),
-    /// negative_depth: i64
-    RanIntoOtherWin(i64),
-    /// negative_depth: i64
-    HeadToHeadWin(i64),
+    /// depth: i64
+    Win(i64),
 }
 
-pub const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HeadToHeadWin(i64::MAX);
-pub const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::HitSelfLose(i64::MIN);
+pub const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
+pub const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
 
 pub fn score<
     T: SnakeIDGettableGame
@@ -94,11 +85,9 @@ pub fn score<
         + HealthGettableGame
         + HeadGettableGame
         + APrimeCalculable
-        + SnakeBodyGettableGame
         + FoodGettableGame,
 >(
     node: &T,
-    depth: i64,
 ) -> ScoreEndState {
     let me_id = node.you_id();
     let opponents: Vec<T::SnakeIDType> = node
@@ -106,46 +95,14 @@ pub fn score<
         .into_iter()
         .filter(|x| x != me_id)
         .collect();
-    let my_length = node.get_length_i64(me_id);
-    let me_body = node.get_snake_body_vec(me_id);
-
-    if let Some(opponent_end_state) = opponents
-        .iter()
-        .filter_map(|not_me| {
-            let other_body = node.get_snake_body_vec(not_me);
-
-            if other_body[1..].contains(&other_body[0]) {
-                return Some(ScoreEndState::RanIntoOtherLose(depth));
-            }
-
-            if other_body[1..].contains(&other_body[0]) && depth != 0 {
-                return Some(ScoreEndState::HitSelfWin(-depth));
-            }
-
-            if me_body[1..].contains(&other_body[0]) {
-                return Some(ScoreEndState::RanIntoOtherWin(-depth));
-            }
-
-            if me_body[0] == other_body[0] {
-                if my_length > other_body.len().try_into().unwrap() {
-                    return Some(ScoreEndState::HeadToHeadWin(-depth));
-                } else {
-                    return Some(ScoreEndState::HeadToHeadLose(depth));
-                }
-            }
-
-            None
-        })
-        .min()
-    {
-        return opponent_end_state;
-    };
 
     let opponent_heads: Vec<_> = opponents
         .iter()
         .map(|s| node.get_head_as_native_position(s))
         .collect();
     let my_head = node.get_head_as_native_position(me_id);
+
+    let my_length = node.get_length_i64(me_id);
 
     let max_opponent_length = opponents
         .iter()
@@ -249,7 +206,6 @@ where
         + MoveableGame
         + HeadGettableGame
         + SimulableGame<Instruments>
-        + SnakeBodyGettableGame
         + Clone
         + APrimeCalculable
         + FoodGettableGame,
@@ -260,23 +216,23 @@ where
 
     let you_id = node.you_id();
 
-    // if node.is_over() {
-    //     let score = match node.get_winner() {
-    //         Some(s) => {
-    //             if s == *you_id {
-    //                 ScoreEndState::Win(-(depth as i64))
-    //             } else {
-    //                 ScoreEndState::Lose(depth as i64)
-    //             }
-    //         }
-    //         None => ScoreEndState::Tie(depth as i64),
-    //     };
+    if node.is_over() {
+        let score = match node.get_winner() {
+            Some(s) => {
+                if s == *you_id {
+                    ScoreEndState::Win(-(depth as i64))
+                } else {
+                    ScoreEndState::Lose(depth as i64)
+                }
+            }
+            None => ScoreEndState::Tie(depth as i64),
+        };
 
-    //     return Some(score);
-    // }
+        return Some(score);
+    }
 
     if depth >= max_depth {
-        let score = score(node, depth);
+        let score = score(node);
         return Some(score);
     }
 
@@ -302,7 +258,6 @@ where
         + VictorDeterminableGame
         + MoveableGame
         + HeadGettableGame
-        + SnakeBodyGettableGame
         + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
@@ -427,7 +382,6 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
-        + SnakeBodyGettableGame
         + MoveableGame
         + SimulableGame<Instruments>
         + Clone
@@ -494,7 +448,6 @@ where
         + MoveableGame
         + HealthGettableGame
         + VictorDeterminableGame
-        + SnakeBodyGettableGame
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
@@ -524,7 +477,6 @@ where
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
-        + SnakeBodyGettableGame
         + HeadGettableGame
         + LengthGettableGame
         + HealthGettableGame
