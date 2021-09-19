@@ -84,14 +84,9 @@ impl<
             + HeadGettableGame
             + YouDeterminableGame
             + MoveToAndSpawn
-            + HealthGettableGame
-            + TryFromGame,
+            + HealthGettableGame,
     > BattlesnakeAI for AmphibiousArthur<T>
 {
-    fn name(&self) -> String {
-        "amphibious-arthur".to_owned()
-    }
-
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let you_id = self.game.you_id();
         let possible = self
@@ -117,6 +112,18 @@ impl<
 
         Ok(output)
     }
+}
+
+pub struct AmphibiousArthurFactory;
+
+impl BattlesnakeFactory for AmphibiousArthurFactory {
+    fn name(&self) -> String {
+        "amphibious-arthur".to_owned()
+    }
+
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        Box::new(AmphibiousArthur { game })
+    }
 
     fn about(&self) -> AboutMe {
         AboutMe {
@@ -127,10 +134,5 @@ impl<
             tail: Some("swirl".to_owned()),
             version: None,
         }
-    }
-
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
     }
 }

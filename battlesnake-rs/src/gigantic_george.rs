@@ -68,29 +68,12 @@ where
         + HeadGettableGame
         + SnakeBodyGettableGame
         + SnakeTailPushableGame
-        + TryFromGame
         + battlesnake_game_types::types::FoodGettableGame
         + battlesnake_game_types::types::HealthGettableGame
         + a_prime::APrimeNextDirection
         + TurnDeterminableGame
         + std::clone::Clone,
 {
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
-    }
-    fn name(&self) -> String {
-        "gigantic-george".to_owned()
-    }
-
-    fn about(&self) -> AboutMe {
-        AboutMe {
-            author: Some("coreyja".to_owned()),
-            color: Some("#FFBB33".to_owned()),
-            ..Default::default()
-        }
-    }
-
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let you_id = self.game.you_id();
 
@@ -145,5 +128,24 @@ where
             game: self.game.clone(),
         };
         eric.make_move()
+    }
+}
+
+pub struct GiganticGeorgeFactory {}
+
+impl BattlesnakeFactory for GiganticGeorgeFactory {
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        Box::new(GiganticGeorge { game })
+    }
+
+    fn name(&self) -> String {
+        "gigantic-george".to_owned()
+    }
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            author: Some("coreyja".to_owned()),
+            color: Some("#FFBB33".to_owned()),
+            ..Default::default()
+        }
     }
 }

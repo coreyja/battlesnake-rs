@@ -8,8 +8,8 @@ pub struct BombasticBob<T> {
     game: T,
 }
 
-impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame + TryFromGame>
-    BattlesnakeAI for BombasticBob<T>
+impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> BattlesnakeAI
+    for BombasticBob<T>
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let chosen = self
@@ -25,9 +25,17 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame + 
             shout: None,
         })
     }
+}
 
+pub struct BombasticBobFactory;
+
+impl BattlesnakeFactory for BombasticBobFactory {
     fn name(&self) -> String {
         "bombastic-bob".to_owned()
+    }
+
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        Box::new(BombasticBob { game })
     }
 
     fn about(&self) -> AboutMe {
@@ -36,10 +44,5 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame + 
             color: Some("#AA66CC".to_owned()),
             ..Default::default()
         }
-    }
-
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
     }
 }

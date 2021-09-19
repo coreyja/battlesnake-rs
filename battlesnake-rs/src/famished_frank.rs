@@ -16,26 +16,9 @@ where
         + SnakeBodyGettableGame
         + APrimeNextDirection
         + RandomReasonableMovesGame
-        + TryFromGame
         + SnakeIDGettableGame
         + YouDeterminableGame,
 {
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
-    }
-    fn name(&self) -> String {
-        "famished-frank".to_owned()
-    }
-
-    fn about(&self) -> AboutMe {
-        AboutMe {
-            author: Some("coreyja".to_owned()),
-            color: Some("#FFBB33".to_owned()),
-            ..Default::default()
-        }
-    }
-
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let target_length = self.game.get_height() * 2 + self.game.get_width();
         let you_body = self.game.get_snake_body_vec(self.game.you_id());
@@ -92,5 +75,24 @@ where
             r#move: format!("{}", dir),
             shout: None,
         })
+    }
+}
+
+pub struct FamishedFrankFactory {}
+
+impl BattlesnakeFactory for FamishedFrankFactory {
+    fn name(&self) -> String {
+        "famished-frank".to_owned()
+    }
+
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        Box::new(FamishedFrank { game })
+    }
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            author: Some("coreyja".to_owned()),
+            color: Some("#FFBB33".to_owned()),
+            ..Default::default()
+        }
     }
 }

@@ -5,14 +5,9 @@ extern crate rocket;
 
 use tracing_subscriber::layer::SubscriberExt;
 
-use battlesnake_rs::gigantic_george::GiganticGeorge;
 use rocket::http::Status;
 
-use battlesnake_rs::constant_carter::ConstantCarter;
-use battlesnake_rs::devious_devin::DeviousDevin;
-use battlesnake_rs::{amphibious_arthur::AmphibiousArthur, famished_frank::FamishedFrank};
-use battlesnake_rs::{bombastic_bob::BombasticBob, eremetic_eric::EremeticEric};
-use battlesnake_rs::{AboutMe, BoxedSnake, Game, MoveOutput};
+use battlesnake_rs::{all_factories, AboutMe, BoxedFactory, Game, MoveOutput};
 
 use rocket::State;
 
@@ -26,11 +21,14 @@ fn api_start(_snake: String) -> Status {
 #[post("/<snake>/end", data = "<game_state>")]
 fn api_end(
     snake: String,
-    snakes: State<Vec<BoxedSnake<Game>>>,
+    factories: State<Vec<BoxedFactory>>,
     game_state: Json<Game>,
 ) -> Option<Status> {
-    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
-    snake_ai.end(game_state.into_inner());
+    let snake_ai = factories
+        .iter()
+        .find(|s| s.name() == snake)?
+        .from_wire_game(game_state.into_inner());
+    snake_ai.end();
 
     Some(Status::NoContent)
 }
@@ -38,19 +36,22 @@ fn api_end(
 #[post("/<snake>/move", data = "<game_state>")]
 fn api_move(
     snake: String,
-    snakes: State<Vec<BoxedSnake<Game>>>,
+    factories: State<Vec<BoxedFactory>>,
     game_state: Json<Game>,
 ) -> Option<Json<MoveOutput>> {
-    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
-    let m = snake_ai.make_move(game_state.into_inner()).ok()?;
+    let snake_ai = factories
+        .iter()
+        .find(|s| s.name() == snake)?
+        .from_wire_game(game_state.into_inner());
+    let m = snake_ai.make_move().ok()?;
 
     Some(Json(m))
 }
 
 #[get("/<snake>")]
-fn api_about(snake: String, snakes: State<Vec<BoxedSnake<Game>>>) -> Option<Json<AboutMe>> {
-    let snake_ai = snakes.iter().find(|s| s.name() == snake)?;
-    Some(Json(snake_ai.about()))
+fn api_about(snake: String, factories: State<Vec<BoxedFactory>>) -> Option<Json<AboutMe>> {
+    let factory = factories.iter().find(|s| s.name() == snake)?;
+    Some(Json(factory.about()))
 }
 
 fn main() {
@@ -60,20 +61,10 @@ fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 
-    let snakes: Vec<BoxedSnake<Game>> = vec![
-        Box::new(AmphibiousArthur {}),
-        Box::new(BombasticBob {}),
-        Box::new(ConstantCarter {}),
-        Box::new(DeviousDevin {}),
-        Box::new(EremeticEric {}),
-        Box::new(FamishedFrank {}),
-        Box::new(GiganticGeorge {}),
-    ];
-
     let cors = rocket_cors::CorsOptions::default().to_cors().unwrap();
 
     rocket::ignite()
-        .manage(snakes)
+        .manage(all_factories())
         .attach(cors)
         .mount("/", routes![api_start, api_end, api_move, api_about])
         .launch();

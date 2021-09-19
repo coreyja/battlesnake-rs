@@ -24,26 +24,8 @@ where
         + HealthGettableGame
         + APrimeNextDirection
         + HeadGettableGame
-        + TryFromGame
         + FoodGettableGame,
 {
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
-    }
-
-    fn name(&self) -> String {
-        "eremetic-eric".to_owned()
-    }
-
-    fn about(&self) -> AboutMe {
-        AboutMe {
-            author: Some("coreyja".to_owned()),
-            color: Some("#FF4444".to_owned()),
-            ..Default::default()
-        }
-    }
-
     fn end(&self) {
         println!("Died at turn: {}", self.game.turn());
         let you_vec = self.game.get_snake_body_vec(self.game.you_id());
@@ -197,5 +179,24 @@ where
             r#move: format!("{}", dir),
             shout: None,
         })
+    }
+}
+
+pub struct EremeticEricFactory {}
+
+impl BattlesnakeFactory for EremeticEricFactory {
+    fn name(&self) -> String {
+        "eremetic-eric".to_owned()
+    }
+
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        Box::new(EremeticEric { game })
+    }
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            author: Some("coreyja".to_owned()),
+            color: Some("#FF4444".to_owned()),
+            ..Default::default()
+        }
     }
 }

@@ -1,11 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::{
-    collections::HashSet,
-    convert::{TryFrom, TryInto},
-    fmt::Debug,
-};
+use std::{collections::HashSet, convert::TryInto, fmt::Debug};
 
 pub use battlesnake_game_types::compact_representation::CellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::Move;
@@ -46,6 +42,13 @@ impl Default for AboutMe {
 use battlesnake_game_types::{
     types::{PositionGettableGame, SnakeIDGettableGame},
     wire_representation::Position,
+};
+
+use crate::{
+    amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
+    constant_carter::ConstantCarterFactory, devious_devin::DeviousDevinFactory,
+    eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
+    gigantic_george::GiganticGeorgeFactory,
 };
 
 pub enum MoveResult {
@@ -112,14 +115,17 @@ pub struct MoveOutput {
 }
 
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
+pub type BoxedFactory = Box<dyn BattlesnakeFactory + Send + Sync>;
 
 pub trait BattlesnakeAI {
-    fn from_wire_game(game: Game) -> Self;
-
     fn start(&self) {}
     fn end(&self) {}
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
+}
+
+pub trait BattlesnakeFactory {
     fn name(&self) -> String;
+    fn from_wire_game(&self, game: Game) -> BoxedSnake;
 
     fn about(&self) -> AboutMe {
         Default::default()
@@ -142,8 +148,14 @@ impl SnakeTailPushableGame for Game {
     }
 }
 
-pub trait TryFromGame: TryFrom<Game> {
-    type TryError: Debug;
-
-    fn try_from_game(g: Game) -> Result<Self, Self::TryError>;
+pub fn all_factories() -> Vec<BoxedFactory> {
+    vec![
+        Box::new(AmphibiousArthurFactory {}),
+        Box::new(BombasticBobFactory {}),
+        Box::new(ConstantCarterFactory {}),
+        Box::new(DeviousDevinFactory {}),
+        Box::new(EremeticEricFactory {}),
+        Box::new(FamishedFrankFactory {}),
+        Box::new(GiganticGeorgeFactory {}),
+    ]
 }

@@ -38,15 +38,9 @@ where
         + Clone
         + APrimeCalculable
         + FoodGettableGame
-        + TryFromGame
         + Send
         + 'static,
 {
-    fn from_wire_game(game: Game) -> Self {
-        let game = T::try_from_game(game).unwrap();
-        Self { game }
-    }
-
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
         let best_option = deepened_minimax(self.game.clone());
         let dir = best_option.my_best_move();
@@ -55,21 +49,6 @@ where
             r#move: format!("{}", dir),
             shout: None,
         })
-    }
-
-    fn name(&self) -> String {
-        "devious-devin".to_owned()
-    }
-
-    fn about(&self) -> AboutMe {
-        AboutMe {
-            apiversion: "1".to_owned(),
-            author: Some("coreyja".to_owned()),
-            color: Some("#99cc00".to_owned()),
-            head: Some("snail".to_owned()),
-            tail: Some("rbc-necktie".to_owned()),
-            version: None,
-        }
     }
 }
 
@@ -584,6 +563,31 @@ where
     }
 
     current.expect("We weren't able to do even a single layer of minmax")
+}
+
+pub struct DeviousDevinFactory;
+
+impl BattlesnakeFactory for DeviousDevinFactory {
+    fn name(&self) -> String {
+        "devious-devin".to_owned()
+    }
+
+    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        Box::new(DeviousDevin { game })
+    }
+
+    fn about(&self) -> AboutMe {
+        AboutMe {
+            apiversion: "1".to_owned(),
+            author: Some("coreyja".to_owned()),
+            color: Some("#99cc00".to_owned()),
+            head: Some("snail".to_owned()),
+            tail: Some("rbc-necktie".to_owned()),
+            version: None,
+        }
+    }
 }
 
 #[cfg(test)]
