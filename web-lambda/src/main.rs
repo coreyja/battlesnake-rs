@@ -56,13 +56,13 @@ async fn api_move(
 
     match action {
         None => Ok(json!(factory.about())),
-        Some(&"start") | Some(&"end") | Some(&"move") => {
+        Some(&"start") => Ok(json!("Nothing to do in start")),
+        Some(&"end") | Some(&"move") => {
             let string_body = string_body.ok_or("Body was not a string")?;
             let state: Game = serde_json::from_str(string_body)?;
             let snake = factory.from_wire_game(state);
 
             match action {
-                Some(&"start") => Ok(json!(snake.start())),
                 Some(&"end") => Ok(json!(snake.end())),
                 Some(&"move") => Ok(serde_json::to_value(snake.make_move()?)?),
                 _ => unreachable!("Nested matches mean this is impossible if bad code"),
