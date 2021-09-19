@@ -31,7 +31,7 @@ pub struct EvaluateOutput {
     options: Vec<MoveOption>,
 }
 
-impl<T> BattlesnakeAI for DeviousDevin<T>
+impl<T> BattlesnakeAI for FullDeviousDevin<T>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame

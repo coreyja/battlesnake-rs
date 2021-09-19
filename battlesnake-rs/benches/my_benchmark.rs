@@ -1,11 +1,7 @@
 use battlesnake_game_types::{
-    compact_representation::{CellBoard, CellBoard4Snakes11x11},
-    types::build_snake_id_map,
-    wire_representation::Game,
+    compact_representation::CellBoard, types::build_snake_id_map, wire_representation::Game,
 };
-use battlesnake_rs::devious_devin::{
-    minmax_bench_entry, minmax_deepened_bench_entry, DeviousDevin,
-};
+use battlesnake_rs::devious_devin_full::{minmax_bench_entry, minmax_deepened_bench_entry};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
@@ -52,17 +48,14 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     group.bench_function("wire partial-minmax", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
-            battlesnake_rs::devious_devin_two::minmax_bench_entry(black_box(game), max_turns)
+            battlesnake_rs::devious_devin::minmax_bench_entry(black_box(game), max_turns)
         })
     });
 
     group.bench_function("wire partial-minmax iterative deepened", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
-            battlesnake_rs::devious_devin_two::minmax_deepened_bench_entry(
-                black_box(game),
-                max_turns,
-            )
+            battlesnake_rs::devious_devin::minmax_deepened_bench_entry(black_box(game), max_turns)
         })
     });
 
