@@ -36,6 +36,7 @@ where
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
+        + SnakeBodyGettableGame
         + HeadGettableGame
         + LengthGettableGame
         + HealthGettableGame
@@ -123,6 +124,7 @@ fn ordered_moves<
         + YouDeterminableGame
         + PositionGettableGame
         + HeadGettableGame
+        + SnakeBodyGettableGame
         + LengthGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
@@ -187,6 +189,7 @@ fn minimax_min<
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
+        + SnakeBodyGettableGame
         + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
@@ -245,7 +248,7 @@ fn minimax_min<
     let chosen_score = *options
         .first()
         .map(|x| x.1.score())
-        .unwrap_or(&ScoreEndState::Lose(0));
+        .unwrap_or(&WORT_POSSIBLE_SCORE_STATE);
 
     MinMaxReturn::MinLayer {
         options,
@@ -260,6 +263,7 @@ where
     T: YouDeterminableGame
         + VictorDeterminableGame
         + SnakeIDGettableGame
+        + SnakeBodyGettableGame
         + FoodGettableGame
         + APrimeCalculable
         + HealthGettableGame
@@ -285,6 +289,7 @@ where
         + VictorDeterminableGame
         + SnakeIDGettableGame
         + FoodGettableGame
+        + SnakeBodyGettableGame
         + APrimeCalculable
         + HealthGettableGame
         + LengthGettableGame
@@ -324,6 +329,7 @@ where
         + VictorDeterminableGame
         + SnakeIDGettableGame
         + FoodGettableGame
+        + SnakeBodyGettableGame
         + APrimeCalculable
         + HealthGettableGame
         + LengthGettableGame
@@ -339,24 +345,50 @@ where
     };
 
     let you_id = node.you_id();
+    let opponents: Vec<T::SnakeIDType> = node
+        .get_snake_ids()
+        .into_iter()
+        .filter(|x| x != you_id)
+        .collect();
+    let my_length = node.get_length_i64(you_id);
+    let me_body = node.get_snake_body_vec(you_id);
 
-    if node.is_over() {
-        let score = match node.get_winner() {
-            Some(s) => {
-                if s == *you_id {
-                    ScoreEndState::Win(-(depth as i64))
+    if let Some(opponent_end_state) = opponents
+        .iter()
+        .filter_map(|not_me| {
+            let not_me_body = node.get_snake_body_vec(not_me);
+
+            if not_me_body[1..].contains(&me_body[0]) {
+                return Some(ScoreEndState::RanIntoOtherLose(depth as i64));
+            }
+
+            if not_me_body[1..].contains(&not_me_body[0]) && depth != 0 {
+                return Some(ScoreEndState::HitSelfWin(-(depth as i64)));
+            }
+
+            if me_body[1..].contains(&not_me_body[0]) {
+                return Some(ScoreEndState::RanIntoOtherWin(-(depth as i64)));
+            }
+
+            if me_body[0] == not_me_body[0] {
+                if my_length > not_me_body.len().try_into().unwrap() {
+                    return Some(ScoreEndState::HeadToHeadWin(-(depth as i64)));
                 } else {
-                    ScoreEndState::Lose(depth as i64)
+                    return Some(ScoreEndState::HeadToHeadLose(depth as i64));
                 }
             }
-            None => ScoreEndState::Tie(depth as i64),
-        };
 
-        return MinMaxReturn::Leaf { score };
-    }
+            None
+        })
+        .min()
+    {
+        return MinMaxReturn::Leaf {
+            score: opponent_end_state,
+        };
+    };
 
     if depth >= max_depth {
-        let score = score(node);
+        let score = score(node, depth as i64);
         return MinMaxReturn::Leaf { score };
     }
 
@@ -410,7 +442,7 @@ where
     let chosen_score = *options
         .first()
         .map(|x| x.1.score())
-        .unwrap_or(&ScoreEndState::Lose(0));
+        .unwrap_or(&WORT_POSSIBLE_SCORE_STATE);
 
     MinMaxReturn::MaxLayer {
         options,
@@ -423,12 +455,14 @@ where
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + SimulableGame<Instruments>
+        + SnakeBodyGettableGame
         + VictorDeterminableGame
         + Send
         + 'static
         + PositionGettableGame
         + HeadGettableGame
         + LengthGettableGame
+        + SnakeBodyGettableGame
         + HealthGettableGame
         + Clone
         + APrimeCalculable
