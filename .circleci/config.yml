@@ -70,7 +70,7 @@ jobs:
           keys:
             - v2-criterion-baseline
 
-      - run: cargo bench --bench devin
+      - run: cargo bench
 
       - store_artifacts:
           path: target/criterion
