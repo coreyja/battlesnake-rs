@@ -140,15 +140,15 @@ impl<'a> Coordinate {
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Battlesnake {
-    id: String,
-    name: String,
-    health: i16,
-    body: Vec<Coordinate>,
-    latency: serde_json::Value,
-    head: Coordinate,
-    length: u64,
-    shout: Option<String>,
-    squad: Option<String>,
+    pub id: String,
+    pub name: String,
+    pub health: i16,
+    pub body: Vec<Coordinate>,
+    pub latency: serde_json::Value,
+    pub head: Coordinate,
+    pub length: u64,
+    pub shout: Option<String>,
+    pub squad: Option<String>,
 }
 
 use rand::seq::SliceRandom;
@@ -172,11 +172,11 @@ impl Battlesnake {
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct Board {
-    height: u32,
-    width: u32,
-    food: Vec<Coordinate>,
-    hazards: Vec<Coordinate>,
-    snakes: Vec<Battlesnake>,
+    pub height: u32,
+    pub width: u32,
+    pub food: Vec<Coordinate>,
+    pub hazards: Vec<Coordinate>,
+    pub snakes: Vec<Battlesnake>,
 }
 
 impl Board {
@@ -265,10 +265,10 @@ impl<'a> BoardGrid<'a> {
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct GameState {
-    game: Game,
-    turn: u64,
-    board: Board,
-    you: Battlesnake,
+    pub game: Game,
+    pub turn: u64,
+    pub board: Board,
+    pub you: Battlesnake,
 }
 
 pub enum MoveResult {
