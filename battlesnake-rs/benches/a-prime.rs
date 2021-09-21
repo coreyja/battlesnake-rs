@@ -15,7 +15,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("a-prime start_of_game", |b| {
+    c.bench_function("a-prime a-prime-food-maze", |b| {
         let game_json = include_str!("../fixtures/a-prime-food-maze.json");
 
         b.iter(|| {

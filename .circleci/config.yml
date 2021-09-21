@@ -44,6 +44,7 @@ jobs:
       - run:
           name: Autoclean Cargo cache before storing
           command: cargo-cache || (cargo install cargo-cache --force --git https://github.com/matthiaskrgr/cargo-cache.git --no-default-features --features ci-autoclean && cargo-cache)
+
       - save_cache:
           key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
