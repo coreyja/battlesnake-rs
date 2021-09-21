@@ -7,7 +7,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("a-prime start_of_game", |b| {
+    let mut g = c.benchmark_group("a-prime");
+    g.bench_function("wire start_of_game", |b| {
         let game_json = include_str!("../fixtures/start_of_game.json");
         let game: Game = serde_json::from_str(game_json).unwrap();
 
@@ -17,7 +18,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("a-prime a-prime-food-maze", |b| {
+    g.bench_function("wire a-prime-food-maze", |b| {
         let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let game: Game = serde_json::from_str(game_json).unwrap();
 
@@ -27,7 +28,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("compact a-prime start_of_game", |b| {
+    g.bench_function("compact start_of_game", |b| {
         let game_json = include_str!("../fixtures/start_of_game.json");
         let game: Game = serde_json::from_str(game_json).unwrap();
 
@@ -44,7 +45,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("compact a-prime a-prime-food-maze", |b| {
+    g.bench_function("compact a-prime-food-maze", |b| {
         let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let game: Game = serde_json::from_str(game_json).unwrap();
 
