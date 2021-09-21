@@ -44,13 +44,14 @@ jobs:
       - run:
           name: Autoclean Cargo cache before storing
           command: cargo-cache || (cargo install cargo-cache --force --git https://github.com/matthiaskrgr/cargo-cache.git --no-default-features --features ci-autoclean && cargo-cache)
+
       - save_cache:
           key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - /usr/local/cargo
             - target/debug
 
-  bench-devin:
+  bench:
     docker:
       - image: rust:latest
     resource_class: medium
@@ -70,13 +71,13 @@ jobs:
           keys:
             - v2-criterion-baseline
 
-      - run: cargo bench --bench my_benchmark
+      - run: cargo bench
 
       - store_artifacts:
           path: target/criterion
           destination: criterion
 
-  profile-devin:
+  profile:
     docker:
       - image: rust:latest
     resource_class: small
@@ -92,7 +93,8 @@ jobs:
             - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run: cd battlesnake-rs/
-      - run: cargo bench --bench my_benchmark -- --profile-time 60
+      - run: cargo bench --bench devin -- --profile-time 60
+      - run: cargo bench --bench a-prime -- --profile-time 60
       - store_artifacts:
           path: target/criterion
           destination: criterion
@@ -102,5 +104,5 @@ workflows:
     jobs:
       - test-rust
       - lint-rust
-      - profile-devin
-      - bench-devin
+      - profile
+      - bench

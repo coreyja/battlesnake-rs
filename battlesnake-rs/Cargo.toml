@@ -26,5 +26,9 @@ name = "battlesnake_rs"
 path = "src/lib.rs"
 
 [[bench]]
-name = "my_benchmark"
+name = "devin"
+harness = false
+
+[[bench]]
+name = "a-prime"
 harness = false
