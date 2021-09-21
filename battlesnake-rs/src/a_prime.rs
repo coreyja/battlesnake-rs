@@ -283,7 +283,7 @@ impl APrimeCalculable for Game {
 mod tests {
     use super::*;
     use battlesnake_game_types::{
-        compact_representation::CellBoard4Snakes11x11, wire_representation::Game,
+        compact_representation::CellBoard4Snakes11x11, wire_representation::Game, *,
     };
 
     fn cell_index_from_position_default_width(pos: Position) -> CellIndex<u8> {
@@ -388,5 +388,39 @@ mod tests {
             ),
             Some(8)
         );
+    }
+
+    #[test]
+    fn test_start_of_game_path() {
+        let board_json = include_str!("../fixtures/start_of_game.json");
+        let game: Game = serde_json::from_str(board_json).unwrap();
+        let id_map = build_snake_id_map(&game);
+
+        let wire_path = game.shortest_path(
+            &game.get_head_as_native_position(game.you_id()),
+            &game.get_all_food_as_native_positions(),
+            None,
+        );
+
+        let compact: CellBoard4Snakes11x11 =
+            battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+                game.clone(),
+                &id_map,
+            )
+            .unwrap();
+
+        let compact_path = compact.shortest_path(
+            &compact.get_head_as_native_position(compact.you_id()),
+            &compact.get_all_food_as_native_positions(),
+            None,
+        );
+
+        dbg!(&compact_path);
+        let width = ((11 * 11) as f32).sqrt() as u8;
+        let compact_path_as_wire: Vec<Position> = compact_path
+            .into_iter()
+            .map(|x| x.into_position(width))
+            .collect();
+        assert_eq!(wire_path, compact_path_as_wire);
     }
 }
