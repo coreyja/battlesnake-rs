@@ -479,7 +479,7 @@ pub struct FullDeviousDevinFactory;
 
 impl BattlesnakeFactory for FullDeviousDevinFactory {
     fn name(&self) -> String {
-        "devious-devin-full".to_owned()
+        "devious-devin".to_owned()
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {

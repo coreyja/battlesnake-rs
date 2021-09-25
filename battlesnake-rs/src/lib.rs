@@ -216,7 +216,7 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(BombasticBobFactory {}),
         Box::new(ConstantCarterFactory {}),
         Box::new(FullDeviousDevinFactory {}),
-        Box::new(devious_devin::DeviousDevinFactory {}),
+        // Box::new(devious_devin::DeviousDevinFactory {}),
         Box::new(EremeticEricFactory {}),
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
