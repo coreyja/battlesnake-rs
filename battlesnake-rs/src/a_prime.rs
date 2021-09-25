@@ -2,8 +2,9 @@ use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellN
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::{Game, Position};
 
+use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
 const NEIGHBOR_DISTANCE: i32 = 1;
 const HAZARD_PENALTY: i32 = 1;
@@ -11,7 +12,7 @@ const HEURISTIC_MAX: i32 = 500;
 
 pub struct APrimeResult<T> {
     best_cost: i32,
-    paths_from: HashMap<T, Option<T>>,
+    paths_from: FxHashMap<T, Option<T>>,
     best_target: T,
 }
 
@@ -128,8 +129,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
         options: Option<APrimeOptions>,
     ) -> Option<APrimeResult<Self::NativePositionType>> {
         let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
-        let mut paths_from: HashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
-            HashMap::new();
+        let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
+            FxHashMap::default();
 
         if targets.is_empty() {
             return None;
@@ -137,7 +138,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
 
         let mut to_search: BinaryHeap<Node<Self::NativePositionType>> = BinaryHeap::new();
 
-        let mut known_score: HashMap<Self::NativePositionType, i32> = HashMap::new();
+        let mut known_score: FxHashMap<Self::NativePositionType, i32> = FxHashMap::default();
 
         to_search.push(Node {
             cost: 0,
@@ -220,7 +221,7 @@ impl APrimeCalculable for Game {
         options: Option<APrimeOptions>,
     ) -> Option<APrimeResult<Position>> {
         let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
-        let mut paths_from: HashMap<Position, Option<Position>> = HashMap::new();
+        let mut paths_from: FxHashMap<Position, Option<Position>> = FxHashMap::default();
 
         if targets.is_empty() {
             return None;
@@ -228,7 +229,7 @@ impl APrimeCalculable for Game {
 
         let mut to_search: BinaryHeap<Node<Position>> = BinaryHeap::new();
 
-        let mut known_score: HashMap<Position, i32> = HashMap::new();
+        let mut known_score: FxHashMap<Position, i32> = FxHashMap::default();
 
         to_search.push(Node {
             cost: 0,
