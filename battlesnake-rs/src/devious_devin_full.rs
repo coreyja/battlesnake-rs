@@ -231,7 +231,7 @@ fn minimax_min<
         } else {
             beta = std::cmp::min(beta, value);
         }
-        if beta <= alpha {
+        if beta < alpha {
             break;
         }
     }
@@ -396,7 +396,7 @@ where
         } else {
             beta = std::cmp::min(beta, value);
         }
-        if beta <= alpha {
+        if beta < alpha {
             break;
         }
     }
