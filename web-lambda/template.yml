@@ -11,7 +11,7 @@ Globals:
     Timeout: 1
 
 Resources:
-  BattlesnakeFunction:
+  Devin:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: "../target/lambda/web-lambda.zip"
@@ -19,9 +19,20 @@ Resources:
       Runtime: provided
       MemorySize: 2048
       Timeout: 1
-      Environment:
-        Variables:
-          SOMETHING_TO_CHANGE_TO_FORCE_DEPLOYS: 1
+      Events:
+        WebApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: '/devious-devin/{path+}'
+            Method: Any
+  BattlesnakeFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: "../target/lambda/web-lambda.zip"
+      Handler: N/A
+      Runtime: provided
+      MemorySize: 256
+      Timeout: 1
       Events:
         WebApiEvent:
           Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
