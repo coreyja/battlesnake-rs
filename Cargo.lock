@@ -187,8 +187,9 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "battlesnake-game-types"
-version = "0.5.0"
-source = "git+https://github.com/coreyja/battlesnake-game-types.git?branch=ca/main/add-more-interfaces#6d2df899ccc51ae9006ac858042eb91384d01ebe"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddef79e63dc63f4e6f8d4a89bf129d624e79b7057a8817272be0e423b7cc352e"
 dependencies = [
  "fxhash",
  "itertools",
