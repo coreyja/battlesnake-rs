@@ -76,7 +76,8 @@ pub enum ScoreEndState {
 impl ScoreEndState {
     pub fn terminal_depth(&self) -> Option<i64> {
         match &self {
-            ScoreEndState::Win(d) | ScoreEndState::Tie(d) | ScoreEndState::Lose(d) => Some(*d),
+            ScoreEndState::Win(d) => Some(-d),
+            ScoreEndState::Tie(d) | ScoreEndState::Lose(d) => Some(*d),
             _ => None,
         }
     }
