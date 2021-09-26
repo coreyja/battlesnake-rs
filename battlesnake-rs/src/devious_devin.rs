@@ -402,7 +402,7 @@ where
         let mut node = node;
         let players = players;
         loop {
-            current_return = Some(minimax(
+            let next = minimax(
                 &mut node,
                 &players,
                 0,
@@ -410,11 +410,14 @@ where
                 BEST_POSSIBLE_SCORE_STATE,
                 current_depth,
                 current_return,
-            ));
+            );
 
-            if tx.send((current_depth, current_return.clone())).is_err() {
+            if tx.send((current_depth, next.clone())).is_err() {
                 return;
             }
+
+            current_return = Some(next);
+
             current_depth += players.len();
         }
     });
@@ -423,8 +426,9 @@ where
 
     while started_at.elapsed() < Duration::new(0, 400_000_000) {
         if let Ok((depth, result)) = rx.try_recv() {
-            current = result;
-            info!(depth, current_score = ?current.as_ref().map(|x| x.score()), current_direction = ?current.as_ref().map(|x| x.direction_for(&me_id)), "Just finished depth");
+            info!(depth, current_score = ?result.score(), current_direction = ?result.direction_for(&me_id), "Just finished depth");
+
+            current = Some((depth, result));
 
             if depth > RUNAWAY_DEPTH_LIMIT {
                 break;
@@ -432,10 +436,12 @@ where
         }
     }
 
-    info!(score = ?current.as_ref().map(|x| x.score()), "Finished deepened_minimax");
-    current.unwrap_or(MinMaxReturn::Leaf {
-        score: WORT_POSSIBLE_SCORE_STATE,
-    })
+    info!(score = ?current.as_ref().map(|x| x.1.score()), depth = ?current.as_ref().map(|(d, _)| d), "Finished deepened_minimax");
+    current
+        .map(|(_depth, result)| result)
+        .unwrap_or(MinMaxReturn::Leaf {
+            score: WORT_POSSIBLE_SCORE_STATE,
+        })
 }
 
 pub fn minmax_bench_entry<T>(mut game_state: T, max_turns: usize) -> MinMaxReturn<T>

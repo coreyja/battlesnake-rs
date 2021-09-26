@@ -8,17 +8,18 @@ use serde_json::json;
 
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
 
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let subscriber = tracing_subscriber::registry::Registry::default()
-        .with(tracing_subscriber::filter::LevelFilter::INFO)
-        .with(tracing_subscriber::fmt::Layer::default());
-
-    tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
+    let env_filter = EnvFilter::from_default_env();
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .json()
+        .flatten_event(true)
+        .init();
 
     let factories: Vec<_> = all_factories().into_iter().map(Arc::new).collect();
 

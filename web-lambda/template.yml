@@ -9,6 +9,23 @@ Description: >
 Globals:
   Function:
     Timeout: 1
+    Layers:
+      - !Sub "arn:aws:lambda:${AWS::Region}:702835727665:layer:honeycomb-lambda-extension:8"
+    Environment:
+      Variables:
+        LIBHONEY_DATASET: !Ref HoneycombDataset
+        LIBHONEY_API_KEY: !Ref HoneycombApiKey
+        RUST_LOG: info
+
+Parameters:
+  HoneycombApiKey:
+    Type: String
+    Description: API Key for Honeycomb
+  HoneycombDataset:
+    Type: String
+    Description: Honeycomb Dataset to send to
+    Default: battlesnake-stats
+
 
 Resources:
   Devin:

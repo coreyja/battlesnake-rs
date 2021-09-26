@@ -443,18 +443,21 @@ where
         let mut current_depth = 2;
         let mut current_return = None;
         loop {
-            current_return = Some(minimax(
+            let next = minimax(
                 &node,
                 0,
                 WORT_POSSIBLE_SCORE_STATE,
                 BEST_POSSIBLE_SCORE_STATE,
                 current_depth,
                 current_return,
-            ));
+            );
 
-            if tx.send((current_depth, current_return.clone())).is_err() {
+            if tx.send((current_depth, next.clone())).is_err() {
                 return;
             }
+
+            current_return = Some(next);
+
             current_depth += 2;
         }
     });
@@ -463,8 +466,9 @@ where
 
     while started_at.elapsed() < Duration::new(0, 400_000_000) {
         if let Ok((depth, result)) = rx.try_recv() {
-            current = result;
-            info!(depth, current_score = ?current.as_ref().map(|x| x.score()), current_direction = ?current.as_ref().map(|x| x.my_best_move()), "Just finished depth");
+            info!(depth, current_score = ?result.score(), current_direction = ?result.my_best_move(), "Just finished depth");
+
+            current = Some((depth, result));
 
             if depth > RUNAWAY_DEPTH_LIMIT {
                 break;
@@ -472,7 +476,13 @@ where
         }
     }
 
-    current.expect("We weren't able to do even a single layer of minmax")
+    if let Some((depth, result)) = &current {
+        info!(depth, score = ?result.score(), direction = ?result.my_best_move(), "Finished deepened_minimax");
+    }
+
+    current
+        .map(|(_depth, result)| result)
+        .expect("We weren't able to do even a single layer of minmax")
 }
 
 pub struct FullDeviousDevinFactory;
