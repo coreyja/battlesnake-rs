@@ -473,6 +473,7 @@ where
 
             if let Some(terminal_depth) = current_score.terminal_depth() {
                 if depth > (terminal_depth as usize) {
+                    info!(depth, "This game is over, no need to keep going");
                     break;
                 }
             }
