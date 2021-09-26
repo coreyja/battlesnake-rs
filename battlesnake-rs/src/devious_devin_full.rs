@@ -13,10 +13,12 @@ use std::fmt::Debug;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tracing::info;
+use tracing::{info, info_span};
 
 pub struct FullDeviousDevin<T> {
     game: T,
+    game_id: String,
+    turn: i32,
 }
 
 #[derive(Serialize)]
@@ -49,7 +51,9 @@ where
         + 'static,
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let best_option = deepened_minimax(self.game.clone());
+        let best_option = info_span!("deepened_minmax", game_id = %&self.game_id, turn = self.turn)
+            .in_scope(|| self.deepened_minimax());
+
         let dir = best_option.my_best_move();
 
         Ok(MoveOutput {
@@ -418,7 +422,7 @@ where
     }
 }
 
-fn deepened_minimax<T>(node: T) -> MinMaxReturn<T>
+impl<T> FullDeviousDevin<T>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -434,63 +438,67 @@ where
         + APrimeCalculable
         + FoodGettableGame,
 {
-    const RUNAWAY_DEPTH_LIMIT: usize = 100;
+    fn deepened_minimax(&self) -> MinMaxReturn<T> {
+        let node = self.game.clone();
 
-    let started_at = Instant::now();
+        const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
-    let (tx, rx) = mpsc::channel();
-    thread::spawn(move || {
-        let mut current_depth = 2;
-        let mut current_return = None;
-        loop {
-            let next = minimax(
-                &node,
-                0,
-                WORT_POSSIBLE_SCORE_STATE,
-                BEST_POSSIBLE_SCORE_STATE,
-                current_depth,
-                current_return,
-            );
+        let started_at = Instant::now();
 
-            if tx.send((current_depth, next.clone())).is_err() {
-                return;
-            }
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let mut current_depth = 2;
+            let mut current_return = None;
+            loop {
+                let next = minimax(
+                    &node,
+                    0,
+                    WORT_POSSIBLE_SCORE_STATE,
+                    BEST_POSSIBLE_SCORE_STATE,
+                    current_depth,
+                    current_return,
+                );
 
-            current_return = Some(next);
-
-            current_depth += 2;
-        }
-    });
-
-    let mut current = None;
-
-    while started_at.elapsed() < Duration::new(0, 400_000_000) {
-        if let Ok((depth, result)) = rx.try_recv() {
-            let current_score = result.score();
-            info!(depth, current_score = ?&current_score, current_direction = ?result.my_best_move(), "Just finished depth");
-
-            current = Some((depth, result));
-
-            if let Some(terminal_depth) = current_score.terminal_depth() {
-                if depth > (terminal_depth as usize) {
-                    info!(depth, "This game is over, no need to keep going");
-                    break;
+                if tx.send((current_depth, next.clone())).is_err() {
+                    return;
                 }
+
+                current_return = Some(next);
+
+                current_depth += 2;
             }
+        });
 
-            if depth > RUNAWAY_DEPTH_LIMIT {
-                break;
-            };
+        let mut current = None;
+
+        while started_at.elapsed() < Duration::new(0, 400_000_000) {
+            if let Ok((depth, result)) = rx.try_recv() {
+                let current_score = result.score();
+                info!(depth, current_score = ?&current_score, current_direction = ?result.my_best_move(), "Just finished depth");
+
+                current = Some((depth, result));
+
+                if let Some(terminal_depth) = current_score.terminal_depth() {
+                    if depth > (terminal_depth as usize) {
+                        info!(depth, "This game is over, no need to keep going");
+                        break;
+                    }
+                }
+
+                if depth > RUNAWAY_DEPTH_LIMIT {
+                    break;
+                };
+            }
         }
-    }
 
-    if let Some((depth, result)) = &current {
-        info!(depth, score = ?result.score(), direction = ?result.my_best_move(), "Finished deepened_minimax");
-    }
+        if let Some((depth, result)) = &current {
+            info!(depth, score = ?result.score(), direction = ?result.my_best_move(), "Finished deepened_minimax");
+        }
 
-    current
-        .map(|(_depth, result)| result)
-        .expect("We weren't able to do even a single layer of minmax")
+        current
+            .map(|(_depth, result)| result)
+            .expect("We weren't able to do even a single layer of minmax")
+    }
 }
 
 pub struct FullDeviousDevinFactory;
@@ -502,8 +510,15 @@ impl BattlesnakeFactory for FullDeviousDevinFactory {
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
         let id_map = build_snake_id_map(&game);
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        Box::new(FullDeviousDevin { game })
+        let game_id = game.game.id.clone();
+        let turn = game.turn;
+        let compact = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        Box::new(FullDeviousDevin {
+            game_id,
+            turn,
+            game: compact,
+        })
     }
 
     fn about(&self) -> AboutMe {
