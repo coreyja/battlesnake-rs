@@ -83,11 +83,11 @@ pub enum MinMaxReturn<T: SnakeIDGettableGame + Clone + Debug> {
 }
 
 impl<T: SnakeIDGettableGame + Clone + Debug> MinMaxReturn<T> {
-    fn score(&self) -> &ScoreEndState {
+    fn score(&self) -> ScoreEndState {
         match self {
-            MinMaxReturn::MinLayer { score, .. } => score,
-            MinMaxReturn::MaxLayer { score, .. } => score,
-            MinMaxReturn::Leaf { score } => score,
+            MinMaxReturn::MinLayer { score, .. } => *score,
+            MinMaxReturn::MaxLayer { score, .. } => *score,
+            MinMaxReturn::Leaf { score } => *score,
         }
     }
 
@@ -223,7 +223,7 @@ fn minimax_min<
     for (_, prev, moves, board) in other_moves_and_baords.into_iter() {
         let next_move_return = minimax(&board, depth + 1, alpha, beta, max_depth, prev);
 
-        let value = *next_move_return.score();
+        let value = next_move_return.score();
         options.push((moves, next_move_return));
 
         if is_maximizing {
@@ -236,16 +236,16 @@ fn minimax_min<
         }
     }
 
-    options.sort_by_cached_key(|(_, value)| *value.score());
+    options.sort_by_cached_key(|(_, value)| value.score());
 
     if is_maximizing {
         options.reverse();
     }
 
-    let chosen_score = *options
+    let chosen_score = options
         .first()
         .map(|x| x.1.score())
-        .unwrap_or(&ScoreEndState::Lose(0));
+        .unwrap_or(ScoreEndState::Lose(0));
 
     MinMaxReturn::MinLayer {
         options,
@@ -388,7 +388,7 @@ where
             max_depth,
             previous_return,
         );
-        let value = *next_move_return.score();
+        let value = next_move_return.score();
         options.push((you_move.1, next_move_return));
 
         if is_maximizing {
@@ -401,16 +401,16 @@ where
         }
     }
 
-    options.sort_by_cached_key(|(_, value)| *value.score());
+    options.sort_by_cached_key(|(_, value)| value.score());
 
     if is_maximizing {
         options.reverse();
     }
-    // let chosen_score = *options[0].1.score();
-    let chosen_score = *options
+
+    let chosen_score = options
         .first()
         .map(|x| x.1.score())
-        .unwrap_or(&ScoreEndState::Lose(0));
+        .unwrap_or(ScoreEndState::Lose(0));
 
     MinMaxReturn::MaxLayer {
         options,
@@ -466,9 +466,16 @@ where
 
     while started_at.elapsed() < Duration::new(0, 400_000_000) {
         if let Ok((depth, result)) = rx.try_recv() {
-            info!(depth, current_score = ?result.score(), current_direction = ?result.my_best_move(), "Just finished depth");
+            let current_score = result.score();
+            info!(depth, current_score = ?&current_score, current_direction = ?result.my_best_move(), "Just finished depth");
 
             current = Some((depth, result));
+
+            if let Some(terminal_depth) = current_score.terminal_depth() {
+                if depth > (terminal_depth as usize) {
+                    break;
+                }
+            }
 
             if depth > RUNAWAY_DEPTH_LIMIT {
                 break;

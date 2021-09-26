@@ -73,6 +73,15 @@ pub enum ScoreEndState {
     Win(i64),
 }
 
+impl ScoreEndState {
+    pub fn terminal_depth(&self) -> Option<i64> {
+        match &self {
+            ScoreEndState::Win(d) | ScoreEndState::Tie(d) | ScoreEndState::Lose(d) => Some(*d),
+            _ => None,
+        }
+    }
+}
+
 pub const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
 pub const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
 
