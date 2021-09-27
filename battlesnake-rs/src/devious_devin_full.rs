@@ -4,8 +4,9 @@ use crate::devious_devin::{
 };
 use crate::*;
 
+use battlesnake_game_types::compact_representation::{BestCellBoard, ToBestCellBoard};
 use battlesnake_game_types::types::*;
-use battlesnake_game_types::wire_representation::Game;
+use battlesnake_game_types::wire_representation::{Game, NestedGame};
 use itertools::Itertools;
 use std::clone::Clone;
 use std::collections::HashMap;
@@ -17,7 +18,7 @@ use tracing::{info, info_span};
 
 pub struct FullDeviousDevin<T> {
     game: T,
-    game_id: String,
+    game_info: NestedGame,
     turn: i32,
 }
 
@@ -51,8 +52,9 @@ where
         + 'static,
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let best_option = info_span!("deepened_minmax", game_id = %&self.game_id, turn = self.turn)
-            .in_scope(|| self.deepened_minimax());
+        let best_option =
+            info_span!("deepened_minmax", game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version)
+                .in_scope(|| self.deepened_minimax());
 
         let dir = best_option.my_best_move();
 
@@ -438,6 +440,15 @@ where
         + APrimeCalculable
         + FoodGettableGame,
 {
+    fn time_limit_ms(&self) -> i64 {
+        const NETWORK_LATENCY_PADDING: i64 = 100;
+        self.game_info.timeout - NETWORK_LATENCY_PADDING
+    }
+
+    fn max_duration(&self) -> Duration {
+        Duration::new(0, (self.time_limit_ms() * 1_000_000).try_into().unwrap())
+    }
+
     fn deepened_minimax(&self) -> MinMaxReturn<T> {
         let node = self.game.clone();
 
@@ -471,7 +482,9 @@ where
 
         let mut current = None;
 
-        while started_at.elapsed() < Duration::new(0, 400_000_000) {
+        let max_duration = self.max_duration();
+
+        while started_at.elapsed() < max_duration {
             if let Ok((depth, result)) = rx.try_recv() {
                 let current_score = result.score();
                 info!(depth, current_score = ?&current_score, current_direction = ?result.my_best_move(), "Just finished depth");
@@ -509,16 +522,29 @@ impl BattlesnakeFactory for FullDeviousDevinFactory {
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
-        let id_map = build_snake_id_map(&game);
-        let game_id = game.game.id.clone();
+        let game_info = game.game.clone();
         let turn = game.turn;
-        let compact = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        Box::new(FullDeviousDevin {
-            game_id,
-            turn,
-            game: compact,
-        })
+        let best_board = game.to_best_cell_board().unwrap();
+        let inner: BoxedSnake = match best_board {
+            BestCellBoard::Standard(b) => Box::new(FullDeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::Large(b) => Box::new(FullDeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::Silly(b) => Box::new(FullDeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+        };
+
+        inner
     }
 
     fn about(&self) -> AboutMe {
