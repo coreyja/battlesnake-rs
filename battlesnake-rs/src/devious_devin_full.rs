@@ -10,7 +10,7 @@ use battlesnake_game_types::wire_representation::{Game, NestedGame};
 use itertools::Itertools;
 use std::clone::Clone;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -528,6 +528,11 @@ impl BattlesnakeFactory for FullDeviousDevinFactory {
         let best_board = game.to_best_cell_board().unwrap();
         let inner: BoxedSnake = match best_board {
             BestCellBoard::Standard(b) => Box::new(FullDeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::LargestU8(b) => Box::new(FullDeviousDevin {
                 game_info,
                 turn,
                 game: *b,
