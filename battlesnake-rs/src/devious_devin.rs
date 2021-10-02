@@ -215,7 +215,6 @@ where
         + VictorDeterminableGame
         + MoveableGame
         + HeadGettableGame
-        + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
         + FoodGettableGame,
@@ -288,16 +287,7 @@ where
 
             let is_maximizing = snake_id == node.you_id();
 
-            // let possible_moves: Vec<_> = node
-            //     .board
-            //     .snakes
-            //     .iter()
-            //     .find(|s| s.id == snake.id)
-            //     .expect("We didn't find that snake")
-            //     .body[0]
-            //     .possible_moves(&node.board)
-            //     .collect();
-            let possible_moves = node.possible_moves(&node.get_head_as_native_position(&snake_id));
+            let possible_moves = node.possible_moves(&node.get_head_as_native_position(snake_id));
 
             let possible_zipped: Vec<((Move, T::NativePositionType), Option<MinMaxReturn<T>>)> =
                 if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
@@ -321,7 +311,7 @@ where
                 };
 
             for ((dir, coor), previous_return) in possible_zipped.into_iter() {
-                let last_move = node.move_to(&coor, &snake_id);
+                let last_move = node.move_to(&coor, snake_id);
                 let next_move_return = minimax(
                     node,
                     players,

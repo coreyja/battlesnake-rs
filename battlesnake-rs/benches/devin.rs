@@ -43,7 +43,6 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     group.bench_function("compact full-minmax iterative deepened", |b| {
         b.iter(|| {
             let game_state: Game = serde_json::from_str(game_json).unwrap();
-            // let devin = (FullDeviousDevinFactory {}).from_wire_game(game_state);
             let id_map = build_snake_id_map(&game_state);
             let game_state: battlesnake_game_types::compact_representation::CellBoard8Snakes25x25 =
                 CellBoard::convert_from_game(game_state, &id_map).unwrap();
