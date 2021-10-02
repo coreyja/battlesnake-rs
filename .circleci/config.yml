@@ -94,7 +94,7 @@ jobs:
 
       - run: cd battlesnake-rs/
       - run:
-           command: cargo bench --bench devin --verbose -- --profile-time 5
+           command: cargo bench --bench devin -- --profile-time 5 --verbose
            no_output_timeout: 30m
       # - run: cargo bench --bench a-prime -- --profile-time 60
       - store_artifacts:
