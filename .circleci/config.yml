@@ -80,7 +80,7 @@ jobs:
   profile:
     docker:
       - image: rust:latest
-    resource_class: small
+    resource_class: large
     steps:
       - checkout
 
