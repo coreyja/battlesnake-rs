@@ -7,7 +7,7 @@
       "minimumFood": "1",
       "name": "royale",
       "shrinkEveryNTurns": "25",
-      "version": 1
+      "version": "1"
     },
     "timeout": 500
   },
