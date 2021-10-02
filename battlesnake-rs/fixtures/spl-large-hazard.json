@@ -1,0 +1,166 @@
+{
+  "game": {
+    "id": "33a10ddd-62f2-4438-80d9-4d2c84ec9da4",
+    "ruleset": {
+      "damagePerTurn": "14",
+      "foodSpawnChance": "15",
+      "minimumFood": "1",
+      "name": "royale",
+      "shrinkEveryNTurns": "25"
+    },
+    "timeout": 500
+  },
+  "turn": 0,
+  "board": {
+    "width": 25,
+    "height": 25,
+    "food": [
+      { "x": 8, "y": 1 },
+      { "x": 22, "y": 1 },
+      { "x": 14, "y": 8 },
+      { "x": 5, "y": 23 },
+      { "x": 19, "y": 11 },
+      { "x": 15, "y": 14 },
+      { "x": 5, "y": 12 },
+      { "x": 11, "y": 21 }
+    ],
+    "hazards": [],
+    "snakes": [
+      {
+        "id": "gs_wj4MwDYWRRvXWbKFjCTr3BGJ",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 13, "y": 17 },
+          { "x": 13, "y": 17 },
+          { "x": 13, "y": 17 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 13, "y": 17 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_7Ccm6YjrDDqmxtQXMGF6tFQB",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 23, "y": 5 },
+          { "x": 23, "y": 5 },
+          { "x": 23, "y": 5 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 23, "y": 5 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_YpSGfDGmXRthWvrjrQ74pkVT",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 20, "y": 10 },
+          { "x": 20, "y": 10 },
+          { "x": 20, "y": 10 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 20, "y": 10 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_BDyJmmRYYvB7GmXSx8XHHjw8",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 9, "y": 13 },
+          { "x": 9, "y": 13 },
+          { "x": 9, "y": 13 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 9, "y": 13 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_R9DXxKqPj4CkgGJbrtqxHrQQ",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 13, "y": 1 },
+          { "x": 13, "y": 1 },
+          { "x": 13, "y": 1 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 13, "y": 1 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_6RbVDjtfDJYtjM4WwXykKG33",
+        "name": "Devious Devin",
+        "body": [
+          { "x": 16, "y": 20 },
+          { "x": 16, "y": 20 },
+          { "x": 16, "y": 20 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 16, "y": 20 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_7V9BdpTC9D6RJM38PPJmDFtK",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 12, "y": 0 },
+          { "x": 12, "y": 0 },
+          { "x": 12, "y": 0 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 12, "y": 0 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      },
+      {
+        "id": "gs_xjKPMGJDdhgXkxptVhvCWfwH",
+        "name": "Amphibious Arthur",
+        "body": [
+          { "x": 13, "y": 7 },
+          { "x": 13, "y": 7 },
+          { "x": 13, "y": 7 }
+        ],
+        "health": 100,
+        "latency": null,
+        "head": { "x": 13, "y": 7 },
+        "length": 3,
+        "shout": "",
+        "squad": ""
+      }
+    ]
+  },
+  "you": {
+    "id": "gs_6RbVDjtfDJYtjM4WwXykKG33",
+    "name": "Devious Devin",
+    "body": [
+      { "x": 16, "y": 20 },
+      { "x": 16, "y": 20 },
+      { "x": 16, "y": 20 }
+    ],
+    "health": 100,
+    "latency": null,
+    "head": { "x": 16, "y": 20 },
+    "length": 3,
+    "shout": "",
+    "squad": ""
+  }
+}
