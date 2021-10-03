@@ -549,3 +549,13 @@ impl BattlesnakeFactory for DeviousDevinFactory {
 
 #[cfg(test)]
 mod tests {}
+
+trait MoveEvaluatableGame: SnakeIDGettableGame {
+    fn evaluate_moves(&self, moves: Vec<(Self::SnakeIDType, Move)>) -> Self;
+}
+
+impl MoveEvaluatableGame for CellBoard4Snakes11x11 {
+    fn evaluate_moves(&self, moves: Vec<(Self::SnakeIDType, Move)>) -> Self {
+        todo!()
+    }
+}
