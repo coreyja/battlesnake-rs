@@ -15,6 +15,7 @@
       { "x": 9, "y": 5 }
     ],
     "head": { "x": 9, "y": 5 },
+    "latency": null,
     "length": 3
   },
   "board": {
@@ -37,6 +38,7 @@
           { "x": 9, "y": 5 }
         ],
         "head": { "x": 9, "y": 5 },
+        "latency": null,
         "length": 3
       },
       {
@@ -49,6 +51,10 @@
           { "x": 5, "y": 9 }
         ],
         "head": { "x": 5, "y": 9 },
+<<<<<<< HEAD
+=======
+        "latency": null,
+>>>>>>> main
         "length": 3
       },
       {
@@ -61,6 +67,7 @@
           { "x": 1, "y": 1 }
         ],
         "head": { "x": 1, "y": 1 },
+        "latency": null,
         "length": 3
       }
     ]
