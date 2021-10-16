@@ -11,6 +11,7 @@ pub mod a_prime;
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
+pub mod devious_devin_eval;
 pub mod devious_devin_full;
 pub mod devious_devin_mutable;
 pub mod eremetic_eric;

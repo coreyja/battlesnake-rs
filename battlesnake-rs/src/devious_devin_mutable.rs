@@ -171,7 +171,7 @@ pub enum MinMaxReturn<T: SnakeIDGettableGame + Clone + Debug> {
 }
 
 impl<T: SnakeIDGettableGame + Clone + Debug> MinMaxReturn<T> {
-    fn score(&self) -> &ScoreEndState {
+    pub fn score(&self) -> &ScoreEndState {
         match self {
             MinMaxReturn::Node { score, .. } => score,
             MinMaxReturn::Nature { score, .. } => score,
@@ -179,7 +179,7 @@ impl<T: SnakeIDGettableGame + Clone + Debug> MinMaxReturn<T> {
         }
     }
 
-    fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
+    pub fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
             MinMaxReturn::Nature { next, .. } => next.direction_for(snake_id),
