@@ -370,7 +370,7 @@ where
     let snake_ids = node.get_snake_ids();
 
     let snake_moves = if snake_ids.len() > 4 {
-        let me_head = node.get_head_as_native_position(node.you_id());
+        let me_head = node.get_head_as_native_position(you_id);
 
         let mut snake_distances = snake_ids
             .iter()
@@ -385,13 +385,13 @@ where
             .collect_vec();
         snake_distances.sort_by_key(|(_, dist)| dist.unwrap_or(i32::MAX));
 
-        let closest_snakes = snake_distances[0..4].iter().map(|x| x.0).collect_vec();
+        let closest_snakes = snake_distances[0..3].iter().map(|x| x.0).collect_vec();
 
         let mut rng = thread_rng();
         snake_ids
             .iter()
             .map(|sid| {
-                let ms = if closest_snakes.contains(&sid) {
+                let ms = if sid == you_id || closest_snakes.contains(&sid) {
                     Move::all()
                 } else {
                     vec![
