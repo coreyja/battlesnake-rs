@@ -1,5 +1,5 @@
 use crate::a_prime::APrimeCalculable;
-use crate::devious_devin::{
+use crate::devious_devin_mutable::{
     score, Instruments, ScoreEndState, BEST_POSSIBLE_SCORE_STATE, WORT_POSSIBLE_SCORE_STATE,
 };
 use crate::*;
@@ -11,7 +11,7 @@ use itertools::Itertools;
 use rand::prelude::*;
 use std::clone::Clone;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -48,7 +48,6 @@ where
         + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
-        + Display
         + FoodGettableGame
         + Send
         + 'static,
@@ -198,7 +197,6 @@ fn minimax_min<
         + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
-        + Display
         + FoodGettableGame,
 >(
     other_moves_and_baords: Vec<(Vec<(T::SnakeIDType, Move)>, T)>,
@@ -275,7 +273,6 @@ where
         + LengthGettableGame
         + HeadGettableGame
         + std::clone::Clone
-        + Display
         + SimulableGame<Instruments>,
 {
     let max_depth = max_turns * 2;
@@ -300,7 +297,6 @@ where
         + LengthGettableGame
         + HeadGettableGame
         + std::clone::Clone
-        + Display
         + SimulableGame<Instruments>,
 {
     let max_depth = max_turns * 2;
@@ -340,7 +336,6 @@ where
         + LengthGettableGame
         + HeadGettableGame
         + std::clone::Clone
-        + Display
         + SimulableGame<Instruments>,
 {
     if let Some(MinMaxReturn::MinLayer { .. }) = previous_return {
@@ -489,7 +484,6 @@ where
         + HealthGettableGame
         + Clone
         + APrimeCalculable
-        + Display
         + FoodGettableGame,
 {
     fn time_limit_ms(&self) -> i64 {

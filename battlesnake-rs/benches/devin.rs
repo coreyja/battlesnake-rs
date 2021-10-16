@@ -48,14 +48,17 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     group.bench_function("wire partial-minmax", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
-            battlesnake_rs::devious_devin::minmax_bench_entry(black_box(game), max_turns)
+            battlesnake_rs::devious_devin_mutative::minmax_bench_entry(black_box(game), max_turns)
         })
     });
 
     group.bench_function("wire partial-minmax iterative deepened", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
-            battlesnake_rs::devious_devin::minmax_deepened_bench_entry(black_box(game), max_turns)
+            battlesnake_rs::devious_devin_mutative::minmax_deepened_bench_entry(
+                black_box(game),
+                max_turns,
+            )
         })
     });
 
