@@ -51,9 +51,7 @@ where
             .collect();
 
         let head = you_body.first().unwrap();
-        let dir = self
-            .game
-            .shortest_path_next_direction(head, &targets, None);
+        let dir = self.game.shortest_path_next_direction(head, &targets, None);
 
         let dir = if let Some(s) = dir {
             s

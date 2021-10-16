@@ -405,8 +405,7 @@ mod tests {
 
         let compact: CellBoard4Snakes11x11 =
             battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
-                game,
-                &id_map,
+                game, &id_map,
             )
             .unwrap();
 
