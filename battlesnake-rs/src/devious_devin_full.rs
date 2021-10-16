@@ -8,9 +8,10 @@ use battlesnake_game_types::compact_representation::{BestCellBoard, ToBestCellBo
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::{Game, NestedGame};
 use itertools::Itertools;
+use rand::prelude::*;
 use std::clone::Clone;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -366,7 +367,52 @@ where
         return MinMaxReturn::Leaf { score };
     }
 
-    let all_possible_next_moves = node.simulate(&Instruments, node.get_snake_ids());
+    let snake_ids = node.get_snake_ids();
+
+    let snake_moves = if snake_ids.len() > 4 {
+        let me_head = node.get_head_as_native_position(node.you_id());
+
+        let mut snake_distances = snake_ids
+            .iter()
+            .map(|sid| {
+                let oppenent_head = node.get_head_as_native_position(sid);
+
+                (
+                    sid,
+                    node.shortest_distance(&me_head, &[oppenent_head], None),
+                )
+            })
+            .collect_vec();
+        snake_distances.sort_by_key(|(_, dist)| dist.unwrap_or(i32::MAX));
+
+        let closest_snakes = snake_distances[0..4].iter().map(|x| x.0).collect_vec();
+
+        let mut rng = thread_rng();
+        snake_ids
+            .iter()
+            .map(|sid| {
+                let ms = if closest_snakes.contains(&sid) {
+                    Move::all()
+                } else {
+                    vec![
+                        node.possible_moves(&node.get_head_as_native_position(sid))
+                            .choose(&mut rng)
+                            .unwrap()
+                            .0,
+                    ]
+                };
+
+                (sid.clone(), ms)
+            })
+            .collect_vec()
+    } else {
+        snake_ids
+            .into_iter()
+            .map(|sid| (sid, Move::all()))
+            .collect_vec()
+    };
+
+    let all_possible_next_moves = node.simulate_with_moves(&Instruments, snake_moves);
     let leafs = all_possible_next_moves
         .into_iter()
         .map(|(moves, new_board)| {
