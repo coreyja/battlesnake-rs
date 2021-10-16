@@ -4,6 +4,7 @@ use crate::devious_devin_mutable::{
 };
 use crate::*;
 
+use battlesnake_game_types::compact_representation::MoveEvaluatableGame;
 use battlesnake_game_types::types::*;
 
 use std::sync::mpsc;
@@ -33,9 +34,10 @@ where
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
+        + Copy
         + APrimeCalculable
-        + MoveableGame
         + FoodGettableGame
+        + MoveEvaluatableGame
         + Send
         + 'static,
 {
@@ -68,7 +70,6 @@ where
         + LengthGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
-        + MoveableGame
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
@@ -105,13 +106,14 @@ where
 }
 
 fn minimax<T>(
-    node: &mut T,
+    node: T,
     players: &[T::SnakeIDType],
     depth: usize,
     alpha: ScoreEndState,
     beta: ScoreEndState,
     max_depth: usize,
     previous_return: Option<MinMaxReturn<T>>,
+    pending_moves: Vec<(T::SnakeIDType, Move)>,
 ) -> MinMaxReturn<T>
 where
     T: SnakeIDGettableGame
@@ -121,18 +123,25 @@ where
         + LengthGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
-        + MoveableGame
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
+        + Copy
+        + MoveEvaluatableGame
         + APrimeCalculable
         + FoodGettableGame,
 {
     let mut alpha = alpha;
     let mut beta = beta;
 
+    let node = if pending_moves.len() < players.len() {
+        node
+    } else {
+        node.evaluate_moves(&pending_moves)
+    };
+
     let new_depth = depth.try_into().unwrap();
-    if let Some(s) = wrapped_score(node, new_depth, max_depth as i64, players.len() as i64) {
+    if let Some(s) = wrapped_score(&node, new_depth, max_depth as i64, players.len() as i64) {
         return MinMaxReturn::Leaf { score: s };
     }
 
@@ -165,7 +174,9 @@ where
         };
 
     for ((dir, coor), previous_return) in possible_zipped.into_iter() {
-        let last_move = node.move_to(&coor, &snake_id);
+        // let last_move = node.move_to(&coor, &snake_id);
+        let mut new_pending_moves = pending_moves.clone();
+        new_pending_moves.push((snake_id.clone(), dir));
         let next_move_return = minimax(
             node,
             players,
@@ -174,9 +185,10 @@ where
             beta,
             max_depth,
             previous_return,
+            new_pending_moves,
         );
         let value = *next_move_return.score();
-        node.reverse_move(last_move);
+        // node.reverse_move(last_move);
         options.push((dir, next_move_return));
 
         if is_maximizing {
@@ -214,12 +226,13 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
-        + MoveableGame
         + SimulableGame<Instruments>
         + Clone
+        + Copy
         + Send
         + 'static
         + APrimeCalculable
+        + MoveEvaluatableGame
         + FoodGettableGame,
 {
     const RUNAWAY_DEPTH_LIMIT: usize = 2_000;
@@ -231,17 +244,17 @@ where
     thread::spawn(move || {
         let mut current_depth = players.len();
         let mut current_return = None;
-        let mut node = node;
         let players = players;
         loop {
             let next = minimax(
-                &mut node,
+                node,
                 &players,
                 0,
                 WORT_POSSIBLE_SCORE_STATE,
                 BEST_POSSIBLE_SCORE_STATE,
                 current_depth,
                 current_return,
+                vec![],
             );
 
             if tx.send((current_depth, next.clone())).is_err() {
@@ -276,20 +289,21 @@ where
         })
 }
 
-pub fn minmax_bench_entry<T>(mut game_state: T, max_turns: usize) -> MinMaxReturn<T>
+pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
         + HeadGettableGame
         + LengthGettableGame
-        + MoveableGame
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
+        + Copy
         + APrimeCalculable
+        + MoveEvaluatableGame
         + FoodGettableGame,
 {
     let my_id = game_state.you_id();
@@ -297,17 +311,18 @@ where
     sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
     minimax(
-        &mut game_state,
+        game_state,
         &sorted_ids,
         0,
         WORT_POSSIBLE_SCORE_STATE,
         BEST_POSSIBLE_SCORE_STATE,
         max_turns * sorted_ids.len(),
         None,
+        vec![],
     )
 }
 
-pub fn minmax_deepened_bench_entry<T>(mut game_state: T, max_turns: usize) -> MinMaxReturn<T>
+pub fn minmax_deepened_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -320,7 +335,8 @@ where
         + SimulableGame<Instruments>
         + Clone
         + APrimeCalculable
-        + MoveableGame
+        + MoveEvaluatableGame
+        + Copy
         + FoodGettableGame,
 {
     let my_id = game_state.you_id();
@@ -334,13 +350,14 @@ where
     let mut current_return = None;
     while current_depth <= max_depth {
         current_return = Some(minimax(
-            &mut game_state,
+            game_state,
             &players,
             0,
             WORT_POSSIBLE_SCORE_STATE,
             BEST_POSSIBLE_SCORE_STATE,
             current_depth,
             current_return,
+            vec![],
         ));
 
         current_depth += players.len();
@@ -357,8 +374,8 @@ impl BattlesnakeFactory for DeviousDevinFactory {
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
-        // let id_map = build_snake_id_map(&game);
-        // let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         Box::new(DeviousDevin { game })
     }
 
