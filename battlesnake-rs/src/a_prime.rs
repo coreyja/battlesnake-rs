@@ -284,7 +284,7 @@ impl APrimeCalculable for Game {
 mod tests {
     use super::*;
     use battlesnake_game_types::{
-        compact_representation::CellBoard4Snakes11x11, wire_representation::Game, *,
+        compact_representation::CellBoard4Snakes11x11, wire_representation::Game,
     };
 
     fn cell_index_from_position_default_width(pos: Position) -> CellIndex<u8> {
@@ -405,7 +405,7 @@ mod tests {
 
         let compact: CellBoard4Snakes11x11 =
             battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
-                game.clone(),
+                game,
                 &id_map,
             )
             .unwrap();

@@ -8,7 +8,7 @@ use serde_json::json;
 
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
 
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::{EnvFilter};
 
 use std::sync::Arc;
 

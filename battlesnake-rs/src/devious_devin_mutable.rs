@@ -51,7 +51,7 @@ where
             r#move: format!(
                 "{}",
                 best_option
-                    .direction_for(&my_id)
+                    .direction_for(my_id)
                     .expect("TODO: this needs to be handled")
             ),
             shout: None,
@@ -297,7 +297,7 @@ where
             //     .body[0]
             //     .possible_moves(&node.board)
             //     .collect();
-            let possible_moves = node.possible_moves(&node.get_head_as_native_position(&snake_id));
+            let possible_moves = node.possible_moves(&node.get_head_as_native_position(snake_id));
 
             let possible_zipped: Vec<((Move, T::NativePositionType), Option<MinMaxReturn<T>>)> =
                 if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
@@ -321,7 +321,7 @@ where
                 };
 
             for ((dir, coor), previous_return) in possible_zipped.into_iter() {
-                let last_move = node.move_to(&coor, &snake_id);
+                let last_move = node.move_to(&coor, snake_id);
                 let next_move_return = minimax(
                     node,
                     players,

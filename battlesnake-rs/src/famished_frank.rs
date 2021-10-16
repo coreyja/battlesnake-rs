@@ -53,14 +53,14 @@ where
         let head = you_body.first().unwrap();
         let dir = self
             .game
-            .shortest_path_next_direction(&head, &targets, None);
+            .shortest_path_next_direction(head, &targets, None);
 
         let dir = if let Some(s) = dir {
             s
         } else {
             let you_id = self.game.you_id();
             self.game
-                .shortest_path_next_direction(&head, &[you_body.last().unwrap().clone()], None)
+                .shortest_path_next_direction(head, &[you_body.last().unwrap().clone()], None)
                 .unwrap_or_else(|| {
                     self.game
                         .random_reasonable_move_for_each_snake()
