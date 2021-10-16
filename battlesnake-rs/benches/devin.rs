@@ -45,6 +45,19 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
         })
     });
 
+    group.bench_function("compact eval-minmax iterative deepened", |b| {
+        b.iter(|| {
+            let game_state: Game = serde_json::from_str(game_json).unwrap();
+            let id_map = build_snake_id_map(&game_state);
+            let game_state: battlesnake_game_types::compact_representation::CellBoard4Snakes11x11 =
+                CellBoard::convert_from_game(game_state, &id_map).unwrap();
+            battlesnake_rs::devious_devin_mutative::minmax_deepened_bench_entry(
+                black_box(game_state),
+                max_turns,
+            )
+        })
+    });
+
     group.bench_function("wire partial-minmax", |b| {
         b.iter(|| {
             let game: Game = serde_json::from_str(game_json).unwrap();
