@@ -1,11 +1,15 @@
 use crate::a_prime::APrimeCalculable;
 use crate::devious_devin_mutable::{
-    score, MinMaxReturn, ScoreEndState, BEST_POSSIBLE_SCORE_STATE, WORT_POSSIBLE_SCORE_STATE,
+    score, Instruments, MinMaxReturn, ScoreEndState, BEST_POSSIBLE_SCORE_STATE,
+    WORT_POSSIBLE_SCORE_STATE,
 };
 use crate::*;
 
-use battlesnake_game_types::compact_representation::MoveEvaluatableGame;
+use battlesnake_game_types::compact_representation::{
+    BestCellBoard, MoveEvaluatableGame, ToBestCellBoard,
+};
 use battlesnake_game_types::types::*;
+use battlesnake_game_types::wire_representation::NestedGame;
 
 use std::sync::mpsc;
 use std::thread;
@@ -14,12 +18,8 @@ use tracing::{info, info_span};
 
 pub struct DeviousDevin<T> {
     game: T,
-}
-
-#[derive(Debug)]
-pub struct Instruments;
-impl SimulatorInstruments for Instruments {
-    fn observe_simulation(&self, _: std::time::Duration) {}
+    game_info: NestedGame,
+    turn: i32,
 }
 
 impl<T> BattlesnakeAI for DeviousDevin<T>
@@ -34,6 +34,7 @@ where
         + HeadGettableGame
         + SimulableGame<Instruments>
         + Clone
+        + Sync
         + Copy
         + APrimeCalculable
         + FoodGettableGame
@@ -46,8 +47,8 @@ where
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        let best_option = info_span!("deepened_minmax")
-            .in_scope(|| deepened_minimax(self.game.clone(), sorted_ids));
+        let best_option =
+            info_span!("deepened_minmax").in_scope(|| self.deepened_minimax(sorted_ids));
 
         Ok(MoveOutput {
             r#move: format!(
@@ -228,77 +229,100 @@ where
     }
 }
 
-fn deepened_minimax<T>(node: T, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T>
+impl<T> DeviousDevin<T>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
+        + VictorDeterminableGame
+        + Send
+        + 'static
         + PositionGettableGame
         + HeadGettableGame
         + LengthGettableGame
         + HealthGettableGame
-        + VictorDeterminableGame
-        + HeadGettableGame
-        + SimulableGame<Instruments>
         + Clone
         + Copy
-        + Send
-        + 'static
         + APrimeCalculable
         + MoveEvaluatableGame
+        + SimulableGame<Instruments>
         + FoodGettableGame,
 {
-    const RUNAWAY_DEPTH_LIMIT: usize = 2_000;
-
-    let started_at = Instant::now();
-    let me_id = node.you_id().clone();
-
-    let (tx, rx) = mpsc::channel();
-    thread::spawn(move || {
-        let mut current_depth = players.len();
-        let mut current_return = None;
-        let players = players;
-        loop {
-            let next = minimax(
-                node,
-                &players,
-                0,
-                WORT_POSSIBLE_SCORE_STATE,
-                BEST_POSSIBLE_SCORE_STATE,
-                current_depth,
-                current_return,
-                vec![],
-            );
-
-            if tx.send((current_depth, next.clone())).is_err() {
-                return;
-            }
-
-            current_return = Some(next);
-
-            current_depth += players.len();
-        }
-    });
-
-    let mut current = None;
-
-    while started_at.elapsed() < Duration::new(0, 400_000_000) {
-        if let Ok((depth, result)) = rx.try_recv() {
-            info!(depth, current_score = ?result.score(), current_direction = ?result.direction_for(&me_id), "Just finished depth");
-
-            current = Some((depth, result));
-
-            if depth > RUNAWAY_DEPTH_LIMIT {
-                break;
-            };
-        }
+    fn time_limit_ms(&self) -> i64 {
+        const NETWORK_LATENCY_PADDING: i64 = 100;
+        self.game_info.timeout - NETWORK_LATENCY_PADDING
     }
 
-    info!(score = ?current.as_ref().map(|x| x.1.score()), depth = ?current.as_ref().map(|(d, _)| d), "Finished deepened_minimax");
-    current
-        .map(|(_depth, result)| result)
-        .unwrap_or(MinMaxReturn::Leaf {
-            score: WORT_POSSIBLE_SCORE_STATE,
-        })
+    fn max_duration(&self) -> Duration {
+        Duration::new(0, (self.time_limit_ms() * 1_000_000).try_into().unwrap())
+    }
+
+    fn deepened_minimax(&self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T> {
+        let node = self.game.clone();
+        let you_id = node.you_id();
+
+        const RUNAWAY_DEPTH_LIMIT: usize = 100;
+
+        let started_at = Instant::now();
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let mut current_depth = 2;
+            let mut current_return = None;
+            loop {
+                let next = minimax(
+                    node,
+                    &players,
+                    0,
+                    WORT_POSSIBLE_SCORE_STATE,
+                    BEST_POSSIBLE_SCORE_STATE,
+                    current_depth,
+                    current_return,
+                    vec![],
+                );
+
+                if tx.send((current_depth, next.clone())).is_err() {
+                    return;
+                }
+
+                current_return = Some(next);
+
+                current_depth += 2;
+            }
+        });
+
+        let mut current = None;
+
+        let max_duration = self.max_duration();
+
+        while started_at.elapsed() < max_duration {
+            if let Ok((depth, result)) = rx.try_recv() {
+                let current_score = result.score();
+                let terminal_depth = current_score.terminal_depth();
+                info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), "Just finished depth");
+
+                current = Some((depth, result));
+
+                if let Some(terminal_depth) = terminal_depth {
+                    if depth > (terminal_depth as usize) {
+                        info!(depth, "This game is over, no need to keep going");
+                        break;
+                    }
+                }
+
+                if depth > RUNAWAY_DEPTH_LIMIT {
+                    break;
+                };
+            }
+        }
+
+        if let Some((depth, result)) = &current {
+            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), "Finished deepened_minimax");
+        }
+
+        current
+            .map(|(_depth, result)| result)
+            .expect("We weren't able to do even a single layer of minmax")
+    }
 }
 
 pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
@@ -386,9 +410,34 @@ impl BattlesnakeFactory for DeviousDevinFactory {
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
-        let id_map = build_snake_id_map(&game);
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        Box::new(DeviousDevin { game })
+        let game_info = game.game.clone();
+        let turn = game.turn;
+
+        let best_board = game.to_best_cell_board().unwrap();
+        let inner: BoxedSnake = match best_board {
+            BestCellBoard::Standard(b) => Box::new(DeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::LargestU8(b) => Box::new(DeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::Large(b) => Box::new(DeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+            BestCellBoard::Silly(b) => Box::new(DeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
+        };
+
+        inner
     }
 
     fn about(&self) -> AboutMe {
