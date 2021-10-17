@@ -286,7 +286,7 @@ where
 
                 current_return = Some(next);
 
-                current_depth += 2;
+                current_depth += players.len();
             }
         });
 
