@@ -106,14 +106,14 @@ where
 }
 
 fn minimax<T>(
-    node: T,
+    mut node: T,
     players: &[T::SnakeIDType],
     depth: usize,
     alpha: ScoreEndState,
     beta: ScoreEndState,
     max_depth: usize,
     previous_return: Option<MinMaxReturn<T>>,
-    pending_moves: Vec<(T::SnakeIDType, Move)>,
+    mut pending_moves: Vec<(T::SnakeIDType, Move)>,
 ) -> MinMaxReturn<T>
 where
     T: SnakeIDGettableGame
@@ -134,10 +134,9 @@ where
     let mut alpha = alpha;
     let mut beta = beta;
 
-    let node = if pending_moves.len() < node.get_snake_ids().len() {
-        node
-    } else {
-        node.evaluate_moves(&pending_moves)
+    if pending_moves.len() == node.get_snake_ids().len() {
+        node = node.evaluate_moves(&pending_moves);
+        pending_moves = vec![];
     };
 
     let new_depth = depth.try_into().unwrap();
@@ -186,7 +185,7 @@ where
             possible_moves.into_iter().map(|m| (m, None)).collect()
         };
 
-    for ((dir, coor), previous_return) in possible_zipped.into_iter() {
+    for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
         // let last_move = node.move_to(&coor, &snake_id);
         let mut new_pending_moves = pending_moves.clone();
         new_pending_moves.push((snake_id.clone(), dir));
