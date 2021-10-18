@@ -266,7 +266,7 @@ where
 
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
-            let mut current_depth = 2;
+            let mut current_depth = players.len();
             let mut current_return = None;
             loop {
                 let next = minimax(
