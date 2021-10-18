@@ -1,38 +1,34 @@
 FROM rustlang/rust:nightly as builder
 
-RUN USER=root cargo new --bin rust-docker-web
-WORKDIR ./rust-docker-web
-COPY ./Cargo.toml ./Cargo.toml
-RUN cargo build --release
-RUN rm src/*.rs
+WORKDIR /home/rust/
 
-ADD . ./
+USER root
 
-RUN rm ./target/release/deps/rust_docker_web*
-RUN cargo build --release
+COPY rust-toolchain.toml .
 
+RUN rustc --version; cargo --version; rustup --version
 
+# Avoid having to install/build all dependencies by copying
+# the Cargo files and making a dummy src/main.rs
+COPY Cargo.toml .
+COPY Cargo.lock .
+COPY battlesnake-rs/Cargo.toml ./battlesnake-rs/
+COPY web-rocket/Cargo.toml ./web-rocket/
+COPY web-lambda/Cargo.toml ./web-lambda/
+RUN mkdir -p ./battlesnake-rs/src/ && echo "fn foo() {}" > ./battlesnake-rs/src/lib.rs
+RUN mkdir -p ./web-rocket/src/ && echo "fn main() {}" > ./web-rocket/src/main.rs
+RUN mkdir -p ./web-lambda/src/ && echo "fn main() {}" > ./web-lambda/src/main.rs
+RUN cargo build --release --bin web-rocket
+
+# We need to touch our real main.rs file or else docker will use
+# the cached one.
+COPY . .
+RUN touch battlesnake-rs/src/lib.rs
+
+RUN cargo build --release --bin web-rocket
+
+# Start building the final image
 FROM debian:buster-slim
-ARG APP=/usr/src/app
-
-RUN apt-get update \
-    && apt-get install -y ca-certificates tzdata \
-    && rm -rf /var/lib/apt/lists/*
-
-EXPOSE 8000
-
-ENV TZ=Etc/UTC \
-    APP_USER=appuser
-
-RUN groupadd $APP_USER \
-    && useradd -g $APP_USER $APP_USER \
-    && mkdir -p ${APP}
-
-COPY --from=builder /rust-docker-web/target/release/rust-docker-web ${APP}/rust-docker-web
-
-RUN chown -R $APP_USER:$APP_USER ${APP}
-
-USER $APP_USER
-WORKDIR ${APP}
-
-CMD ["./rust-docker-web"]
+WORKDIR /home/rust/
+COPY --from=builder /home/rust/target/release/web-rocket .
+ENTRYPOINT ["./web-rocket"]
