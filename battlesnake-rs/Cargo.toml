@@ -29,7 +29,9 @@ path = "src/lib.rs"
 [[bench]]
 name = "devin"
 harness = false
+path = "benches/devin.rs"
 
 [[bench]]
 name = "a-prime"
 harness = false
+path = "benches/a-prime.rs"
