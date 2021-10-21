@@ -10,7 +10,7 @@ This project holds my Snakes which play on play.battlesnake.com!
 
 Eric is a single player snake. His goal is to survive as many turns as possible.
 
-To do this he odes a lot of tail chasing. The high level strategy goes something like the following:
+To do this he does a lot of tail chasing. The high level strategy goes something like the following:
 
 - Use A* to find the shortest path to our tail
 - Use this path to pretend the snake is a complete 'circle', IE: Change the board such that our snake contains all pieces from the A* search we just did
