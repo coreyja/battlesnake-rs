@@ -21,4 +21,4 @@ To do this he does a lot of tail chasing. The high level strategy goes something
 - If we are at this chosen body piece, follow the A* prime to the food
 - If we are NOT at this chosen body piece, keep looping until we are
 
-Eric is open for games on play.battelsnake.com, so feel free to start a Solo game with him and watch what he does!
+Eric is open for games on play.battlesnake.com, so feel free to start a Solo game with him and watch what he does!
