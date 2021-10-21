@@ -4,7 +4,7 @@ This project holds my Snakes which play on play.battlesnake.com!
 
 ## Snakes
 
-### Eremetic Eric
+### [Eremetic Eric](https://play.battlesnake.com/u/coreyja/eremetic-eric/)
 
 #### Strategy
 
