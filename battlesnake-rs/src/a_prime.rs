@@ -176,7 +176,9 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
                     paths_from.insert(neighbor, Some(coordinate));
                     to_search.push(Node {
                         coordinate: neighbor,
-                        cost: tentative + hueristic(&neighbor, targets).unwrap_or(HEURISTIC_MAX),
+                        cost: tentative
+                            + hueristic(&neighbor, targets, self.actual_width)
+                                .unwrap_or(HEURISTIC_MAX),
                     });
                 }
             }
@@ -201,12 +203,17 @@ pub fn dist_between(a: &Position, b: &Position) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
 
-fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>]) -> Option<i32> {
-    let width = 11;
+fn dist_between_cell<T: CellNum>(a: &CellIndex<T>, b: &CellIndex<T>, width: u8) -> i32 {
+    let width = width as i32;
+    let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
 
+    (diff / width) + (diff % width)
+}
+
+fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>], width: u8) -> Option<i32> {
     targets
         .iter()
-        .map(|coor| dist_between(&coor.into_position(width), &start.into_position(width)))
+        .map(|coor| dist_between_cell(coor, start, width))
         .min()
 }
 
@@ -305,6 +312,7 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
         start: &Self::NativePositionType,
         options: Option<APrimeOptions>,
     ) -> Option<i32> {
+        let width = self.actual_width;
         let all_foods = self.get_all_food_as_native_positions();
 
         if all_foods.is_empty() {
@@ -350,7 +358,8 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
                     paths_from.insert(neighbor, Some(coordinate));
                     to_search.push(Node {
                         coordinate: neighbor,
-                        cost: tentative + hueristic(&neighbor, &all_foods).unwrap_or(HEURISTIC_MAX),
+                        cost: tentative
+                            + hueristic(&neighbor, &all_foods, width).unwrap_or(HEURISTIC_MAX),
                     });
                 }
             }
@@ -381,7 +390,8 @@ mod tests {
                 &[cell_index_from_position_default_width(Position {
                     x: 2,
                     y: 2
-                })]
+                })],
+                11
             ),
             Some(2)
         );
@@ -396,7 +406,8 @@ mod tests {
                     cell_index_from_position_default_width(Position { x: 3, y: 3 }),
                     cell_index_from_position_default_width(Position { x: 4, y: 4 }),
                     cell_index_from_position_default_width(Position { x: 5, y: 5 }),
-                ]
+                ],
+                11
             ),
             Some(4)
         );
