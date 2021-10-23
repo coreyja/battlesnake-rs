@@ -280,6 +280,24 @@ impl APrimeCalculable for Game {
     }
 }
 
+pub trait ClosestFoodCalculable: PositionGettableGame {
+    fn dist_to_closest_food(
+        &self,
+        start: &Self::NativePositionType,
+        options: Option<APrimeOptions>,
+    ) -> Option<i32>;
+}
+
+impl<T: APrimeCalculable + FoodGettableGame> ClosestFoodCalculable for T {
+    fn dist_to_closest_food(
+        &self,
+        start: &<Self as battlesnake_game_types::types::PositionGettableGame>::NativePositionType,
+        options: std::option::Option<APrimeOptions>,
+    ) -> std::option::Option<i32> {
+        self.shortest_distance(start, &self.get_all_food_as_native_positions(), options)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
