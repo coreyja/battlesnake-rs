@@ -1,3 +1,4 @@
+use crate::CellBoard4Snakes11x11;
 use battlesnake_game_types::compact_representation::{CellBoard, CellIndex, CellNum};
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::{Game, Position};
@@ -175,7 +176,9 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
                     paths_from.insert(neighbor, Some(coordinate));
                     to_search.push(Node {
                         coordinate: neighbor,
-                        cost: tentative + hueristic(&neighbor, targets).unwrap_or(HEURISTIC_MAX),
+                        cost: tentative
+                            + hueristic(&neighbor, targets, self.actual_width)
+                                .unwrap_or(HEURISTIC_MAX),
                     });
                 }
             }
@@ -200,12 +203,17 @@ pub fn dist_between(a: &Position, b: &Position) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
 
-fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>]) -> Option<i32> {
-    let width = ((11 * 11) as f32).sqrt() as u8;
+fn dist_between_cell<T: CellNum>(a: &CellIndex<T>, b: &CellIndex<T>, width: u8) -> i32 {
+    let width = width as i32;
+    let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
 
+    (diff / width) + (diff % width)
+}
+
+fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>], width: u8) -> Option<i32> {
     targets
         .iter()
-        .map(|coor| dist_between(&coor.into_position(width), &start.into_position(width)))
+        .map(|coor| dist_between_cell(coor, start, width))
         .min()
 }
 
@@ -280,6 +288,87 @@ impl APrimeCalculable for Game {
     }
 }
 
+pub trait ClosestFoodCalculable: PositionGettableGame {
+    fn dist_to_closest_food(
+        &self,
+        start: &Self::NativePositionType,
+        options: Option<APrimeOptions>,
+    ) -> Option<i32>;
+}
+
+impl<T: APrimeCalculable + FoodGettableGame> ClosestFoodCalculable for T {
+    default fn dist_to_closest_food(
+        &self,
+        start: &<Self as battlesnake_game_types::types::PositionGettableGame>::NativePositionType,
+        options: std::option::Option<APrimeOptions>,
+    ) -> std::option::Option<i32> {
+        self.shortest_distance(start, &self.get_all_food_as_native_positions(), options)
+    }
+}
+
+impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
+    fn dist_to_closest_food(
+        &self,
+        start: &Self::NativePositionType,
+        options: Option<APrimeOptions>,
+    ) -> Option<i32> {
+        let width = self.actual_width;
+        let all_foods = self.get_all_food_as_native_positions();
+
+        if all_foods.is_empty() {
+            return None;
+        }
+
+        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
+            FxHashMap::default();
+
+        let mut to_search: BinaryHeap<Node<Self::NativePositionType>> = BinaryHeap::new();
+
+        let mut known_score: FxHashMap<Self::NativePositionType, i32> = FxHashMap::default();
+
+        to_search.push(Node {
+            cost: 0,
+            coordinate: *start,
+        });
+        known_score.insert(*start, 0);
+        paths_from.insert(*start, None);
+
+        while let Some(Node { cost, coordinate }) = to_search.pop() {
+            if self.cell_is_food(coordinate) {
+                return Some(cost);
+            }
+
+            let neighbor_distance = if self.cell_is_hazard(coordinate) {
+                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+            } else if self.cell_is_food(coordinate) {
+                NEIGHBOR_DISTANCE + options.food_penalty
+            } else {
+                NEIGHBOR_DISTANCE
+            };
+
+            let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
+            let neighbors = self.neighbors(&coordinate);
+            for neighbor in neighbors
+                .into_iter()
+                .filter(|n| self.cell_is_food(*n) || !self.cell_is_snake_body_piece(coordinate))
+            {
+                if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
+                    known_score.insert(neighbor, tentative);
+                    paths_from.insert(neighbor, Some(coordinate));
+                    to_search.push(Node {
+                        coordinate: neighbor,
+                        cost: tentative
+                            + hueristic(&neighbor, &all_foods, width).unwrap_or(HEURISTIC_MAX),
+                    });
+                }
+            }
+        }
+
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,7 +390,8 @@ mod tests {
                 &[cell_index_from_position_default_width(Position {
                     x: 2,
                     y: 2
-                })]
+                })],
+                11
             ),
             Some(2)
         );
@@ -316,7 +406,8 @@ mod tests {
                     cell_index_from_position_default_width(Position { x: 3, y: 3 }),
                     cell_index_from_position_default_width(Position { x: 4, y: 4 }),
                     cell_index_from_position_default_width(Position { x: 5, y: 5 }),
-                ]
+                ],
+                11
             ),
             Some(4)
         );

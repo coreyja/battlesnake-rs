@@ -1,4 +1,4 @@
-use crate::a_prime::APrimeCalculable;
+use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use crate::*;
 
 use battlesnake_game_types::types::*;
@@ -122,10 +122,8 @@ pub fn score<
     let length_difference = (my_length as i64) - (max_opponent_length as i64);
     let my_health = node.get_health_i64(me_id);
 
-    let foods: Vec<_> = node.get_all_food_as_native_positions();
     if max_opponent_length >= my_length || my_health < 20 {
-        let negative_closest_food_distance =
-            node.shortest_distance(&my_head, &foods, None).map(|x| -x);
+        let negative_closest_food_distance = node.dist_to_closest_food(&my_head, None).map(|x| -x);
 
         return ScoreEndState::ShorterThanOpponent(
             length_difference,
