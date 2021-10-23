@@ -1,6 +1,6 @@
 use battlesnake_game_types::types::*;
 
-use battlesnake_rs::a_prime::APrimeCalculable;
+use battlesnake_rs::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use battlesnake_rs::*;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -14,7 +14,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             let game = black_box(&game);
-            game.shortest_path(&game.you.head, &game.board.food, None)
+            game.shortest_distance(&game.you.head, &game.board.food, None)
         })
     });
 
@@ -24,7 +24,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             let game = black_box(&game);
-            game.shortest_path(&game.you.head, &game.board.food, None)
+            game.shortest_distance(&game.you.head, &game.board.food, None)
         })
     });
 
@@ -37,7 +37,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             let game = black_box(&game);
-            game.shortest_path(
+            game.shortest_distance(
                 &game.get_head_as_native_position(game.you_id()),
                 &game.get_all_food_as_native_positions(),
                 None,
@@ -54,11 +54,37 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             let game = black_box(&game);
-            game.shortest_path(
+            game.shortest_distance(
                 &game.get_head_as_native_position(game.you_id()),
                 &game.get_all_food_as_native_positions(),
                 None,
             )
+        })
+    });
+
+    g.bench_function("compact specialized start_of_game", |b| {
+        let game_json = include_str!("../fixtures/start_of_game.json");
+        let game: Game = serde_json::from_str(game_json).unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        b.iter(|| {
+            let game = black_box(&game);
+            game.dist_to_closest_food(&game.get_head_as_native_position(game.you_id()), None)
+        })
+    });
+
+    g.bench_function("compact specialized a-prime-food-maze", |b| {
+        let game_json = include_str!("../fixtures/a-prime-food-maze.json");
+        let game: Game = serde_json::from_str(game_json).unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        b.iter(|| {
+            let game = black_box(&game);
+            game.dist_to_closest_food(&game.get_head_as_native_position(game.you_id()), None)
         })
     });
 }
