@@ -3,7 +3,8 @@
 #[macro_use]
 extern crate rocket;
 
-use tracing_subscriber::layer::SubscriberExt;
+use tracing::Subscriber;
+use tracing_subscriber::{layer::SubscriberExt, Layer};
 
 use rocket::http::Status;
 
@@ -55,9 +56,24 @@ fn api_about(snake: String, factories: State<Vec<BoxedFactory>>) -> Option<Json<
 }
 
 fn main() {
-    let subscriber = tracing_subscriber::registry::Registry::default()
-        .with(tracing_subscriber::filter::LevelFilter::DEBUG)
-        .with(tracing_subscriber::fmt::Layer::default());
+    let subscriber: Box<dyn Subscriber + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
+        Box::new(
+            tracing_subscriber::registry::Registry::default()
+                .with(tracing_subscriber::filter::LevelFilter::DEBUG)
+                .with(tracing_subscriber::fmt::Layer::default().json()),
+        )
+    } else {
+        Box::new(
+            tracing_subscriber::registry::Registry::default()
+                .with(tracing_subscriber::filter::LevelFilter::DEBUG)
+                .with(tracing_subscriber::fmt::Layer::default()),
+        )
+    };
+    // let layer = if let Ok(_) = std::env::var("JSON_LOGS") {
+    //     tracing_subscriber::fmt::Layer::default().json()
+    // } else {
+    //     tracing_subscriber::fmt::Layer::default()
+    // };
 
     tracing::subscriber::set_global_default(subscriber).expect("setting global default failed");
 

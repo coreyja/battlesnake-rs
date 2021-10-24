@@ -17,5 +17,5 @@ rand = "0.8"
 itertools = "0.10.0"
 debug_print = "1.0.0"
 rocket_cors = "0.5.2"
-tracing-subscriber = "0.2.19"
+tracing-subscriber = { version = "0.3.0", features = [ "json" ] }
 tracing = "0.1.26"

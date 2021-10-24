@@ -31,4 +31,7 @@ RUN cargo build --release --bin web-rocket
 FROM debian:buster-slim
 WORKDIR /home/rust/
 COPY --from=builder /home/rust/target/release/web-rocket .
+
+ENV JSON_LOGS=1
+
 ENTRYPOINT ["./web-rocket"]
