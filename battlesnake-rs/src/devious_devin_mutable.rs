@@ -195,7 +195,58 @@ impl<T: SnakeIDGettableGame + Clone + Debug> MinMaxReturn<T> {
             }
         }
     }
+
+    pub fn all_moves(&self) -> Vec<(T::SnakeIDType, Move)> {
+        match self {
+            MinMaxReturn::Leaf { .. } => vec![],
+            MinMaxReturn::Nature { next, .. } => next.all_moves(),
+            MinMaxReturn::Node {
+                moving_snake_id,
+                options,
+                ..
+            } => {
+                if let Some(chosen) = options.first() {
+                    let mut tail = chosen.1.all_moves();
+                    tail.insert(0, (moving_snake_id.clone(), chosen.0));
+                    tail
+                } else {
+                    vec![]
+                }
+            }
+        }
+    }
+
+    fn to_text_tree_node(&self, label: String) -> Option<StringTreeNode> {
+        match self {
+            MinMaxReturn::Leaf { .. } => None,
+            MinMaxReturn::Nature { next, .. } => next.to_text_tree_node("".to_owned()),
+            MinMaxReturn::Node {
+                moving_snake_id,
+                options,
+                score,
+                ..
+            } => {
+                let mut node = StringTreeNode::new(format!("{} {:?}", label, score));
+                for (m, result) in options {
+                    if let Some(next_node) =
+                        result.to_text_tree_node(format!("{} {:?}", m, moving_snake_id))
+                    {
+                        node.push_node(next_node);
+                    }
+                }
+
+                Some(node)
+            }
+        }
+    }
+
+    pub fn to_text_tree(&self) -> Option<String> {
+        let tree_node = self.to_text_tree_node("".to_owned())?;
+        Some(format!("{}", tree_node))
+    }
 }
+
+use text_trees::{FormatCharacters, StringTreeNode, TreeFormatting, TreeNode};
 
 enum Player<Game: SnakeIDGettableGame> {
     Snake(Game::SnakeIDType),
@@ -444,7 +495,7 @@ where
         }
     }
 
-    info!(score = ?current.as_ref().map(|x| x.1.score()), depth = ?current.as_ref().map(|(d, _)| d), "Finished deepened_minimax");
+    info!(score = ?current.as_ref().map(|x| x.1.score()), depth = ?current.as_ref().map(|(d, _)| d), all_moves = ?current.as_ref().map(|(_,result)| result.all_moves()), "Finished deepened_minimax");
     current
         .map(|(_depth, result)| result)
         .unwrap_or(MinMaxReturn::Leaf {

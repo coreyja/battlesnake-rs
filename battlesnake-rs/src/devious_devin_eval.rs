@@ -146,7 +146,6 @@ where
     }
 
     let snake_id = &players[depth % players.len()];
-    let mut options: Vec<(Move, MinMaxReturn<T>)> = vec![];
 
     if !node.is_alive(snake_id) {
         return minimax(
@@ -160,6 +159,8 @@ where
             pending_moves,
         );
     }
+
+    let mut options: Vec<(Move, MinMaxReturn<T>)> = vec![];
 
     let is_maximizing = snake_id == node.you_id();
 
@@ -209,7 +210,7 @@ where
         } else {
             beta = std::cmp::min(beta, value);
         }
-        if beta <= alpha {
+        if beta < alpha {
             break;
         }
     }
@@ -257,6 +258,7 @@ where
     }
 
     fn deepened_minimax(&self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T> {
+        // println!("{}", self.game);
         let node = self.game.clone();
         let you_id = node.you_id();
 
@@ -300,6 +302,7 @@ where
                 let terminal_depth = current_score.terminal_depth();
                 info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), "Just finished depth");
 
+                // println!("{}", self.game.evaluate_moves(&result.all_moves()));
                 current = Some((depth, result));
 
                 if let Some(terminal_depth) = terminal_depth {
@@ -316,7 +319,8 @@ where
         }
 
         if let Some((depth, result)) = &current {
-            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), "Finished deepened_minimax");
+            // println!("{}", result.to_text_tree().unwrap());
+            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), all_moves = ?result.all_moves(), "Finished deepened_minimax");
         }
 
         current
