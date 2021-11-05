@@ -34,7 +34,7 @@ Resources:
       CodeUri: "../target/lambda/web-lambda.zip"
       Handler: N/A
       Runtime: provided
-      MemorySize: 2048
+      MemorySize: 4096
       Timeout: 1
       Events:
         WebApiEvent:
@@ -61,9 +61,3 @@ Outputs:
   HelloWorldApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt BattlesnakeFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt BattlesnakeFunctionRole.Arn

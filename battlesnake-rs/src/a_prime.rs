@@ -322,10 +322,13 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
         let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
         let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
             FxHashMap::default();
+        paths_from.reserve((self.actual_width * self.actual_height).into());
 
         let mut to_search: BinaryHeap<Node<Self::NativePositionType>> = BinaryHeap::new();
+        to_search.reserve((self.actual_width * self.actual_height).into());
 
         let mut known_score: FxHashMap<Self::NativePositionType, i32> = FxHashMap::default();
+        known_score.reserve((self.actual_width * self.actual_height).into());
 
         to_search.push(Node {
             cost: 0,
