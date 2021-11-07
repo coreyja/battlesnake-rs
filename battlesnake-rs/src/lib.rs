@@ -185,6 +185,7 @@ pub type BoxedFactory = Box<dyn BattlesnakeFactory + Send + Sync>;
 
 pub trait BattlesnakeAI {
     fn end(&self) {}
+    fn start(&self) {}
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
 }
 

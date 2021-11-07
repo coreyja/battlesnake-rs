@@ -60,6 +60,30 @@ where
             shout: None,
         })
     }
+
+    fn start(&self) {
+        let game_id = &self.game_info.id;
+
+        if let Ok(url) = std::env::var("WEBHOOK_URL") {
+            ureq::get(&format!("{}/games/{}/start", url, game_id))
+                .call()
+                .ok();
+        }
+
+        tracing::info!(?game_id, "Starting a game");
+    }
+
+    fn end(&self) {
+        let game_id = &self.game_info.id;
+
+        if let Ok(url) = std::env::var("WEBHOOK_URL") {
+            ureq::get(&format!("{}/games/{}/end", url, game_id))
+                .call()
+                .ok();
+        }
+
+        tracing::info!(?game_id, "Game ended");
+    }
 }
 
 fn wrapped_score<T>(node: &T, depth: i64, max_depth: i64, num_players: i64) -> Option<ScoreEndState>

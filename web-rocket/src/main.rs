@@ -14,9 +14,19 @@ use rocket::State;
 
 use rocket_contrib::json::Json;
 
-#[post("/<_snake>/start")]
-fn api_start(_snake: String) -> Status {
-    Status::NoContent
+#[post("/<snake>/start", data = "<game_state>")]
+fn api_start(
+    snake: String,
+    factories: State<Vec<BoxedFactory>>,
+    game_state: Json<Game>,
+) -> Option<Status> {
+    let snake_ai = factories
+        .iter()
+        .find(|s| s.name() == snake)?
+        .from_wire_game(game_state.into_inner());
+    snake_ai.start();
+
+    Some(Status::NoContent)
 }
 
 #[post("/<snake>/end", data = "<game_state>")]
