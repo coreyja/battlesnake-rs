@@ -320,7 +320,7 @@ where
 
         if let Some((depth, result)) = &current {
             // println!("{}", result.to_text_tree().unwrap());
-            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), all_moves = ?result.all_moves(), "Finished deepened_minimax");
+            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), all_moves = ?result.all_moves(), elapsed_ms = ?started_at.elapsed().as_millis(), "Finished deepened_minimax");
         }
 
         current
