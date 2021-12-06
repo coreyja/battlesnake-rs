@@ -300,7 +300,7 @@ where
             if let Ok((depth, result)) = rx.try_recv() {
                 let current_score = result.score();
                 let terminal_depth = current_score.terminal_depth();
-                info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), "Just finished depth");
+                info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), elapsed_ms = ?started_at.elapsed().as_millis(), "Just finished depth");
 
                 // println!("{}", self.game.evaluate_moves(&result.all_moves()));
                 current = Some((depth, result));
