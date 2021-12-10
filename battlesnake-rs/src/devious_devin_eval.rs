@@ -249,7 +249,7 @@ where
         + FoodGettableGame,
 {
     fn time_limit_ms(&self) -> i64 {
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 150;
         self.game_info.timeout - NETWORK_LATENCY_PADDING
     }
 
