@@ -34,8 +34,11 @@ Resources:
       CodeUri: "../target/lambda/web-lambda.zip"
       Handler: N/A
       Runtime: provided
-      MemorySize: 2048
-      Timeout: 1
+      MemorySize: 4096
+      Timeout: 10
+      AutoPublishAlias: live
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: 5
       Events:
         WebApiEvent:
           Type: HttpApi
