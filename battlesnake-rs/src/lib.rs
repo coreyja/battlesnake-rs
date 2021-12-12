@@ -18,6 +18,7 @@ pub mod devious_devin_full;
 pub mod devious_devin_mutable;
 pub mod eremetic_eric;
 pub mod famished_frank;
+mod flood_fill;
 pub mod gigantic_george;
 
 #[derive(Serialize)]
