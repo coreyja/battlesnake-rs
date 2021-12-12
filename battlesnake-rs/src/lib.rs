@@ -19,6 +19,7 @@ pub mod devious_devin_mutable;
 pub mod eremetic_eric;
 pub mod famished_frank;
 mod flood_fill;
+pub mod flood_fill_snake;
 pub mod gigantic_george;
 
 #[derive(Serialize)]
@@ -53,7 +54,7 @@ use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
     constant_carter::ConstantCarterFactory, devious_devin_full::FullDeviousDevinFactory,
     eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
-    gigantic_george::GiganticGeorgeFactory,
+    flood_fill_snake::FloodFillSnakeFactory, gigantic_george::GiganticGeorgeFactory,
 };
 
 pub enum MoveResult {
@@ -224,5 +225,6 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(EremeticEricFactory {}),
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
+        Box::new(FloodFillSnakeFactory {}),
     ]
 }

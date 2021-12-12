@@ -2,13 +2,13 @@ use std::{collections::HashMap, ops::Add};
 
 use battlesnake_game_types::{
     compact_representation::{CellBoard4Snakes11x11, CellIndex},
-    types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame},
+    types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame, SnakeId},
     wire_representation::Position,
 };
 
 use itertools::Itertools;
 
-trait JumpFlooding: SnakeIDGettableGame
+pub trait JumpFlooding: SnakeIDGettableGame
 where
     Self::SnakeIDType: Copy,
 {
@@ -23,7 +23,13 @@ where
     cells: [Option<T::SnakeIDType>; 11 * 11],
 }
 
-impl JumpFlooding for CellBoard4Snakes11x11 {
+impl<T> JumpFlooding for T
+where
+    T: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + PositionGettableGame<NativePositionType = CellIndex<u8>>
+        + HeadGettableGame,
+    T::SnakeIDType: Copy,
+{
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
         let mut grid: Grid<CellBoard4Snakes11x11> = Grid {
             cells: [None; 11 * 11],
