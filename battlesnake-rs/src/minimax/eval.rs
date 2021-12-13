@@ -209,6 +209,20 @@ where
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
+    pub fn new(
+        game: T,
+        game_info: NestedGame,
+        turn: i32,
+        score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+    ) -> Self {
+        Self {
+            game,
+            game_info,
+            turn,
+            score_function,
+        }
+    }
+
     fn wrapped_score(
         &self,
         node: &T,
