@@ -42,8 +42,8 @@ impl BattlesnakeFactory for FloodFillSnakeFactory {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
             color: Some("#0a86d8".to_owned()),
-            head: Some("snail".to_owned()),
-            tail: Some("rbc-necktie".to_owned()),
+            head: None,
+            tail: None,
             version: None,
         }
     }
