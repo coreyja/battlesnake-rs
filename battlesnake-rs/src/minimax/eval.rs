@@ -15,10 +15,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tracing::{info, info_span};
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 pub enum WrappedScore<ScoreType>
 where
-    ScoreType: PartialOrd + Ord + Debug + Clone,
+    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
 {
     Lose(i64),
     Tie(i64),
@@ -28,7 +28,7 @@ where
 
 impl<ScoreType> WrappedScore<ScoreType>
 where
-    ScoreType: PartialOrd + Ord + Debug + Clone,
+    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
 {
     fn best_possible_score() -> Self {
         WrappedScore::Win(std::i64::MAX)
@@ -48,23 +48,23 @@ where
 
 trait Scoreable<BoardType, ScoreType>: Sync + Send
 where
-    ScoreType: PartialOrd + Ord + Debug + Clone,
+    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
 {
     fn score(&self, node: &BoardType) -> WrappedScore<ScoreType>;
 }
 
 #[derive(Clone)]
-pub struct EvalMinimaxSnake<T, ScoreType> {
+pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static> {
     game: T,
     game_info: NestedGame,
     turn: i32,
-    scoreable: Box<dyn Scoreable<T, ScoreType>>,
+    score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
 }
 
 #[derive(Debug, Clone)]
 pub enum MinMaxReturn<
     T: SnakeIDGettableGame + Clone + Debug,
-    ScoreType: Clone + Debug + PartialOrd + Ord,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
 > {
     Node {
         is_maximizing: bool,
@@ -84,7 +84,7 @@ pub enum MinMaxReturn<
 impl<T, ScoreType> MinMaxReturn<T, ScoreType>
 where
     T: SnakeIDGettableGame + Debug + Clone,
-    ScoreType: Clone + Debug + PartialOrd + Ord,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
 {
     pub fn score(&self) -> &WrappedScore<ScoreType> {
         match self {
@@ -185,15 +185,17 @@ where
         + JumpFlooding
         + Send,
     T::SnakeIDType: Copy + Send + Sync,
-    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let my_id = self.game.you_id();
+        let my_id = self.game.you_id().clone();
         let mut sorted_ids = self.game.get_snake_ids();
-        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+        sorted_ids.sort_by_key(|snake_id| if snake_id == &my_id { -1 } else { 1 });
+
+        let copy = self.clone();
 
         let best_option =
-            info_span!("deepened_minmax", game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| self.deepened_minimax(sorted_ids));
+            info_span!("deepened_minmax", game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
 
         Ok(MoveOutput {
             r#move: format!(
@@ -228,7 +230,7 @@ where
         + Send
         + Sized,
     T::SnakeIDType: Copy + Send + Sync,
-    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     fn wrapped_score(
         &self,
@@ -259,7 +261,7 @@ where
         }
 
         if depth >= max_depth {
-            return Some(self.scoreable.score(&node));
+            return Some(WrappedScore::Scored((self.score_function)(node)));
         }
 
         None
@@ -391,12 +393,13 @@ where
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
-        let node = self.clone();
+        let node = self.game.clone();
         let you_id = node.you_id();
 
         const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
         let started_at = Instant::now();
+        let max_duration = self.max_duration();
 
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
@@ -425,8 +428,6 @@ where
         });
 
         let mut current = None;
-
-        let max_duration = self.max_duration();
 
         while started_at.elapsed() < max_duration {
             if let Ok((depth, result)) = rx.try_recv() {
