@@ -22,6 +22,8 @@ mod flood_fill;
 pub mod flood_fill_snake;
 pub mod gigantic_george;
 
+mod minimax;
+
 #[derive(Serialize)]
 pub struct AboutMe {
     apiversion: String,
