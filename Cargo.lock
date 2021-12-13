@@ -209,6 +209,7 @@ dependencies = [
  "itertools",
  "pprof",
  "rand",
+ "rayon",
  "rustc-hash",
  "serde",
  "serde_derive",

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, ops::Add};
+use std::{
+    collections::HashMap,
+    ops::Add,
+    sync::{Arc, Mutex},
+};
 
 use battlesnake_game_types::{
     compact_representation::{CellBoard4Snakes11x11, CellIndex},
@@ -7,6 +11,7 @@ use battlesnake_game_types::{
 };
 
 use itertools::Itertools;
+use rayon::prelude::*;
 
 pub trait JumpFlooding: SnakeIDGettableGame
 where
@@ -27,19 +32,22 @@ impl<T> JumpFlooding for T
 where
     T: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame<NativePositionType = CellIndex<u8>>
-        + HeadGettableGame,
+        + HeadGettableGame
+        + Sync,
     T::SnakeIDType: Copy,
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
         let mut grid: Grid<CellBoard4Snakes11x11> = Grid {
             cells: [None; 11 * 11],
         };
+        let grid = Mutex::new(grid);
+        let grid = Arc::new(grid);
 
         // Pre-seed the grid from the Board
         for sid in self.get_snake_ids().iter() {
             let head = self.get_head_as_native_position(sid);
 
-            grid.cells[head.0 as usize] = Some(*sid);
+            grid.lock().unwrap().cells[head.0 as usize] = Some(*sid);
         }
 
         // This comes from k = [ N/2, N/4, N/8, ..., 1 ]
@@ -47,7 +55,7 @@ where
         let steps = [6, 3, 1];
 
         for neighbor_distance in steps {
-            for i in 0..(11 * 11) {
+            (0..(11 * 11)).into_par_iter().for_each(|i| {
                 let neighbor_options = [-neighbor_distance, 0, neighbor_distance];
                 let neighbors = neighbor_options
                     .iter()
@@ -70,6 +78,8 @@ where
                     });
 
                 for neighbor in neighbors {
+                    let mut grid = grid.lock().unwrap();
+
                     if let Some(nid) = grid.cells[neighbor.0 as usize] {
                         if let Some(sid) = grid.cells[i as usize] {
                             if sid != nid {
@@ -91,9 +101,10 @@ where
                         }
                     }
                 }
-            }
+            })
         }
 
+        let grid = grid.lock().unwrap();
         grid.cells.iter().filter_map(|x| *x).counts()
     }
 }
