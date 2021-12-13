@@ -1,14 +1,8 @@
-use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
-use crate::devious_devin_mutable::Instruments;
-use crate::flood_fill::jump_flooding::JumpFlooding;
 use crate::*;
 
-use battlesnake_game_types::compact_representation::{
-    BestCellBoard, MoveEvaluatableGame, ToBestCellBoard,
-};
+use battlesnake_game_types::compact_representation::MoveEvaluatableGame;
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::NestedGame;
-use decorum::N64;
 
 use std::sync::mpsc;
 use std::thread;
@@ -72,10 +66,6 @@ pub enum MinMaxReturn<
         moving_snake_id: T::SnakeIDType,
         score: WrappedScore<ScoreType>,
     },
-    Nature {
-        score: WrappedScore<ScoreType>,
-        next: Box<Self>,
-    },
     Leaf {
         score: WrappedScore<ScoreType>,
     },
@@ -89,7 +79,6 @@ where
     pub fn score(&self) -> &WrappedScore<ScoreType> {
         match self {
             MinMaxReturn::Node { score, .. } => score,
-            MinMaxReturn::Nature { score, .. } => score,
             MinMaxReturn::Leaf { score } => score,
         }
     }
@@ -97,7 +86,6 @@ where
     pub fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
-            MinMaxReturn::Nature { next, .. } => next.direction_for(snake_id),
             MinMaxReturn::Node {
                 moving_snake_id,
                 options,
@@ -116,7 +104,6 @@ where
     pub fn all_moves(&self) -> Vec<(T::SnakeIDType, Move)> {
         match self {
             MinMaxReturn::Leaf { .. } => vec![],
-            MinMaxReturn::Nature { next, .. } => next.all_moves(),
             MinMaxReturn::Node {
                 moving_snake_id,
                 options,
@@ -136,7 +123,6 @@ where
     fn to_text_tree_node(&self, label: String) -> Option<StringTreeNode> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
-            MinMaxReturn::Nature { next, .. } => next.to_text_tree_node("".to_owned()),
             MinMaxReturn::Node {
                 moving_snake_id,
                 options,
@@ -171,18 +157,14 @@ where
         + YouDeterminableGame
         + PositionGettableGame
         + HeadGettableGame
-        + LengthGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
-        + HeadGettableGame
-        + SimulableGame<Instruments>
+        + MoveEvaluatableGame
+        + NeighborDeterminableGame
         + Clone
         + Sync
         + Copy
-        + APrimeCalculable
         + FoodGettableGame
-        + MoveEvaluatableGame
-        + JumpFlooding
         + Send,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
@@ -214,18 +196,13 @@ where
     T: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
-        + HeadGettableGame
-        + LengthGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
-        + SimulableGame<Instruments>
+        + MoveEvaluatableGame
+        + NeighborDeterminableGame
         + Clone
         + Copy
-        + MoveEvaluatableGame
-        + JumpFlooding
-        + APrimeCalculable
-        + FoodGettableGame
         + Sync
         + Send
         + Sized,
