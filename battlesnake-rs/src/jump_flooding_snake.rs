@@ -18,11 +18,11 @@ where
     N64::from(my_space / total_space)
 }
 
-pub struct FloodFillSnakeFactory;
+pub struct JumpFloodingSnakeFactory;
 
-impl BattlesnakeFactory for FloodFillSnakeFactory {
+impl BattlesnakeFactory for JumpFloodingSnakeFactory {
     fn name(&self) -> String {
-        "flood-fill".to_owned()
+        "jump-flooding".to_owned()
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
@@ -41,7 +41,7 @@ impl BattlesnakeFactory for FloodFillSnakeFactory {
         AboutMe {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
-            color: Some("#0a86d8".to_owned()),
+            color: Some("#efae09".to_owned()),
             head: None,
             tail: None,
             version: None,

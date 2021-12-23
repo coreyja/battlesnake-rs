@@ -37,7 +37,7 @@ where
     T::SnakeIDType: Copy,
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
-        let mut grid: Grid<CellBoard4Snakes11x11> = Grid {
+        let grid: Grid<CellBoard4Snakes11x11> = Grid {
             cells: [None; 11 * 11],
         };
         let grid = Mutex::new(grid);

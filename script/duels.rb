@@ -19,7 +19,7 @@ class Snake
   end
 end
 
-snake_names = %w[amphibious-arthur devious-devin]
+snake_names = %w[jump-flooding spread-from-head]
 snakes = snake_names.map { |n| Snake.new(n) }
 
 snake_args = snakes.map { |s| "-n #{s.name} -u #{s.url}" }.join ' '
@@ -35,7 +35,7 @@ def print_output(wins)
   puts "The big winner is ... #{big_winner}! They won #{winning_pct}% of the rounds (out of #{total_runs} total non draw rounds)"
 end
 
-trap("SIGINT") do
+trap('SIGINT') do
   print_output(wins)
   exit!
 end
