@@ -451,88 +451,52 @@ where
             .map(|(_depth, result)| result)
             .expect("We weren't able to do even a single layer of minmax")
     }
+
+    pub fn single_minimax_bench(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+        let my_id = self.game.you_id();
+        let mut sorted_ids = self.game.get_snake_ids();
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+
+        self.minimax(
+            self.game,
+            &sorted_ids,
+            0,
+            WrappedScore::<ScoreType>::worst_possible_score(),
+            WrappedScore::<ScoreType>::best_possible_score(),
+            max_turns * sorted_ids.len(),
+            None,
+            vec![],
+        )
+    }
+
+    pub fn deepend_minimax_bench(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+        let my_id = self.game.you_id();
+        let mut sorted_ids = self.game.get_snake_ids();
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+
+        let players = sorted_ids;
+
+        let max_depth = max_turns * players.len();
+        let mut current_depth = players.len();
+        let mut current_return = None;
+        while current_depth <= max_depth {
+            current_return = Some(self.minimax(
+                self.game,
+                &players,
+                0,
+                WrappedScore::<ScoreType>::worst_possible_score(),
+                WrappedScore::<ScoreType>::best_possible_score(),
+                current_depth,
+                current_return,
+                vec![],
+            ));
+
+            current_depth += players.len();
+        }
+
+        current_return.unwrap()
+    }
 }
-
-// pub fn minmax_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
-// where
-//     T: SnakeIDGettableGame
-//         + YouDeterminableGame
-//         + PositionGettableGame
-//         + HeadGettableGame
-//         + LengthGettableGame
-//         + HealthGettableGame
-//         + VictorDeterminableGame
-//         + HeadGettableGame
-//         + SimulableGame<Instruments>
-//         + JumpFlooding
-//         + Clone
-//         + Copy
-//         + APrimeCalculable
-//         + MoveEvaluatableGame
-//         + FoodGettableGame,
-//     T::SnakeIDType: Copy,
-// {
-//     let my_id = game_state.you_id();
-//     let mut sorted_ids = game_state.get_snake_ids();
-//     sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
-
-//     minimax(
-//         game_state,
-//         &sorted_ids,
-//         0,
-//         WORT_POSSIBLE_SCORE_STATE,
-//         BEST_POSSIBLE_SCORE_STATE,
-//         max_turns * sorted_ids.len(),
-//         None,
-//         vec![],
-//     )
-// }
-
-// pub fn minmax_deepened_bench_entry<T>(game_state: T, max_turns: usize) -> MinMaxReturn<T>
-// where
-//     T: SnakeIDGettableGame
-//         + YouDeterminableGame
-//         + PositionGettableGame
-//         + HeadGettableGame
-//         + LengthGettableGame
-//         + HealthGettableGame
-//         + VictorDeterminableGame
-//         + HeadGettableGame
-//         + SimulableGame<Instruments>
-//         + Clone
-//         + APrimeCalculable
-//         + JumpFlooding
-//         + MoveEvaluatableGame
-//         + Copy
-//         + FoodGettableGame,
-//     T::SnakeIDType: Copy,
-// {
-//     let my_id = game_state.you_id();
-//     let mut sorted_ids = game_state.get_snake_ids();
-//     sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
-
-//     let players = sorted_ids;
-
-//     let max_depth = max_turns * players.len();
-//     let mut current_depth = players.len();
-//     let mut current_return = None;
-//     while current_depth <= max_depth {
-//         current_return = Some(minimax(
-//             game_state,
-//             &players,
-//             0,
-//             WORT_POSSIBLE_SCORE_STATE,
-//             BEST_POSSIBLE_SCORE_STATE,
-//             current_depth,
-//             current_return,
-//             vec![],
-//         ));
-
-//         current_depth += players.len();
-//     }
-
-//     current_return.unwrap()
-// }
 
 #[cfg(test)]
 mod tests {}
