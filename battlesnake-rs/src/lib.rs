@@ -20,8 +20,8 @@ pub mod eremetic_eric;
 pub mod famished_frank;
 mod flood_fill;
 pub mod gigantic_george;
+pub mod hovering_hobbs;
 pub mod jump_flooding_snake;
-pub mod spread_from_head_snake;
 
 mod minimax;
 
@@ -58,7 +58,6 @@ use crate::{
     constant_carter::ConstantCarterFactory, devious_devin_full::FullDeviousDevinFactory,
     eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
     gigantic_george::GiganticGeorgeFactory, jump_flooding_snake::JumpFloodingSnakeFactory,
-    spread_from_head_snake::SpreadFromHeadSnakeFactory,
 };
 
 pub enum MoveResult {
@@ -230,6 +229,6 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
         Box::new(JumpFloodingSnakeFactory {}),
-        Box::new(SpreadFromHeadSnakeFactory {}),
+        Box::new(hovering_hobbs::Factory {}),
     ]
 }

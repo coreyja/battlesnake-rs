@@ -45,11 +45,11 @@ where
     Score::FloodFill(my_ratio)
 }
 
-pub struct SpreadFromHeadSnakeFactory;
+pub struct Factory;
 
-impl BattlesnakeFactory for SpreadFromHeadSnakeFactory {
+impl BattlesnakeFactory for Factory {
     fn name(&self) -> String {
-        "spread-from-head".to_owned()
+        "hovering-hobbs".to_owned()
     }
 
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
@@ -68,9 +68,9 @@ impl BattlesnakeFactory for SpreadFromHeadSnakeFactory {
         AboutMe {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
-            color: Some("#0a86d8".to_owned()),
-            head: None,
-            tail: None,
+            color: Some("#da8a1a".to_owned()),
+            head: Some("iguana".to_owned()),
+            tail: Some("flame".to_owned()),
             version: None,
         }
     }
