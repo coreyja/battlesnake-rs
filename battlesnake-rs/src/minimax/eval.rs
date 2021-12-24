@@ -28,7 +28,7 @@ where
         WrappedScore::Win(std::i64::MAX)
     }
     fn worst_possible_score() -> Self {
-        WrappedScore::Win(std::i64::MAX)
+        WrappedScore::Lose(std::i64::MIN)
     }
 
     fn terminal_depth(&self) -> Option<i64> {
@@ -401,8 +401,8 @@ where
                     node,
                     &players,
                     0,
-                    WrappedScore::<ScoreType>::best_possible_score(),
                     WrappedScore::<ScoreType>::worst_possible_score(),
+                    WrappedScore::<ScoreType>::best_possible_score(),
                     current_depth,
                     current_return,
                     vec![],
