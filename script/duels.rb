@@ -3,7 +3,7 @@
 require 'yaml'
 
 BASE_URL = 'http://localhost:8000'.freeze
-RUNS = 100
+RUNS = 1000
 
 CLI_RESULT_REGEX = /after (.*) turns\. (.*) is the winner/.freeze
 
@@ -19,7 +19,7 @@ class Snake
   end
 end
 
-snake_names = %w[jump-flooding spread-from-head]
+snake_names = %w[spread-from-head devious-devin]
 snakes = snake_names.map { |n| Snake.new(n) }
 
 snake_args = snakes.map { |s| "-n #{s.name} -u #{s.url}" }.join ' '

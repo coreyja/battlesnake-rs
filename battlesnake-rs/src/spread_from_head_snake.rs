@@ -6,7 +6,13 @@ use crate::*;
 use battlesnake_game_types::types::*;
 use decorum::N64;
 
-pub fn score<T>(node: &T) -> N64
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Score {
+    LowOnHealth(Option<i32>, N64),
+    FloodFill(N64),
+}
+
+pub fn score<T>(node: &T) -> Score
 where
     T::SnakeIDType: Copy,
     T: SnakeIDGettableGame
@@ -14,25 +20,29 @@ where
         + SpreadFromHead
         + APrimeCalculable
         + HeadGettableGame
+        + HazardQueryableGame
+        + HealthGettableGame
         + LengthGettableGame
         + FoodGettableGame,
 {
-    let square_counts = node.squares_per_snake();
+    let square_counts = node.squares_per_snake_with_hazard_cost(5, 5);
 
     let my_space: f64 = (square_counts.get(node.you_id()).copied().unwrap_or(0) as u16).into();
-    let total_space: f64 = (square_counts.values().sum::<usize>() as u16).into();
+    let total_space: f64 = (square_counts.values().sum::<u64>() as u16).into();
+    let my_ratio = N64::from(my_space / total_space);
 
-    // (
-    //     N64::from(my_space / total_space),
-    //     node.get_length_i64(node.you_id()),
-    //     node.shortest_distance(
-    //         &node.get_head_as_native_position(&node.you_id()),
-    //         &node.get_all_food_as_native_positions(),
-    //         None,
-    //     )
-    //     .map(|x| -x),
-    // )
-    N64::from(my_space / total_space)
+    if node.get_health_i64(node.you_id()) < 40 {
+        let dist = node
+            .shortest_distance(
+                &node.get_head_as_native_position(node.you_id()),
+                &node.get_all_food_as_native_positions(),
+                None,
+            )
+            .map(|x| -x);
+        return Score::LowOnHealth(dist, my_ratio);
+    }
+
+    Score::FloodFill(my_ratio)
 }
 
 pub struct SpreadFromHeadSnakeFactory;
