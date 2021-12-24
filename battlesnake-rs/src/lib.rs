@@ -18,7 +18,12 @@ pub mod devious_devin_full;
 pub mod devious_devin_mutable;
 pub mod eremetic_eric;
 pub mod famished_frank;
+mod flood_fill;
 pub mod gigantic_george;
+pub mod hovering_hobbs;
+pub mod jump_flooding_snake;
+
+mod minimax;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -52,7 +57,7 @@ use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
     constant_carter::ConstantCarterFactory, devious_devin_full::FullDeviousDevinFactory,
     eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
-    gigantic_george::GiganticGeorgeFactory,
+    gigantic_george::GiganticGeorgeFactory, jump_flooding_snake::JumpFloodingSnakeFactory,
 };
 
 pub enum MoveResult {
@@ -219,9 +224,11 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(BombasticBobFactory {}),
         Box::new(ConstantCarterFactory {}),
         // Box::new(FullDeviousDevinFactory {}),
-        Box::new(devious_devin_eval::DeviousDevinFactory {}),
+        Box::new(devious_devin_eval::Factory {}),
         Box::new(EremeticEricFactory {}),
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
+        Box::new(JumpFloodingSnakeFactory {}),
+        Box::new(hovering_hobbs::Factory {}),
     ]
 }
