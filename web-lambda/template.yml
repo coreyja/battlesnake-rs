@@ -34,7 +34,7 @@ Resources:
       CodeUri: "../target/lambda/web-lambda.zip"
       Handler: N/A
       Runtime: provided
-      MemorySize: 4096
+      MemorySize: 1024
       Timeout: 10
       AutoPublishAlias: live
       ProvisionedConcurrencyConfig:
@@ -51,7 +51,7 @@ Resources:
       CodeUri: "../target/lambda/web-lambda.zip"
       Handler: N/A
       Runtime: provided
-      MemorySize: 4096
+      MemorySize: 1024
       Timeout: 10
       AutoPublishAlias: live
       ProvisionedConcurrencyConfig:
