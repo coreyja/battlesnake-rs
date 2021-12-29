@@ -1,4 +1,5 @@
 use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
+use crate::devious_devin_eval::{score, ScoreEndState};
 use crate::*;
 
 use battlesnake_game_types::types::*;
@@ -59,89 +60,8 @@ where
     }
 }
 
-#[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
-pub enum ScoreEndState {
-    /// depth: i64
-    Lose(i64),
-    /// depth: i64
-    Tie(i64),
-    /// difference_in_snake_length: u16, negative_distance_to_nearest_food: Option<i32>, health: u8
-    ShorterThanOpponent(i64, Option<i32>, i64),
-    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
-    LongerThanOpponent(Option<i32>, i64, i64),
-    /// depth: i64
-    Win(i64),
-}
-
-impl ScoreEndState {
-    pub fn terminal_depth(&self) -> Option<i64> {
-        match &self {
-            ScoreEndState::Win(d) => Some(-d),
-            ScoreEndState::Tie(d) | ScoreEndState::Lose(d) => Some(*d),
-            _ => None,
-        }
-    }
-}
-
 pub const BEST_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Win(i64::MAX);
 pub const WORT_POSSIBLE_SCORE_STATE: ScoreEndState = ScoreEndState::Lose(i64::MIN);
-
-pub fn score<
-    T: SnakeIDGettableGame
-        + YouDeterminableGame
-        + PositionGettableGame
-        + HeadGettableGame
-        + LengthGettableGame
-        + HealthGettableGame
-        + HeadGettableGame
-        + APrimeCalculable
-        + FoodGettableGame,
->(
-    node: &T,
-) -> ScoreEndState {
-    let me_id = node.you_id();
-    let opponents: Vec<T::SnakeIDType> = node
-        .get_snake_ids()
-        .into_iter()
-        .filter(|x| x != me_id)
-        .collect();
-
-    let opponent_heads: Vec<_> = opponents
-        .iter()
-        .map(|s| node.get_head_as_native_position(s))
-        .collect();
-    let my_head = node.get_head_as_native_position(me_id);
-
-    let my_length = node.get_length_i64(me_id);
-
-    let max_opponent_length = opponents
-        .iter()
-        .map(|o| node.get_length_i64(o))
-        .max()
-        .unwrap();
-    let length_difference = (my_length as i64) - (max_opponent_length as i64);
-    let my_health = node.get_health_i64(me_id);
-
-    if max_opponent_length >= my_length || my_health < 20 {
-        let negative_closest_food_distance = node.dist_to_closest_food(&my_head, None).map(|x| -x);
-
-        return ScoreEndState::ShorterThanOpponent(
-            length_difference,
-            negative_closest_food_distance,
-            my_health.max(50),
-        );
-    }
-
-    let negative_distance_to_opponent = node
-        .shortest_distance(&my_head, &opponent_heads, None)
-        .map(|dist| -dist);
-
-    ScoreEndState::LongerThanOpponent(
-        negative_distance_to_opponent,
-        length_difference.max(4),
-        my_health.max(50),
-    )
-}
 
 #[derive(Clone, Debug, Serialize)]
 struct SnakeMove<T: PositionGettableGame> {

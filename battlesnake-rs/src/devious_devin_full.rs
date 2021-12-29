@@ -1,6 +1,7 @@
 use crate::a_prime::APrimeCalculable;
+use crate::devious_devin_eval::{score, ScoreEndState};
 use crate::devious_devin_mutable::{
-    score, Instruments, ScoreEndState, BEST_POSSIBLE_SCORE_STATE, WORT_POSSIBLE_SCORE_STATE,
+    Instruments, BEST_POSSIBLE_SCORE_STATE, WORT_POSSIBLE_SCORE_STATE,
 };
 use crate::*;
 
