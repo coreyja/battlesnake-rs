@@ -124,9 +124,9 @@ impl BattlesnakeFactory for Factory {
         AboutMe {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
-            color: Some("#efae09".to_owned()),
-            head: None,
-            tail: None,
+            color: Some("#99cc00".to_owned()),
+            head: Some("snail".to_owned()),
+            tail: Some("rbc-necktie".to_owned()),
             version: None,
         }
     }
