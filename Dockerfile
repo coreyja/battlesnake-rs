@@ -33,5 +33,8 @@ WORKDIR /home/rust/
 COPY --from=builder /home/rust/target/release/web-rocket .
 
 ENV JSON_LOGS=1
+ENV ROCKET_PORT=8000
+
+EXPOSE 8000
 
 ENTRYPOINT ["./web-rocket"]
