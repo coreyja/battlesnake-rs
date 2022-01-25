@@ -177,7 +177,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
                     to_search.push(Node {
                         coordinate: neighbor,
                         cost: tentative
-                            + hueristic(&neighbor, targets, self.actual_width)
+                            + hueristic(&neighbor, targets, self.get_width())
                                 .unwrap_or(HEURISTIC_MAX),
                     });
                 }
@@ -203,14 +203,18 @@ pub fn dist_between(a: &Position, b: &Position) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
 
-fn dist_between_cell<T: CellNum>(a: &CellIndex<T>, b: &CellIndex<T>, width: u8) -> i32 {
+fn dist_between_cell<T: CellNum>(a: &CellIndex<T>, b: &CellIndex<T>, width: u32) -> i32 {
     let width = width as i32;
     let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
 
     (diff / width) + (diff % width)
 }
 
-fn hueristic<T: CellNum>(start: &CellIndex<T>, targets: &[CellIndex<T>], width: u8) -> Option<i32> {
+fn hueristic<T: CellNum>(
+    start: &CellIndex<T>,
+    targets: &[CellIndex<T>],
+    width: u32,
+) -> Option<i32> {
     targets
         .iter()
         .map(|coor| dist_between_cell(coor, start, width))
@@ -312,7 +316,7 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
         start: &Self::NativePositionType,
         options: Option<APrimeOptions>,
     ) -> Option<i32> {
-        let width = self.actual_width;
+        let width = self.get_width();
         let all_foods = self.get_all_food_as_native_positions();
 
         if all_foods.is_empty() {
