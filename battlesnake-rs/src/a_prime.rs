@@ -122,6 +122,9 @@ struct Node<T> {
 
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
     for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
+where
+    CellBoard<T, BOARD_SIZE, MAX_SNAKES>:
+        HueristicAble + PositionGettableGame<NativePositionType = CellIndex<T>>,
 {
     fn a_prime_inner(
         &self,
@@ -177,7 +180,79 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
                     to_search.push(Node {
                         coordinate: neighbor,
                         cost: tentative
-                            + hueristic(&neighbor, targets, self.get_width())
+                            + Self::hueristic(&neighbor, targets, self.get_width())
+                                .unwrap_or(HEURISTIC_MAX),
+                    });
+                }
+            }
+        }
+
+        None
+    }
+}
+
+impl<
+        T: battlesnake_game_types::wrapped_compact_representation::CellNum,
+        const BOARD_SIZE: usize,
+        const MAX_SNAKES: usize,
+    > APrimeCalculable
+    for battlesnake_game_types::wrapped_compact_representation::CellBoard<T, BOARD_SIZE, MAX_SNAKES>
+{
+    fn a_prime_inner(
+        &self,
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
+        options: Option<APrimeOptions>,
+    ) -> Option<APrimeResult<Self::NativePositionType>> {
+        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
+            FxHashMap::default();
+
+        if targets.is_empty() {
+            return None;
+        }
+
+        let mut to_search: BinaryHeap<Node<Self::NativePositionType>> = BinaryHeap::new();
+
+        let mut known_score: FxHashMap<Self::NativePositionType, i32> = FxHashMap::default();
+
+        to_search.push(Node {
+            cost: 0,
+            coordinate: *start,
+        });
+        known_score.insert(*start, 0);
+        paths_from.insert(*start, None);
+
+        while let Some(Node { cost, coordinate }) = to_search.pop() {
+            if targets.contains(&coordinate) {
+                return Some(APrimeResult {
+                    best_cost: cost,
+                    paths_from,
+                    best_target: coordinate,
+                });
+            }
+
+            let neighbor_distance = if self.cell_is_hazard(coordinate) {
+                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+            } else if self.cell_is_food(coordinate) {
+                NEIGHBOR_DISTANCE + options.food_penalty
+            } else {
+                NEIGHBOR_DISTANCE
+            };
+
+            let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
+            let neighbors = self.neighbors(&coordinate);
+            for neighbor in neighbors
+                .into_iter()
+                .filter(|n| targets.contains(n) || !self.cell_is_snake_body_piece(coordinate))
+            {
+                if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
+                    known_score.insert(neighbor, tentative);
+                    paths_from.insert(neighbor, Some(coordinate));
+                    to_search.push(Node {
+                        coordinate: neighbor,
+                        cost: tentative
+                            + Self::hueristic(&neighbor, targets, self.get_width())
                                 .unwrap_or(HEURISTIC_MAX),
                     });
                 }
@@ -203,22 +278,73 @@ pub fn dist_between(a: &Position, b: &Position) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
 }
 
-fn dist_between_cell<T: CellNum>(a: &CellIndex<T>, b: &CellIndex<T>, width: u32) -> i32 {
-    let width = width as i32;
-    let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
+pub trait HueristicAble: PositionGettableGame {
+    fn hueristic(
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
+        width: u32,
+    ) -> Option<i32>;
 
-    (diff / width) + (diff % width)
+    fn dist_between_cell(
+        a: &Self::NativePositionType,
+        b: &Self::NativePositionType,
+        width: u32,
+    ) -> i32;
 }
 
-fn hueristic<T: CellNum>(
-    start: &CellIndex<T>,
-    targets: &[CellIndex<T>],
-    width: u32,
-) -> Option<i32> {
-    targets
-        .iter()
-        .map(|coor| dist_between_cell(coor, start, width))
-        .min()
+impl<
+        T: battlesnake_game_types::compact_representation::CellNum,
+        const BOARD_SIZE: usize,
+        const MAX_SNAKES: usize,
+    > HueristicAble for CellBoard<T, BOARD_SIZE, MAX_SNAKES>
+{
+    fn hueristic(
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
+        width: u32,
+    ) -> Option<i32> {
+        targets
+            .iter()
+            .map(|coor| Self::dist_between_cell(coor, start, width))
+            .min()
+    }
+
+    fn dist_between_cell(a: &CellIndex<T>, b: &CellIndex<T>, width: u32) -> i32 {
+        let width = width as i32;
+        let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
+
+        (diff / width) + (diff % width)
+    }
+}
+
+impl<
+        T: battlesnake_game_types::wrapped_compact_representation::CellNum,
+        const BOARD_SIZE: usize,
+        const MAX_SNAKES: usize,
+    > HueristicAble
+    for battlesnake_game_types::wrapped_compact_representation::CellBoard<T, BOARD_SIZE, MAX_SNAKES>
+{
+    fn hueristic(
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
+        width: u32,
+    ) -> Option<i32> {
+        targets
+            .iter()
+            .map(|coor| Self::dist_between_cell(coor, start, width))
+            .min()
+    }
+
+    fn dist_between_cell(
+        a: &Self::NativePositionType,
+        b: &Self::NativePositionType,
+        width: u32,
+    ) -> i32 {
+        let width = width as i32;
+        let diff = (a.0.as_usize() as i32 - b.0.as_usize() as i32).abs();
+
+        (diff / width) + (diff % width)
+    }
 }
 
 fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
@@ -337,7 +463,6 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
         });
         known_score.insert(*start, 0);
         paths_from.insert(*start, None);
-
         while let Some(Node { cost, coordinate }) = to_search.pop() {
             if self.cell_is_food(coordinate) {
                 return Some(cost);
@@ -363,7 +488,8 @@ impl ClosestFoodCalculable for CellBoard4Snakes11x11 {
                     to_search.push(Node {
                         coordinate: neighbor,
                         cost: tentative
-                            + hueristic(&neighbor, &all_foods, width).unwrap_or(HEURISTIC_MAX),
+                            + Self::hueristic(&neighbor, &all_foods, width)
+                                .unwrap_or(HEURISTIC_MAX),
                     });
                 }
             }
@@ -389,7 +515,7 @@ mod tests {
     #[test]
     fn test_heuristic() {
         assert_eq!(
-            hueristic(
+            CellBoard4Snakes11x11::hueristic(
                 &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
                 &[cell_index_from_position_default_width(Position {
                     x: 2,
@@ -404,7 +530,7 @@ mod tests {
     #[test]
     fn test_multi_target_heuristic() {
         assert_eq!(
-            hueristic(
+            CellBoard4Snakes11x11::hueristic(
                 &cell_index_from_position_default_width(Position { x: 1, y: 1 }),
                 &[
                     cell_index_from_position_default_width(Position { x: 3, y: 3 }),

@@ -574,6 +574,11 @@ impl BattlesnakeFactory for FullDeviousDevinFactory {
 
         let best_board = game.to_best_cell_board().unwrap();
         let inner: BoxedSnake = match best_board {
+            BestCellBoard::Tiny(b) => Box::new(FullDeviousDevin {
+                game_info,
+                turn,
+                game: *b,
+            }),
             BestCellBoard::Standard(b) => Box::new(FullDeviousDevin {
                 game_info,
                 turn,

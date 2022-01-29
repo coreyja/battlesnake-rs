@@ -1,11 +1,8 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
-use battlesnake_game_types::{
-    compact_representation::{CellBoard4Snakes11x11, CellIndex},
-    types::{
-        HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-        PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
-    },
+use battlesnake_game_types::types::{
+    HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
+    PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
 };
 use itertools::Itertools;
 
@@ -30,17 +27,47 @@ where
     ) -> HashMap<Self::SnakeIDType, u64>;
 }
 
+pub trait ThingAble<T> {
+    fn from_usize(x: usize) -> Self;
+    fn as_usize(&self) -> usize;
+}
+
+impl<T: battlesnake_game_types::compact_representation::CellNum> ThingAble<T>
+    for battlesnake_game_types::compact_representation::CellIndex<T>
+{
+    fn from_usize(x: usize) -> Self {
+        battlesnake_game_types::compact_representation::CellIndex(T::from_usize(x))
+    }
+
+    fn as_usize(&self) -> usize {
+        self.0.as_usize()
+    }
+}
+
+impl<T: battlesnake_game_types::wrapped_compact_representation::CellNum> ThingAble<T>
+    for battlesnake_game_types::wrapped_compact_representation::CellIndex<T>
+{
+    fn from_usize(x: usize) -> Self {
+        battlesnake_game_types::wrapped_compact_representation::CellIndex(T::from_usize(x))
+    }
+
+    fn as_usize(&self) -> usize {
+        self.0.as_usize()
+    }
+}
+
 impl<T> SpreadFromHead for T
 where
     T: SnakeIDGettableGame<SnakeIDType = SnakeId>
-        + PositionGettableGame<NativePositionType = CellIndex<u8>>
+        + PositionGettableGame
         + LengthGettableGame
         + SnakeBodyGettableGame
-        + HeadGettableGame<NativePositionType = CellIndex<u8>>
-        + HazardQueryableGame<NativePositionType = CellIndex<u8>>
-        + NeighborDeterminableGame<NativePositionType = CellIndex<u8>>
+        + HeadGettableGame
+        + HazardQueryableGame
+        + NeighborDeterminableGame
         + Sync,
     T::SnakeIDType: Copy,
+    T::NativePositionType: ThingAble<u8>,
 {
     fn squares_per_snake(&self, number_of_cycles: usize) -> HashMap<Self::SnakeIDType, usize> {
         self.calculate(number_of_cycles)
@@ -63,7 +90,7 @@ where
             .enumerate()
             .filter_map(|x| x.1.map(|sid| (x.0, sid)))
             .map(|(i, sid)| {
-                let value = if self.is_hazard(&CellIndex(i as u8)) {
+                let value = if self.is_hazard(&T::NativePositionType::from_usize(i)) {
                     1
                 } else {
                     non_hazard_bonus + 1
@@ -98,7 +125,7 @@ where
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_vec(sid) {
-                grid.cells[pos.0 as usize] = Some(*sid);
+                grid.cells[pos.as_usize()] = Some(*sid);
             }
         }
 
@@ -114,8 +141,8 @@ where
                 // Mark Neighbors
                 while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
                     for neighbor in self.neighbors(&pos) {
-                        if grid.cells[neighbor.0 as usize].is_none() {
-                            grid.cells[neighbor.0 as usize] = Some(sid);
+                        if grid.cells[neighbor.as_usize()].is_none() {
+                            grid.cells[neighbor.as_usize()] = Some(sid);
                             new_todo.push(neighbor);
                         }
                     }

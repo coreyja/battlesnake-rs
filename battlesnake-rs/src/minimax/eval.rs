@@ -1,13 +1,13 @@
+use crate::devious_devin_mutable::Instruments;
 use crate::*;
 
-use battlesnake_game_types::compact_representation::MoveEvaluatableGame;
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::NestedGame;
 
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tracing::{info, info_span};
+use tracing::{info, info_span, Instrument};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 pub enum WrappedScore<ScoreType>
@@ -159,8 +159,8 @@ where
         + HeadGettableGame
         + HealthGettableGame
         + VictorDeterminableGame
-        + MoveEvaluatableGame
         + NeighborDeterminableGame
+        + SimulableGame<Instruments>
         + Clone
         + Sync
         + Copy
@@ -199,8 +199,8 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + HeadGettableGame
-        + MoveEvaluatableGame
         + NeighborDeterminableGame
+        + SimulableGame<Instruments>
         + Clone
         + Copy
         + Sync
@@ -273,7 +273,14 @@ where
         let mut beta = beta;
 
         if pending_moves.len() == node.get_snake_ids().len() {
-            node = node.evaluate_moves(&pending_moves);
+            node = node.simulate_with_moves(
+                &Instruments,
+                pending_moves
+                    .into_iter()
+                    .map(|(sid, m)| (sid, vec![m]))
+                    .collect(),
+            )[0]
+            .1;
             pending_moves = vec![];
         };
 
