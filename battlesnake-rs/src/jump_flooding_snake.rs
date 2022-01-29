@@ -32,7 +32,7 @@ impl BattlesnakeFactory for JumpFloodingSnakeFactory {
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = EvalMinimaxSnake::new(game, game_info, turn, &score);
+        let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, "jump-flooding");
 
         Box::new(snake)
     }

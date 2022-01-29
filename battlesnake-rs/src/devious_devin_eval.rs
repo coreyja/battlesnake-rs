@@ -99,7 +99,7 @@ impl Factory {
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        EvalMinimaxSnake::new(game, game_info, turn, &score)
+        EvalMinimaxSnake::new(game, game_info, turn, &score, "devious-devin")
     }
 }
 

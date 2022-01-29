@@ -53,6 +53,7 @@ pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static> {
     game_info: NestedGame,
     turn: i32,
     score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+    name: &'static str,
 }
 
 #[derive(Debug, Clone)]
@@ -177,7 +178,7 @@ where
         let copy = self.clone();
 
         let best_option =
-            info_span!("deepened_minmax", game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
+            info_span!("deepened_minmax", name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
 
         Ok(MoveOutput {
             r#move: format!(
@@ -214,12 +215,14 @@ where
         game_info: NestedGame,
         turn: i32,
         score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+        name: &'static str,
     ) -> Self {
         Self {
             game,
             game_info,
             turn,
             score_function,
+            name,
         }
     }
 

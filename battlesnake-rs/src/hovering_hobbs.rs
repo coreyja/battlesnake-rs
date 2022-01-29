@@ -57,16 +57,18 @@ impl BattlesnakeFactory for Factory {
         let turn = game.turn;
         let id_map = build_snake_id_map(&game);
 
+        let name = "hovering-hobbs";
+
         if game_info.ruleset.name == "wrapped" {
             let game = battlesnake_game_types::wrapped_compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score);
+            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
 
             Box::new(snake)
         } else {
             let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score);
+            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
 
             Box::new(snake)
         }
