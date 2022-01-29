@@ -14,7 +14,7 @@ rand = "0.8"
 itertools = "0.10.0"
 debug_print = "1.0.0"
 tracing = "0.1.26"
-battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", branch = "ca/upstream/new-main" }
+battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", branch = "main" }
 # battlesnake-game-types = "0.9.0"
 # battlesnake-game-types = { path = "../../battlesnake-game-types" }
 rustc-hash = "1.1.0"
