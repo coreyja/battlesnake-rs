@@ -275,15 +275,17 @@ where
         let mut alpha = alpha;
         let mut beta = beta;
 
-        if pending_moves.len() == node.get_snake_ids().len() {
-            node = node.simulate_with_moves(
+        let snake_ids = node.get_snake_ids();
+
+        if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
+            let simulate_result = node.simulate_with_moves(
                 &Instruments,
                 pending_moves
                     .into_iter()
                     .map(|(sid, m)| (sid, vec![m]))
                     .collect(),
-            )[0]
-            .1;
+            );
+            node = simulate_result[0].1;
             pending_moves = vec![];
         };
 
