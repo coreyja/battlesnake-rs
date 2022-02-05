@@ -18,7 +18,7 @@ COPY web-lambda/Cargo.toml ./web-lambda/
 RUN mkdir -p ./battlesnake-rs/src/ && echo "fn foo() {}" > ./battlesnake-rs/src/lib.rs
 RUN mkdir -p ./web-rocket/src/ && echo "fn main() {}" > ./web-rocket/src/main.rs
 RUN mkdir -p ./web-lambda/src/ && echo "fn main() {}" > ./web-lambda/src/main.rs
-RUN cargo build --release --bin web-rocket
+RUN cargo build --release --locked --bin web-rocket
 
 # We need to touch our real main.rs file or else docker will use
 # the cached one.
