@@ -301,19 +301,6 @@ where
 
         let snake_id = &players[depth % players.len()];
 
-        if !node.is_alive(snake_id) {
-            return self.minimax(
-                node,
-                players,
-                depth + 1,
-                alpha,
-                beta,
-                max_depth,
-                previous_return,
-                pending_moves,
-            );
-        }
-
         let mut options: Vec<(Move, MinMaxReturn<T, ScoreType>)> = vec![];
 
         let is_maximizing = snake_id == node.you_id();
