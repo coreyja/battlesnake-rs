@@ -277,6 +277,9 @@ where
 
         let snake_ids = node.get_snake_ids();
 
+        // Remove pending moves for dead snakes
+        pending_moves.retain(|(snake_id, _)| !snake_ids.contains(snake_id));
+
         if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
             let simulate_result = node.simulate_with_moves(
                 &Instruments,
@@ -379,7 +382,12 @@ where
     }
 
     fn max_duration(&self) -> Duration {
-        Duration::new(0, (self.time_limit_ms() * 1_000_000).try_into().unwrap())
+        let seconds = self.time_limit_ms() / 1000;
+        let millis = self.time_limit_ms() % 1000;
+        Duration::new(
+            seconds.try_into().unwrap(),
+            (millis * 1_000_000).try_into().unwrap(),
+        )
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
