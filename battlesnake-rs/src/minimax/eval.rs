@@ -4,6 +4,7 @@ use crate::*;
 use battlesnake_game_types::types::*;
 use battlesnake_game_types::wire_representation::NestedGame;
 
+use itertools::Itertools;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -281,14 +282,16 @@ where
         pending_moves.retain(|(snake_id, _)| !snake_ids.contains(snake_id));
 
         if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
-            let simulate_result = node.simulate_with_moves(
+            let mut simulate_result = node.simulate_with_moves(
                 &Instruments,
                 pending_moves
                     .into_iter()
                     .map(|(sid, m)| (sid, vec![m]))
-                    .collect(),
+                    .collect_vec(),
             );
-            node = simulate_result[0].1;
+            let new_node = simulate_result.next().unwrap().1;
+            drop(simulate_result);
+            node = new_node;
             pending_moves = vec![];
         };
 
