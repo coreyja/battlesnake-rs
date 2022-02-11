@@ -135,14 +135,14 @@ where
         }
 
         for _ in 0..number_of_cycles {
-            for sid in self.get_snake_ids() {
+            for sid in &sorted_snake_ids {
                 let mut new_todo: Vec<_> = Default::default();
 
                 // Mark Neighbors
                 while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
                     for neighbor in self.neighbors(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
-                            grid.cells[neighbor.as_usize()] = Some(sid);
+                            grid.cells[neighbor.as_usize()] = Some(*sid);
                             new_todo.push(neighbor);
                         }
                     }

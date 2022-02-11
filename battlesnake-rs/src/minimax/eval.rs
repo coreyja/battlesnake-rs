@@ -279,7 +279,7 @@ where
         let snake_ids = node.get_snake_ids();
 
         // Remove pending moves for dead snakes
-        pending_moves.retain(|(snake_id, _)| !snake_ids.contains(snake_id));
+        pending_moves.retain(|(snake_id, _)| snake_ids.contains(snake_id));
 
         if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
             let mut simulate_result = node.simulate_with_moves(
