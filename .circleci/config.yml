@@ -104,5 +104,13 @@ workflows:
     jobs:
       - test-rust
       - lint-rust
-      # - profile
-      # - bench
+      - profile:
+          filters:
+            branches:
+              only:
+                - main
+      - bench:
+          filters:
+            branches:
+              only:
+                - main
