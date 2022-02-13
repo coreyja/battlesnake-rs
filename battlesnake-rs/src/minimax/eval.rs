@@ -179,7 +179,7 @@ where
         let copy = self.clone();
 
         let best_option =
-            info_span!("deepened_minmax", name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
+            info_span!("deepened_minmax", snake_name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
 
         Ok(MoveOutput {
             r#move: format!(

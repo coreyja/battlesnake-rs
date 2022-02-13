@@ -6,6 +6,7 @@ use battlesnake_game_types::types::{
     PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
 };
 use itertools::Itertools;
+use tinyvec::{tiny_vec, TinyVec};
 
 pub struct Grid<T>
 where
@@ -125,7 +126,8 @@ where
             sids
         };
 
-        let mut todo_per_snake = vec![vec![]; 4];
+        let mut todo_per_snake: [TinyVec<[Option<T::NativePositionType>; 4]>; 4] =
+            Default::default();
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_vec(sid) {
@@ -135,19 +137,19 @@ where
 
         for sid in &sorted_snake_ids {
             let head = self.get_head_as_native_position(sid);
-            todo_per_snake[sid.0 as usize].push(head);
+            todo_per_snake[sid.0 as usize].push(Some(head));
         }
 
         for _ in 0..number_of_cycles {
             for sid in &sorted_snake_ids {
-                let mut new_todo: Vec<_> = Default::default();
+                let mut new_todo: TinyVec<[Option<T::NativePositionType>; 4]> = Default::default();
 
                 // Mark Neighbors
-                while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
+                while let Some(Some(pos)) = todo_per_snake[sid.0 as usize].pop() {
                     for neighbor in self.neighbors(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
                             grid.cells[neighbor.as_usize()] = Some(*sid);
-                            new_todo.push(neighbor);
+                            new_todo.push(Some(neighbor));
                         }
                     }
                 }
