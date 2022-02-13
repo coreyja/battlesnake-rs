@@ -93,9 +93,10 @@ jobs:
             - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run: cd battlesnake-rs/
-      - run: cargo bench --bench devin -- --profile-time 60
+      # - run: cargo bench --bench devin -- --profile-time 60
       - run: cargo bench --bench hobbs -- --profile-time 60
-      - run: cargo bench --bench a-prime -- --profile-time 60
+      # - run: cargo bench --bench a-prime -- --profile-time 60
+      - run: cargo bench --bench flood-fill -- --profile-time 60
       - store_artifacts:
           path: target/criterion
           destination: criterion
