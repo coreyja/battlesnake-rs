@@ -9,7 +9,6 @@ pub use battlesnake_game_types::compact_representation::CellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::Move;
 pub use battlesnake_game_types::wire_representation::Game;
 
-pub mod a_prime;
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
@@ -18,12 +17,13 @@ pub mod devious_devin_full;
 pub mod devious_devin_mutable;
 pub mod eremetic_eric;
 pub mod famished_frank;
-mod flood_fill;
 pub mod gigantic_george;
 pub mod hovering_hobbs;
 pub mod jump_flooding_snake;
 
-mod minimax;
+pub mod a_prime;
+pub mod flood_fill;
+pub mod minimax;
 
 #[derive(Serialize)]
 pub struct AboutMe {

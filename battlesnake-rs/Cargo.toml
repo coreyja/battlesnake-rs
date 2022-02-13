@@ -37,6 +37,16 @@ harness = false
 path = "benches/devin.rs"
 
 [[bench]]
+name = "hobbs"
+harness = false
+path = "benches/hobbs.rs"
+
+[[bench]]
 name = "a-prime"
 harness = false
 path = "benches/a-prime.rs"
+
+[[bench]]
+name = "flood-fill"
+harness = false
+path = "benches/flood-fill.rs"
