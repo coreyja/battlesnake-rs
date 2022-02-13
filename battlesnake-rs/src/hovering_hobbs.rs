@@ -1,5 +1,5 @@
 use crate::a_prime::APrimeCalculable;
-use crate::flood_fill::spread_from_head::SpreadFromHead;
+use crate::flood_fill::spread_from_head::{CellToUsizeAble, SpreadFromHead};
 use crate::minimax::eval::EvalMinimaxSnake;
 use crate::*;
 
@@ -15,7 +15,7 @@ pub enum Score {
 pub fn score<T>(node: &T) -> Score
 where
     T::SnakeIDType: Copy,
-    T: SnakeIDGettableGame
+    T: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
         + SpreadFromHead
         + APrimeCalculable
@@ -27,14 +27,15 @@ where
 {
     let square_counts = node.squares_per_snake_with_hazard_cost(5, 5);
 
-    let my_space: f64 = (square_counts.get(node.you_id()).copied().unwrap_or(0) as u16).into();
-    let total_space: f64 = (square_counts.values().sum::<u64>() as u16).into();
+    let me = node.you_id();
+    let my_space: f64 = square_counts[me.as_usize()] as f64;
+    let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
-    if node.get_health_i64(node.you_id()) < 40 {
+    if node.get_health_i64(me) < 40 {
         let dist = node
             .shortest_distance(
-                &node.get_head_as_native_position(node.you_id()),
+                &node.get_head_as_native_position(me),
                 &node.get_all_food_as_native_positions(),
                 None,
             )

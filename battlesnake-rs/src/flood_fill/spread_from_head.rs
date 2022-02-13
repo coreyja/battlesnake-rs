@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use battlesnake_game_types::types::{
@@ -19,20 +20,20 @@ where
     Self::SnakeIDType: Copy,
 {
     fn calculate(&self, number_of_cycles: usize) -> Grid<Self>;
-    fn squares_per_snake(&self, number_of_cycles: usize) -> HashMap<Self::SnakeIDType, usize>;
+    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4];
     fn squares_per_snake_with_hazard_cost(
         &self,
         number_of_cycles: usize,
-        hazard_cost: u64,
-    ) -> HashMap<Self::SnakeIDType, u64>;
+        hazard_cost: u16,
+    ) -> [u16; 4];
 }
 
-pub trait ThingAble<T> {
+pub trait CellToUsizeAble<T> {
     fn from_usize(x: usize) -> Self;
     fn as_usize(&self) -> usize;
 }
 
-impl<T: battlesnake_game_types::compact_representation::CellNum> ThingAble<T>
+impl<T: battlesnake_game_types::compact_representation::CellNum> CellToUsizeAble<T>
     for battlesnake_game_types::compact_representation::CellIndex<T>
 {
     fn from_usize(x: usize) -> Self {
@@ -44,7 +45,7 @@ impl<T: battlesnake_game_types::compact_representation::CellNum> ThingAble<T>
     }
 }
 
-impl<T: battlesnake_game_types::wrapped_compact_representation::CellNum> ThingAble<T>
+impl<T: battlesnake_game_types::wrapped_compact_representation::CellNum> CellToUsizeAble<T>
     for battlesnake_game_types::wrapped_compact_representation::CellIndex<T>
 {
     fn from_usize(x: usize) -> Self {
@@ -67,21 +68,26 @@ where
         + NeighborDeterminableGame
         + Sync,
     T::SnakeIDType: Copy,
-    T::NativePositionType: ThingAble<u8>,
+    T::NativePositionType: CellToUsizeAble<u8>,
 {
-    fn squares_per_snake(&self, number_of_cycles: usize) -> HashMap<Self::SnakeIDType, usize> {
-        self.calculate(number_of_cycles)
-            .cells
-            .iter()
-            .filter_map(|x| *x)
-            .counts()
+    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
+        let result = self.calculate(number_of_cycles);
+        let cell_sids = result.cells.iter().filter_map(|x| *x);
+
+        let mut total_values = [0; 4];
+
+        for sid in cell_sids {
+            total_values[sid.as_usize()] += 1;
+        }
+
+        total_values
     }
 
     fn squares_per_snake_with_hazard_cost(
         &self,
         number_of_cycles: usize,
-        non_hazard_bonus: u64,
-    ) -> HashMap<Self::SnakeIDType, u64> {
+        non_hazard_bonus: u16,
+    ) -> [u16; 4] {
         let grid = self.calculate(number_of_cycles);
 
         let sid_and_values = grid
@@ -98,11 +104,10 @@ where
                 (sid, value)
             });
 
-        let mut total_values = HashMap::new();
+        let mut total_values = [0; 4];
 
         for (sid, value) in sid_and_values {
-            let total_value = total_values.entry(sid).or_insert(0);
-            *total_value += value;
+            total_values[sid.as_usize()] += value;
         }
 
         total_values
@@ -115,8 +120,7 @@ where
 
         let sorted_snake_ids = {
             let mut sids = self.get_snake_ids();
-            sids.sort_unstable_by_key(|sid| self.get_length(sid));
-            sids.reverse();
+            sids.sort_unstable_by_key(|sid| Reverse(self.get_length(sid)));
 
             sids
         };
