@@ -111,8 +111,10 @@ workflows:
             branches:
               only:
                 - main
+                - /.*profile.*/
       - bench:
           filters:
             branches:
               only:
                 - main
+                - /.*bench.*/
