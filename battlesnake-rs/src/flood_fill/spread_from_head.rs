@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use battlesnake_game_types::types::{
     HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-    PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
+    PositionGettableGame, SnakeBodyIterableGame, SnakeIDGettableGame, SnakeId,
 };
 use itertools::Itertools;
 use tinyvec::{tiny_vec, TinyVec};
@@ -63,7 +63,7 @@ where
     T: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame
         + LengthGettableGame
-        + SnakeBodyGettableGame
+        + SnakeBodyIterableGame
         + HeadGettableGame
         + HazardQueryableGame
         + NeighborDeterminableGame
@@ -130,7 +130,7 @@ where
             Default::default();
 
         for sid in &sorted_snake_ids {
-            for pos in self.get_snake_body_vec(sid) {
+            for pos in self.get_snake_body_iter(sid) {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
         }
@@ -145,7 +145,10 @@ where
                 let mut new_todo: TinyVec<[Option<T::NativePositionType>; 4]> = Default::default();
 
                 // Mark Neighbors
-                while let Some(Some(pos)) = todo_per_snake[sid.0 as usize].pop() {
+                while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
+                    let pos =
+                        pos.expect("I forced everything into a Some so I could use a TinyVec here");
+
                     for neighbor in self.neighbors(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
                             grid.cells[neighbor.as_usize()] = Some(*sid);
