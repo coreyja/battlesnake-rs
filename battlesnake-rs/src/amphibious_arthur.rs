@@ -24,7 +24,7 @@ impl MoveToAndSpawn for Game {
             .filter(|s| s.id == self.you.id);
 
         for s in opponents {
-            let new_body = self.neighbors(&s.head);
+            let new_body: Vec<_> = self.neighbors(&s.head).collect();
             s.head = *new_body.choose(&mut rand::thread_rng()).unwrap();
             s.body.append(&mut VecDeque::from(new_body));
         }
@@ -96,9 +96,7 @@ impl<
             Ok(Ok(x)) => x,
             _ => 5,
         };
-        let next_move = possible
-            .iter()
-            .max_by_key(|(_mv, coor)| score(&self.game, coor, recursion_limit));
+        let next_move = possible.max_by_key(|(_mv, coor)| score(&self.game, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: format!("{}", Move::Up),

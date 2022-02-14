@@ -19,14 +19,13 @@ fn path_to_full_board<T: PositionGettableGame + SizeDeterminableGame + NeighborD
 
     for (dir, coor) in game
         .possible_moves(reversed_body.last().unwrap())
-        .iter()
         .filter(|(_, c)| !reversed_body.contains(c))
     {
         let mut new_body = reversed_body.to_vec();
         new_body.push(coor.clone());
 
         if let Some(mut path) = path_to_full_board(&new_body, game) {
-            path.push((*dir, coor.clone()));
+            path.push((dir, coor.clone()));
             return Some(path);
         }
     }
