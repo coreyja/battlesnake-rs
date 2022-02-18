@@ -313,7 +313,21 @@ where
 
         let is_maximizing = snake_id == node.you_id();
 
-        let possible_moves = node.reasonable_moves(snake_id);
+        let possible_moves = if node.get_health_i64(snake_id) == 0 {
+            return self.minimax(
+                node,
+                players,
+                depth + 1,
+                alpha,
+                beta,
+                max_depth,
+                previous_return,
+                pending_moves,
+            );
+        } else {
+            assert!(node.get_health_i64(snake_id) > 0);
+            node.reasonable_moves(snake_id)
+        };
 
         let possible_zipped: Vec<(
             (Move, T::NativePositionType),
