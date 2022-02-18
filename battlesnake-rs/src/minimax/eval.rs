@@ -162,6 +162,7 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + NeighborDeterminableGame
+        + ReasonableMoveDeterminableGame
         + SimulableGame<Instruments>
         + Clone
         + Sync
@@ -202,6 +203,7 @@ where
         + VictorDeterminableGame
         + HeadGettableGame
         + NeighborDeterminableGame
+        + ReasonableMoveDeterminableGame
         + SimulableGame<Instruments>
         + Clone
         + Copy
@@ -311,7 +313,7 @@ where
 
         let is_maximizing = snake_id == node.you_id();
 
-        let possible_moves = node.possible_moves(&node.get_head_as_native_position(&snake_id));
+        let possible_moves = node.reasonable_moves(snake_id);
 
         let possible_zipped: Vec<(
             (Move, T::NativePositionType),
