@@ -10,14 +10,14 @@ pub use battlesnake_game_types::types::Move;
 pub use battlesnake_game_types::wire_representation::Game;
 
 // pub mod amphibious_arthur;
-pub mod bombastic_bob;
+// pub mod bombastic_bob;
 pub mod constant_carter;
 pub mod devious_devin_eval;
-pub mod eremetic_eric;
-pub mod famished_frank;
-pub mod gigantic_george;
+// pub mod eremetic_eric;
+// pub mod famished_frank;
+// pub mod gigantic_george;
 pub mod hovering_hobbs;
-pub mod jump_flooding_snake;
+// pub mod jump_flooding_snake;
 
 pub mod a_prime;
 pub mod flood_fill;
@@ -51,11 +51,11 @@ use battlesnake_game_types::{
     wire_representation::Position,
 };
 
-use crate::{
-    bombastic_bob::BombasticBobFactory, constant_carter::ConstantCarterFactory,
-    eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
-    gigantic_george::GiganticGeorgeFactory, jump_flooding_snake::JumpFloodingSnakeFactory,
-};
+// use crate::{
+//     bombastic_bob::BombasticBobFactory, constant_carter::ConstantCarterFactory,
+//     eremetic_eric::EremeticEricFactory, famished_frank::FamishedFrankFactory,
+//     gigantic_george::GiganticGeorgeFactory, jump_flooding_snake::JumpFloodingSnakeFactory,
+// };
 
 pub enum MoveResult {
     MovedTail(i32, Position), //old_health, tail_was
@@ -218,13 +218,13 @@ impl SnakeTailPushableGame for Game {
 pub fn all_factories() -> Vec<BoxedFactory> {
     vec![
         // Box::new(AmphibiousArthurFactory {}),
-        Box::new(BombasticBobFactory {}),
-        Box::new(ConstantCarterFactory {}),
+        // Box::new(BombasticBobFactory {}),
+        // Box::new(ConstantCarterFactory {}),
         Box::new(devious_devin_eval::Factory {}),
-        Box::new(EremeticEricFactory {}),
-        Box::new(FamishedFrankFactory {}),
-        Box::new(GiganticGeorgeFactory {}),
-        Box::new(JumpFloodingSnakeFactory {}),
+        // Box::new(EremeticEricFactory {}),
+        // Box::new(FamishedFrankFactory {}),
+        // Box::new(GiganticGeorgeFactory {}),
+        // Box::new(JumpFloodingSnakeFactory {}),
         Box::new(hovering_hobbs::Factory {}),
     ]
 }

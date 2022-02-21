@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use tracing::{info, info_span, Instrument};
 
 #[derive(Debug, Clone, Copy)]
-struct Instruments {}
+pub struct Instruments {}
 
 impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _duration: Duration) {}
@@ -291,7 +291,7 @@ where
 
         if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
             let mut simulate_result = node.simulate_with_moves(
-                Instruments {},
+                &Instruments {},
                 pending_moves
                     .into_iter()
                     .map(|(sid, m)| (sid, vec![m]))
@@ -332,7 +332,7 @@ where
             );
         } else {
             assert!(node.get_health_i64(snake_id) > 0);
-            node.reasonable_moves(snake_id)
+            node.possible_moves(&node.get_head_as_native_position(snake_id))
         };
 
         let possible_zipped: Vec<(

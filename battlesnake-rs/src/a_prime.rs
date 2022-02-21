@@ -123,8 +123,6 @@ struct Node<T> {
 
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
     for StandardCellBoard<T, BOARD_SIZE, MAX_SNAKES>
-where
-    StandardCellBoard<T, BOARD_SIZE, MAX_SNAKES>: HueristicAble + PositionGettableGame,
 {
     fn a_prime_inner(
         &self,
