@@ -2,6 +2,7 @@
 
 members = [
     "battlesnake-rs",
+    "battlesnake-minimax",
     "web-lambda",
     "web-rocket",
 ]
