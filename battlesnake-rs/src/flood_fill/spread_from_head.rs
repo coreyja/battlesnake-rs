@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use battlesnake_game_types::types::{
     HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-    PositionGettableGame, SnakeBodyIterableGame, SnakeIDGettableGame, SnakeId,
+    PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
 };
 use itertools::Itertools;
 use tinyvec::{tiny_vec, TinyVec};
@@ -29,47 +29,17 @@ where
     ) -> [u16; 4];
 }
 
-pub trait CellToUsizeAble<T> {
-    fn from_usize(x: usize) -> Self;
-    fn as_usize(&self) -> usize;
-}
-
-impl<T: battlesnake_game_types::compact_representation::CellNum> CellToUsizeAble<T>
-    for battlesnake_game_types::compact_representation::CellIndex<T>
-{
-    fn from_usize(x: usize) -> Self {
-        battlesnake_game_types::compact_representation::CellIndex(T::from_usize(x))
-    }
-
-    fn as_usize(&self) -> usize {
-        self.0.as_usize()
-    }
-}
-
-impl<T: battlesnake_game_types::wrapped_compact_representation::CellNum> CellToUsizeAble<T>
-    for battlesnake_game_types::wrapped_compact_representation::CellIndex<T>
-{
-    fn from_usize(x: usize) -> Self {
-        battlesnake_game_types::wrapped_compact_representation::CellIndex(T::from_usize(x))
-    }
-
-    fn as_usize(&self) -> usize {
-        self.0.as_usize()
-    }
-}
-
 impl<T> SpreadFromHead for T
 where
     T: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame
         + LengthGettableGame
-        + SnakeBodyIterableGame
+        + SnakeBodyGettableGame
         + HeadGettableGame
         + HazardQueryableGame
         + NeighborDeterminableGame
         + Sync,
     T::SnakeIDType: Copy,
-    T::NativePositionType: CellToUsizeAble<u8>,
 {
     fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
         let result = self.calculate(number_of_cycles);
@@ -130,7 +100,7 @@ where
             Default::default();
 
         for sid in &sorted_snake_ids {
-            for pos in self.get_snake_body_iter(sid) {
+            for pos in self.get_snake_body_vec(sid).iter() {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
         }

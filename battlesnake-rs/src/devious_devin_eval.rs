@@ -4,6 +4,8 @@ use crate::*;
 
 use battlesnake_game_types::types::*;
 
+use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
+
 pub struct Factory;
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]
@@ -92,12 +94,15 @@ impl Factory {
         Self
     }
 
-    pub fn create(&self, game: Game) -> EvalMinimaxSnake<CellBoard4Snakes11x11, ScoreEndState> {
+    pub fn create(
+        &self,
+        game: Game,
+    ) -> EvalMinimaxSnake<StandardCellBoard4Snakes11x11, ScoreEndState, 4> {
         let game_info = game.game.clone();
         let turn = game.turn;
         let id_map = build_snake_id_map(&game);
 
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         EvalMinimaxSnake::new(game, game_info, turn, &score, "devious-devin")
     }

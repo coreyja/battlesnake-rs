@@ -5,7 +5,7 @@ use std::{
 };
 
 use battlesnake_game_types::{
-    compact_representation::{CellBoard4Snakes11x11, CellIndex},
+    compact_representation::StandardCellBoard4Snakes11x11,
     types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame, SnakeId},
     wire_representation::Position,
 };
@@ -30,14 +30,11 @@ where
 
 impl<T> JumpFlooding for T
 where
-    T: SnakeIDGettableGame<SnakeIDType = SnakeId>
-        + PositionGettableGame<NativePositionType = CellIndex<u8>>
-        + HeadGettableGame
-        + Sync,
+    T: SnakeIDGettableGame<SnakeIDType = SnakeId> + PositionGettableGame + HeadGettableGame + Sync,
     T::SnakeIDType: Copy,
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
-        let grid: Grid<CellBoard4Snakes11x11> = Grid {
+        let grid: Grid<StandardCellBoard4Snakes11x11> = Grid {
             cells: [None; 11 * 11],
         };
         let grid = Mutex::new(grid);
@@ -61,8 +58,9 @@ where
                     .iter()
                     .permutations(2)
                     .filter_map(|coords| {
-                        let ci = CellIndex::from_i32(i);
-                        let pos = self.position_from_native(ci);
+                        let y = i / 11;
+                        let x = i % 11;
+                        let pos = Position { x, y };
 
                         let new_x = pos.x + coords[0];
                         if !(0..11).contains(&new_x) {

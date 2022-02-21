@@ -1,6 +1,7 @@
 use battlesnake_game_types::types::{
     RandomReasonableMovesGame, SnakeIDGettableGame, YouDeterminableGame,
 };
+use rand::thread_rng;
 
 use super::*;
 
@@ -12,9 +13,10 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> B
     for BombasticBob<T>
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let mut rng = thread_rng();
         let chosen = self
             .game
-            .random_reasonable_move_for_each_snake()
+            .random_reasonable_move_for_each_snake(&mut rng)
             .into_iter()
             .find(|(s, _)| s == self.game.you_id())
             .map(|x| x.1);

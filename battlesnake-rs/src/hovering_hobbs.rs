@@ -1,8 +1,11 @@
 use crate::a_prime::APrimeCalculable;
-use crate::flood_fill::spread_from_head::{CellToUsizeAble, SpreadFromHead};
+use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::minimax::eval::EvalMinimaxSnake;
 use crate::*;
 
+use battlesnake_game_types::compact_representation::{
+    StandardCellBoard4Snakes11x11, WrappedCellBoard4Snakes11x11,
+};
 use battlesnake_game_types::types::*;
 use decorum::N64;
 
@@ -61,13 +64,13 @@ impl BattlesnakeFactory for Factory {
         let name = "hovering-hobbs";
 
         if game_info.ruleset.name == "wrapped" {
-            let game = battlesnake_game_types::wrapped_compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+            let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
             let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
 
             Box::new(snake)
         } else {
-            let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+            let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
             let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
 

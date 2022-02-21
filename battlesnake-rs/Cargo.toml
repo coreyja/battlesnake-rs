@@ -16,8 +16,8 @@ debug_print = "1.0.0"
 tracing = "0.1.26"
 # battlesnake-game-types = "0.11.1"
 # battlesnake-game-types = { git = "https://github.com/penelopezone/battlesnake-game-types.git", branch = "main" }
-battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "82ccaaa" }
-# battlesnake-game-types = { path = "../../battlesnake-game-types" }
+# battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "82ccaaa" }
+battlesnake-game-types = { path = "../../battlesnake-game-types" }
 rustc-hash = "1.1.0"
 text_trees = "0.1.2"
 decorum = "0.3.1"

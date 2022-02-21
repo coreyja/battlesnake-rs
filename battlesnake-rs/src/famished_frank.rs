@@ -1,4 +1,5 @@
 use battlesnake_game_types::types::*;
+use rand::thread_rng;
 
 use crate::a_prime::APrimeNextDirection;
 
@@ -60,8 +61,9 @@ where
             self.game
                 .shortest_path_next_direction(head, &[you_body.last().unwrap().clone()], None)
                 .unwrap_or_else(|| {
+                    let mut rng = thread_rng();
                     self.game
-                        .random_reasonable_move_for_each_snake()
+                        .random_reasonable_move_for_each_snake(&mut rng)
                         .into_iter()
                         .find(|(s, _)| s == you_id)
                         .map(|x| x.1)

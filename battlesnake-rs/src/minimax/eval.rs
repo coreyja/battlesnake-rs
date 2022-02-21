@@ -1,4 +1,3 @@
-use crate::devious_devin_mutable::Instruments;
 use crate::*;
 
 use battlesnake_game_types::types::*;
@@ -9,6 +8,13 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 use tracing::{info, info_span, Instrument};
+
+#[derive(Debug, Clone, Copy)]
+struct Instruments {}
+
+impl SimulatorInstruments for Instruments {
+    fn observe_simulation(&self, _duration: Duration) {}
+}
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 pub enum WrappedScore<ScoreType>
@@ -49,7 +55,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static> {
+pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
     game: T,
     game_info: NestedGame,
     turn: i32,
@@ -153,7 +159,7 @@ where
 
 use text_trees::{FormatCharacters, StringTreeNode, TreeFormatting, TreeNode};
 
-impl<T, ScoreType> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType>
+impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -162,8 +168,8 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + NeighborDeterminableGame
-        + ReasonableMoveDeterminableGame
-        + SimulableGame<Instruments>
+        // + ReasonableMoveDeterminableGame
+        + SimulableGame<Instruments, N_SNAKES>
         + Clone
         + Sync
         + Copy
@@ -194,7 +200,7 @@ where
     }
 }
 
-impl<T, ScoreType> EvalMinimaxSnake<T, ScoreType>
+impl<T, ScoreType, const N_SNAKES: usize> EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -203,8 +209,8 @@ where
         + VictorDeterminableGame
         + HeadGettableGame
         + NeighborDeterminableGame
-        + ReasonableMoveDeterminableGame
-        + SimulableGame<Instruments>
+        // + ReasonableMoveDeterminableGame
+        + SimulableGame<Instruments, N_SNAKES>
         + Clone
         + Copy
         + Sync
@@ -285,7 +291,7 @@ where
 
         if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
             let mut simulate_result = node.simulate_with_moves(
-                &Instruments,
+                Instruments {},
                 pending_moves
                     .into_iter()
                     .map(|(sid, m)| (sid, vec![m]))
