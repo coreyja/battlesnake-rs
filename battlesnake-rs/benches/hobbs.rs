@@ -1,6 +1,9 @@
-use battlesnake_rs::minimax::eval::EvalMinimaxSnake;
+use battlesnake_rs::{EvalMinimaxSnake, StandardCellBoard4Snakes11x11};
 
-use battlesnake_game_types::{types::build_snake_id_map, wire_representation::Game};
+use battlesnake_game_types::{
+    compact_representation::WrappedCellBoard4Snakes11x11, types::build_snake_id_map,
+    wire_representation::Game,
+};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
@@ -20,7 +23,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let name = "hovering-hobbs";
 
-            let game = battlesnake_game_types::compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+            let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
             let snake = EvalMinimaxSnake::new(black_box(game), game_info, turn, &score, name);
 
@@ -37,7 +40,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let name = "hovering-hobbs";
 
-            let game = battlesnake_game_types::wrapped_compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+            let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
             let snake = EvalMinimaxSnake::new(black_box(game), game_info, turn, &score, name);
 

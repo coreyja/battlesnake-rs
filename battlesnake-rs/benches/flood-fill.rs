@@ -14,7 +14,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
@@ -27,7 +27,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
@@ -40,7 +40,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::wrapped_compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
@@ -53,7 +53,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::wrapped_compact_representation::CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
