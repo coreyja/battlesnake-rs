@@ -1,12 +1,12 @@
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::SpreadFromHead;
-use crate::minimax::eval::EvalMinimaxSnake;
 use crate::*;
 
 use battlesnake_game_types::compact_representation::{
     StandardCellBoard4Snakes11x11, WrappedCellBoard4Snakes11x11,
 };
 use battlesnake_game_types::types::*;
+use battlesnake_minimax::EvalMinimaxSnake;
 use decorum::N64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

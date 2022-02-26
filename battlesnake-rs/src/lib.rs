@@ -6,7 +6,7 @@ extern crate serde_derive;
 use std::{collections::HashSet, convert::TryInto, fmt::Debug};
 
 pub use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
-pub use battlesnake_game_types::types::Move;
+pub use battlesnake_game_types::types::*;
 pub use battlesnake_game_types::wire_representation::Game;
 
 // pub mod amphibious_arthur;
@@ -21,7 +21,6 @@ pub mod hovering_hobbs;
 
 pub mod a_prime;
 pub mod flood_fill;
-pub mod minimax;
 
 #[derive(Serialize)]
 pub struct AboutMe {
@@ -47,7 +46,7 @@ impl Default for AboutMe {
 }
 
 use battlesnake_game_types::{
-    types::{PositionGettableGame, SnakeIDGettableGame},
+    types::{PositionGettableGame, SnakeIDGettableGame, YouDeterminableGame},
     wire_representation::Position,
 };
 
@@ -212,6 +211,39 @@ impl SnakeTailPushableGame for Game {
             .unwrap()
             .body
             .push_back(pos)
+    }
+}
+
+pub use battlesnake_minimax::EvalMinimaxSnake;
+use battlesnake_minimax::Instruments;
+use tracing::{info, info_span};
+
+impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
+where
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + NeighborDeterminableGame
+        // + ReasonableMoveDeterminableGame
+        + SimulableGame<Instruments, N_SNAKES>
+        + Clone
+        + Sync
+        + Copy
+        + FoodGettableGame
+        + Send,
+    T::SnakeIDType: Copy + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
+{
+    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+        let m: Move = Self::make_move_inner(&self);
+
+        Ok(MoveOutput {
+            r#move: format!("{}", m),
+            shout: None,
+        })
     }
 }
 
