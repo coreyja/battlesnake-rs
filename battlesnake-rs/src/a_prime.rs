@@ -1,7 +1,10 @@
 use battlesnake_game_types::compact_representation::{
     CellNum, StandardCellBoard, StandardCellBoard4Snakes11x11, WrappedCellBoard,
 };
-use battlesnake_game_types::types::*;
+use battlesnake_game_types::types::{
+    FoodGettableGame, FoodQueryableGame, HazardQueryableGame, Move, NeighborDeterminableGame,
+    PositionGettableGame, SizeDeterminableGame,
+};
 use battlesnake_game_types::wire_representation::Position;
 
 use rustc_hash::FxHashMap;
@@ -158,9 +161,9 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
                 });
             }
 
-            let neighbor_distance = if self.cell_is_hazard(coordinate) {
+            let neighbor_distance = if (*self).is_hazard(&coordinate) {
                 HAZARD_PENALTY + NEIGHBOR_DISTANCE
-            } else if self.cell_is_food(coordinate) {
+            } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
                 NEIGHBOR_DISTANCE
@@ -170,7 +173,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| targets.contains(n) || !self.cell_is_snake_body_piece(coordinate))
+                .filter(|n| targets.contains(n) || !self.position_is_snake_body(coordinate))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);
@@ -229,9 +232,9 @@ impl<
                 });
             }
 
-            let neighbor_distance = if self.cell_is_hazard(coordinate) {
+            let neighbor_distance = if self.is_hazard(&coordinate) {
                 HAZARD_PENALTY + NEIGHBOR_DISTANCE
-            } else if self.cell_is_food(coordinate) {
+            } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
                 NEIGHBOR_DISTANCE
@@ -241,7 +244,7 @@ impl<
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| targets.contains(n) || !self.cell_is_snake_body_piece(coordinate))
+                .filter(|n| targets.contains(n) || !self.position_is_snake_body(coordinate))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);
@@ -464,13 +467,13 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
         known_score.insert(*start, 0);
         paths_from.insert(*start, None);
         while let Some(Node { cost, coordinate }) = to_search.pop() {
-            if self.cell_is_food(coordinate) {
+            if self.is_food(&coordinate) {
                 return Some(cost);
             }
 
-            let neighbor_distance = if self.cell_is_hazard(coordinate) {
+            let neighbor_distance = if self.is_hazard(&coordinate) {
                 HAZARD_PENALTY + NEIGHBOR_DISTANCE
-            } else if self.cell_is_food(coordinate) {
+            } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
                 NEIGHBOR_DISTANCE
@@ -480,7 +483,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| self.cell_is_food(*n) || !self.cell_is_snake_body_piece(coordinate))
+                .filter(|n| self.is_food(n) || !self.position_is_snake_body(coordinate))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);

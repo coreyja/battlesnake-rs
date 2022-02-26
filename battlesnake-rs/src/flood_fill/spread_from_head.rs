@@ -87,7 +87,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
         let sorted_snake_ids = {
             let mut sids = self.get_snake_ids();
-            sids.sort_unstable_by_key(|sid| Reverse(self.get_length(*sid)));
+            sids.sort_unstable_by_key(|sid| Reverse(self.get_length(sid)));
 
             sids
         };
@@ -189,7 +189,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
         let sorted_snake_ids = {
             let mut sids = self.get_snake_ids();
-            sids.sort_unstable_by_key(|sid| Reverse(self.get_length(*sid)));
+            sids.sort_unstable_by_key(|sid| Reverse(self.get_length(sid)));
 
             sids
         };
