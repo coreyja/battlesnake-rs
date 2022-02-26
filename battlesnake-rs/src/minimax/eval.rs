@@ -340,7 +340,6 @@ where
             Option<MinMaxReturn<T, ScoreType>>,
         )> = if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
             let mut v: Vec<_> = possible_moves
-                .into_iter()
                 .map(|m| {
                     (
                         m.clone(),
@@ -355,7 +354,7 @@ where
             v.reverse();
             v
         } else {
-            possible_moves.into_iter().map(|m| (m, None)).collect()
+            possible_moves.map(|m| (m, None)).collect()
         };
 
         for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
