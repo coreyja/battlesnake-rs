@@ -214,6 +214,7 @@ where
         + VictorDeterminableGame
         + HeadGettableGame
         + NeighborDeterminableGame
+        + NeckQueryableGame
         + SimulableGame<Instruments, N_SNAKES>
         + Clone
         + Copy
@@ -352,6 +353,7 @@ where
         } else {
             assert!(node.get_health_i64(snake_id) > 0);
             node.possible_moves(&node.get_head_as_native_position(snake_id))
+                .filter(|(_, pos)| !node.is_neck(snake_id, pos))
         };
 
         let possible_zipped: Vec<(

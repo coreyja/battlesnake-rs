@@ -227,6 +227,7 @@ where
         + HealthGettableGame
         + VictorDeterminableGame
         + NeighborDeterminableGame
+        + NeckQueryableGame
         // + ReasonableMoveDeterminableGame
         + SimulableGame<Instruments, N_SNAKES>
         + Clone
@@ -238,7 +239,7 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
-        let m: Move = Self::make_move_inner(&self);
+        let m: Move = Self::make_move_inner(self);
 
         Ok(MoveOutput {
             r#move: format!("{}", m),
