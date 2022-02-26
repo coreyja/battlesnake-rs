@@ -92,7 +92,6 @@ where
         + VictorDeterminableGame
         + HeadGettableGame
         + NeighborDeterminableGame
-        // + ReasonableMoveDeterminableGame
         + SimulableGame<Instruments, N_SNAKES>
         + Clone
         + Copy
@@ -243,16 +242,16 @@ where
 
     /// Pick the next move to make
     pub fn make_move_inner(&self) -> Move {
-        let my_id = self.game.you_id().clone();
+        let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
-        sorted_ids.sort_by_key(|snake_id| if snake_id == &my_id { -1 } else { 1 });
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
         let copy = self.clone();
 
         let best_option =
             info_span!("deepened_minmax", snake_name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
 
-        best_option.direction_for(&my_id).unwrap()
+        best_option.direction_for(my_id).unwrap()
     }
 
     fn wrapped_score(
@@ -380,7 +379,7 @@ where
         for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
             // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
-            new_pending_moves.push((snake_id.clone(), dir));
+            new_pending_moves.push((*snake_id, dir));
             let next_move_return = self.minimax(
                 node,
                 players,
@@ -415,7 +414,7 @@ where
         MinMaxReturn::Node {
             options,
             is_maximizing,
-            moving_snake_id: snake_id.clone(),
+            moving_snake_id: *snake_id,
             score: chosen_score,
         }
     }
@@ -435,7 +434,7 @@ where
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
-        let node = self.game.clone();
+        let node = self.game;
         let you_id = node.you_id();
 
         const RUNAWAY_DEPTH_LIMIT: usize = 100;
