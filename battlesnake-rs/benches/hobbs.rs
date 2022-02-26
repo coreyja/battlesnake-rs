@@ -33,7 +33,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     g.bench_function("Hobbs Wrapped", |b| {
         b.iter(|| {
-            let game: Game = serde_json::from_str(game_json).unwrap();
+            let mut game: Game = serde_json::from_str(game_json).unwrap();
+            game.game.ruleset = "wrapped".to_string();
             let game_info = game.game.clone();
             let turn = game.turn;
             let id_map = build_snake_id_map(&game);
