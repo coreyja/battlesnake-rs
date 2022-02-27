@@ -190,7 +190,7 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 [[package]]
 name = "battlesnake-game-types"
 version = "0.14.1"
-source = "git+https://github.com/coreyja/battlesnake-game-types.git?rev=39191e0#39191e0e663c99565ba56346fed6a1b61ad05d1d"
+source = "git+https://github.com/coreyja/battlesnake-game-types.git?rev=e7974e5#e7974e5b14d2aefb96fb35403d6aea91eac708eb"
 dependencies = [
  "core_simd",
  "fxhash",
