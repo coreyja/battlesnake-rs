@@ -1,8 +1,9 @@
 use battlesnake_rs::{EvalMinimaxSnake, StandardCellBoard4Snakes11x11};
 
 use battlesnake_game_types::{
-    compact_representation::WrappedCellBoard4Snakes11x11, types::build_snake_id_map,
-    wire_representation::Game,
+    compact_representation::WrappedCellBoard4Snakes11x11,
+    types::build_snake_id_map,
+    wire_representation::{Game, Ruleset},
 };
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -34,7 +35,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     g.bench_function("Hobbs Wrapped", |b| {
         b.iter(|| {
             let mut game: Game = serde_json::from_str(game_json).unwrap();
-            game.game.ruleset = "wrapped".to_string();
+            game.game.ruleset = Ruleset {
+                name: "wrapped".to_string(),
+                version: "1.0".to_string(),
+                settings: None,
+            };
             let game_info = game.game.clone();
             let turn = game.turn;
             let id_map = build_snake_id_map(&game);
