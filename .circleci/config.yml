@@ -54,8 +54,6 @@ jobs:
   bench:
     docker:
       - image: rustlang/rust:nightly
-        environment:
-          RUSTFLAGS: "-C target-feature=+avx2,+fma"
     resource_class: medium
     steps:
       - checkout
