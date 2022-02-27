@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::{collections::HashSet, convert::TryInto, fmt::Debug};
+use std::fmt::Debug;
 
 pub use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::*;
@@ -216,7 +216,6 @@ impl SnakeTailPushableGame for Game {
 
 pub use battlesnake_minimax::EvalMinimaxSnake;
 use battlesnake_minimax::Instruments;
-use tracing::{info, info_span};
 
 impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where

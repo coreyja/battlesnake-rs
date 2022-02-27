@@ -350,9 +350,9 @@ impl<
     }
 }
 
-fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
-    targets.iter().map(|coor| dist_between(coor, start)).min()
-}
+// fn hueristic_wire(start: &Position, targets: &[Position]) -> Option<i32> {
+//     targets.iter().map(|coor| dist_between(coor, start)).min()
+// }
 
 // impl APrimeCalculable for Game {
 //     fn a_prime_inner(

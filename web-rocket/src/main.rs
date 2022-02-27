@@ -4,7 +4,7 @@
 extern crate rocket;
 
 use tracing::Subscriber;
-use tracing_subscriber::{layer::SubscriberExt, Layer};
+use tracing_subscriber::layer::SubscriberExt;
 
 use rocket::http::Status;
 
