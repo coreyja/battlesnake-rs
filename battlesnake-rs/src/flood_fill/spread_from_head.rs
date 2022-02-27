@@ -97,7 +97,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         >; 4] = Default::default();
 
         for sid in &sorted_snake_ids {
-            for pos in self.get_snake_body_vec(sid).iter() {
+            for pos in self.get_snake_body_iter(sid) {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
         }
@@ -199,7 +199,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         >; 4] = Default::default();
 
         for sid in &sorted_snake_ids {
-            for pos in self.get_snake_body_vec(sid).iter() {
+            for pos in self.get_snake_body_iter(sid) {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
         }
