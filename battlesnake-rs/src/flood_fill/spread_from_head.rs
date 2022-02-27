@@ -1,5 +1,6 @@
 use std::cmp::Reverse;
 
+use battlesnake_game_types::compact_representation::wrapped::neighbors::FixedNeighborDeterminableGame;
 use battlesnake_game_types::compact_representation::*;
 use battlesnake_game_types::types::{
     HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
@@ -218,7 +219,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
                     let pos =
                         pos.expect("I forced everything into a Some so I could use a TinyVec here");
 
-                    for neighbor in self.neighbors(&pos) {
+                    for neighbor in self.neighbors_fixed(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
                             grid.cells[neighbor.as_usize()] = Some(*sid);
                             new_todo.push(Some(neighbor));
