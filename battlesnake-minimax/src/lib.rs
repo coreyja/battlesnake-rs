@@ -2,7 +2,7 @@
     warnings,
     missing_copy_implementations,
     missing_debug_implementations,
-    // missing_docs
+    missing_docs
 )]
 //! This crate implements the minimax algorithm for the battlesnake game. You provide a 'scoring'
 //! function that turns a given board into anything that implements the `Ord` trait.
@@ -22,6 +22,8 @@ use tracing::{info, info_span};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Copy)]
+/// Any empty struct that implements `SimulatorInstruments` which can be used when you don't want
+/// to time the simulation
 pub struct Instruments {}
 
 impl SimulatorInstruments for Instruments {
@@ -38,13 +40,20 @@ pub struct MoveOutput {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
+/// The wrapped score type. This takes into account the score provided by the score function, but
+/// wraps it with a Score based on the game state. This allows us to say that wins are better than
+/// any score and loses are worse than any score, etc.
 pub enum WrappedScore<ScoreType>
 where
     ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
 {
+    /// We lost, the depth is recorded because we prefer surviving longer
     Lose(i64),
+    /// We tied, the depth is recorded because we prefer surviving longer
     Tie(i64),
+    /// We order this based on the score provided by the score function
     Scored(ScoreType),
+    /// We won, the depth is recorded because we prefer winning sooner
     Win(i64),
 }
 
@@ -110,17 +119,29 @@ where
 }
 
 #[derive(Debug, Clone)]
+/// This is returned from an iteration of the minimax algorithm
+/// It contains all the information we generated about the game tree
 pub enum MinMaxReturn<
     T: SnakeIDGettableGame + Clone + Debug,
     ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
 > {
+    /// This is a non-leaf node in the game tree
+    /// We have information about all the options we looked at as well as the chosen score
     Node {
+        /// Whether this node was a maximizing node or not
         is_maximizing: bool,
+        /// A recursive look at all the moves under us
         options: Vec<(Move, Self)>,
+        /// Which snake was moving at this node
         moving_snake_id: T::SnakeIDType,
+        /// The chosen score
         score: WrappedScore<ScoreType>,
     },
+    /// Represents a leaf node in the game tree
+    /// This happens when we reach a terminal state (win/lose/tie)
+    /// or when we reach the maximum depth
     Leaf {
+        /// The score of the leaf node
         score: WrappedScore<ScoreType>,
     },
 }
@@ -130,6 +151,7 @@ where
     T: SnakeIDGettableGame + Debug + Clone,
     ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
 {
+    /// Returns the score for this node
     pub fn score(&self) -> &WrappedScore<ScoreType> {
         match self {
             MinMaxReturn::Node { score, .. } => score,
@@ -137,6 +159,11 @@ where
         }
     }
 
+    /// Returns the direction our snake should move to maximize the score
+    /// If we are a leaf node, this will return None
+    ///
+    /// We take advantage of the fact that the moves are sorted by score, so we can just return the
+    /// first option where our snake is moving
     pub fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
@@ -155,6 +182,9 @@ where
         }
     }
 
+    /// Returns all the moves in the 'route' through the game tree that minimax took
+    /// This is useful for debugging as it shows each of the moves we and our opponents made during
+    /// the simulation
     pub fn all_moves(&self) -> Vec<(T::SnakeIDType, Move)> {
         match self {
             MinMaxReturn::Leaf { .. } => vec![],
@@ -197,6 +227,8 @@ where
         }
     }
 
+    /// This returns a visual representation of the game tree that minimax generated
+    /// It shows the chosen score, the moving snake and the chosen move at each level
     pub fn to_text_tree(&self) -> Option<String> {
         let tree_node = self.to_text_tree_node("".to_owned())?;
         Some(format!("{}", tree_node))
