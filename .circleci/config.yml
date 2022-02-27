@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   lint-rust:
     docker:
-      - image: rust:latest
+      - image: rustlang/rust:nightly
     resource_class: small
     steps:
       - checkout
@@ -20,7 +20,7 @@ jobs:
           command: cargo fmt -- --check
   test-rust:
     docker:
-      - image: rust:latest
+      - image: rustlang/rust:nightly
     resource_class: small
     steps:
       - checkout
@@ -31,7 +31,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run:
           name: Build
@@ -46,14 +46,14 @@ jobs:
           command: cargo-cache || (cargo install cargo-cache --force --git https://github.com/matthiaskrgr/cargo-cache.git --no-default-features --features ci-autoclean && cargo-cache)
 
       - save_cache:
-          key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - /usr/local/cargo
             - target/debug
 
   bench:
     docker:
-      - image: rust:latest
+      - image: rustlang/rust:nightly
     resource_class: medium
     steps:
       - checkout
@@ -64,7 +64,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run: cd battlesnake-rs/
       - restore_cache:
@@ -79,7 +79,7 @@ jobs:
 
   profile:
     docker:
-      - image: rust:latest
+      - image: rustlang/rust:nightly
     resource_class: medium
     steps:
       - checkout
@@ -90,7 +90,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run: cd battlesnake-rs/
       # - run: cargo bench --bench devin -- --profile-time 60
