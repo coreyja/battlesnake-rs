@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(min_specialization)]
 
 #[macro_use]

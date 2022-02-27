@@ -22,7 +22,7 @@ use tracing::{info, info_span};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Copy)]
-/// Any empty struct that implements `SimulatorInstruments` which can be used when you don't want
+/// Any empty struct that implements `SimulatorInstruments` as a no-op which can be used when you don't want
 /// to time the simulation
 pub struct Instruments {}
 
