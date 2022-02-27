@@ -505,12 +505,8 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use battlesnake_game_types::{
-        compact_representation::{
-            CellIndex, StandardCellBoard4Snakes11x11 as CellBoard4Snakes11x11,
-        },
-        types::*,
-        wire_representation::Game,
+    use battlesnake_game_types::compact_representation::{
+        CellIndex, StandardCellBoard4Snakes11x11 as CellBoard4Snakes11x11,
     };
 
     fn cell_index_from_position_default_width(pos: Position) -> CellIndex<u8> {
