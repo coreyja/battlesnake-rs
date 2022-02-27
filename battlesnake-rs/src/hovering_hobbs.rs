@@ -84,7 +84,7 @@ impl BattlesnakeFactory for Factory {
             author: Some("coreyja".to_owned()),
             color: Some("#da8a1a".to_owned()),
             head: Some("iguana".to_owned()),
-            tail: Some("flame".to_owned()),
+            tail: Some("crystal-power".to_owned()),
             version: None,
         }
     }
