@@ -7,7 +7,7 @@ kill_timeout = 5
 processes = []
 
 [env]
-  FORCE_DEPLOY_BY_CHANGING_THIS_VARIABLE = "1"
+  FORCE_DEPLOY_BY_CHANGING_THIS_VARIABLE = "2"
 
 [experimental]
   allowed_public_ports = []

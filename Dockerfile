@@ -13,9 +13,11 @@ RUN rustc --version; cargo --version; rustup --version
 COPY Cargo.toml .
 COPY Cargo.lock .
 COPY battlesnake-rs/Cargo.toml ./battlesnake-rs/
+COPY battlesnake-minimax/Cargo.toml ./battlesnake-minimax/
 COPY web-rocket/Cargo.toml ./web-rocket/
 COPY web-lambda/Cargo.toml ./web-lambda/
 RUN mkdir -p ./battlesnake-rs/src/ && echo "fn foo() {}" > ./battlesnake-rs/src/lib.rs
+RUN mkdir -p ./battlesnake-minimax/src/ && echo "fn foo() {}" > ./battlesnake-minimax/src/lib.rs
 RUN mkdir -p ./web-rocket/src/ && echo "fn main() {}" > ./web-rocket/src/main.rs
 RUN mkdir -p ./web-lambda/src/ && echo "fn main() {}" > ./web-lambda/src/main.rs
 RUN cargo build --release --locked --bin web-rocket
@@ -23,9 +25,11 @@ RUN cargo build --release --locked --bin web-rocket
 # We need to touch our real main.rs file or else docker will use
 # the cached one.
 COPY . .
-RUN touch battlesnake-rs/src/lib.rs
+RUN touch battlesnake-minimax/src/lib.rs && \
+    touch battlesnake-rs/src/lib.rs && \
+    touch web-rocket/src/main.rs
 
-RUN cargo build --release --bin web-rocket
+RUN cargo build --release --locked --bin web-rocket
 
 # Start building the final image
 FROM debian:buster-slim
