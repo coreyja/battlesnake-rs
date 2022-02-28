@@ -7,7 +7,9 @@ use battlesnake_game_types::types::{
 };
 
 use battlesnake_game_types::compact_representation::CellNum;
-use tinyvec::TinyVec;
+use tinyvec::{tiny_vec, TinyVec};
+
+use crate::multi_neighbor::multi_neighbor;
 
 pub struct Grid<T>
 where
@@ -132,8 +134,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
     }
 }
 
-impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHead
-    for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+impl<const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHead
+    for WrappedCellBoard<u8, BOARD_SIZE, MAX_SNAKES>
 {
     fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
         let result = self.calculate(number_of_cycles);
@@ -192,42 +194,42 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             sids
         };
 
-        let mut todo_per_snake: [TinyVec<
-            [Option<<Self as PositionGettableGame>::NativePositionType>; 4],
-        >; 4] = Default::default();
+        let mut todos: TinyVec<[u8; 16]> = tiny_vec![];
+        let mut todo_count_per_snake: [usize; 4] = Default::default();
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_iter(sid) {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
-        }
 
-        for sid in &sorted_snake_ids {
             let head = self.get_head_as_native_position(sid);
-            todo_per_snake[sid.0 as usize].push(Some(head));
+            todos.push(head.0 as u8);
+            todo_count_per_snake[sid.0 as usize] += 1;
         }
 
         for _ in 0..number_of_cycles {
+            let all_neighbors = multi_neighbor(&todos, 11);
+            let mut row_iter = all_neighbors.row_iter().into_iter();
+            let mut new_todos = tiny_vec![];
+            let mut new_todo_count_per_snake: [usize; 4] = Default::default();
+
             for sid in &sorted_snake_ids {
-                let mut new_todo: TinyVec<
-                    [Option<<Self as PositionGettableGame>::NativePositionType>; 4],
-                > = Default::default();
-
                 // Mark Neighbors
-                while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
-                    let pos =
-                        pos.expect("I forced everything into a Some so I could use a TinyVec here");
+                for _ in 0..todo_count_per_snake[sid.0 as usize] {
+                    let neighbors = row_iter.next().unwrap();
 
-                    for neighbor in self.neighbors(&pos) {
-                        if grid.cells[neighbor.as_usize()].is_none() {
-                            grid.cells[neighbor.as_usize()] = Some(*sid);
-                            new_todo.push(Some(neighbor));
+                    for &neighbor in &neighbors {
+                        if grid.cells[neighbor as usize].is_none() {
+                            grid.cells[neighbor as usize] = Some(*sid);
+                            new_todos.push(neighbor);
+                            new_todo_count_per_snake[sid.0 as usize] += 1;
                         }
                     }
                 }
-
-                todo_per_snake[sid.0 as usize] = new_todo;
             }
+
+            todos = new_todos;
+            todo_count_per_snake = new_todo_count_per_snake;
         }
 
         grid
