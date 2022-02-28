@@ -90,9 +90,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             sids
         };
 
-        let mut todo_per_snake: [TinyVec<
-            [Option<<Self as PositionGettableGame>::NativePositionType>; 4],
-        >; 4] = Default::default();
+        let mut todos = vec![];
+        let mut todos_per_snake = [0; 4];
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_iter(sid) {
@@ -102,30 +101,33 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
         for sid in &sorted_snake_ids {
             let head = self.get_head_as_native_position(sid);
-            todo_per_snake[sid.0 as usize].push(Some(head));
+            todos.push(head);
+            todos_per_snake[sid.as_usize()] += 1;
         }
 
         for _ in 0..number_of_cycles {
-            for sid in &sorted_snake_ids {
-                let mut new_todo: TinyVec<
-                    [Option<<Self as PositionGettableGame>::NativePositionType>; 4],
-                > = Default::default();
+            let mut todos_iter = todos.into_iter();
 
-                // Mark Neighbors
-                while let Some(pos) = todo_per_snake[sid.0 as usize].pop() {
-                    let pos =
-                        pos.expect("I forced everything into a Some so I could use a TinyVec here");
+            let mut new_todos = vec![];
+            let mut new_todos_per_snake = [0; 4];
+
+            for sid in &sorted_snake_ids {
+                for _ in 0..todos_per_snake[sid.as_usize()] {
+                    // Mark Neighbors
+                    let pos = todos_iter.next().unwrap();
 
                     for neighbor in self.neighbors(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
                             grid.cells[neighbor.as_usize()] = Some(*sid);
-                            new_todo.push(Some(neighbor));
+                            new_todos.push(neighbor);
+                            new_todos_per_snake[sid.as_usize()] += 1;
                         }
                     }
                 }
-
-                todo_per_snake[sid.0 as usize] = new_todo;
             }
+
+            todos = new_todos;
+            todos_per_snake = new_todos_per_snake;
         }
 
         grid
@@ -200,9 +202,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             for pos in self.get_snake_body_iter(sid) {
                 grid.cells[pos.as_usize()] = Some(*sid);
             }
-        }
 
-        for sid in &sorted_snake_ids {
             let head = self.get_head_as_native_position(sid);
             todo_per_snake[sid.0 as usize].push(Some(head));
         }
