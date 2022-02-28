@@ -25,6 +25,7 @@ decorum = "0.3.1"
 rayon = "1.5.1"
 tinyvec = { version = "1.5.1", features = ["alloc", "rustc_1_40"] }
 battlesnake-minimax = { path = "../battlesnake-minimax" }
+nalgebra = "0.30.1"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

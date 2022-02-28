@@ -23,6 +23,8 @@ pub mod hovering_hobbs;
 pub mod a_prime;
 pub mod flood_fill;
 
+pub(crate) mod multi_neighbor;
+
 #[derive(Serialize)]
 pub struct AboutMe {
     apiversion: String,
