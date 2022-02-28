@@ -106,10 +106,10 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         }
 
         for _ in 0..number_of_cycles {
-            let mut todos_iter = todos.into_iter();
-
             let mut new_todos = Vec::with_capacity(todos.capacity() + 16);
             let mut new_todos_per_snake = [0; 4];
+
+            let mut todos_iter = todos.into_iter();
 
             for sid in &sorted_snake_ids {
                 for _ in 0..todos_per_snake[sid.as_usize()] {
