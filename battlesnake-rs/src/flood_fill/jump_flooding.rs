@@ -1,17 +1,15 @@
 use std::{
     collections::HashMap,
-    ops::Add,
     sync::{Arc, Mutex},
 };
 
 use battlesnake_game_types::{
-    compact_representation::StandardCellBoard4Snakes11x11,
-    types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame, SnakeId},
+    compact_representation::{CellNum, StandardCellBoard4Snakes11x11, WrappedCellBoard},
+    types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame},
     wire_representation::Position,
 };
 
 use itertools::Itertools;
-use rayon::prelude::*;
 
 pub trait JumpFlooding: SnakeIDGettableGame
 where
@@ -22,16 +20,14 @@ where
 
 struct Grid<T>
 where
-    T: JumpFlooding,
+    T: SnakeIDGettableGame,
     T::SnakeIDType: Copy,
 {
     cells: [Option<T::SnakeIDType>; 11 * 11],
 }
 
-impl<T> JumpFlooding for T
-where
-    T: SnakeIDGettableGame<SnakeIDType = SnakeId> + PositionGettableGame + HeadGettableGame + Sync,
-    T::SnakeIDType: Copy,
+impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
+    for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
         let grid: Grid<StandardCellBoard4Snakes11x11> = Grid {
@@ -44,7 +40,7 @@ where
         for sid in self.get_snake_ids().iter() {
             let head = self.get_head_as_native_position(sid);
 
-            grid.lock().unwrap().cells[head.0 as usize] = Some(*sid);
+            grid.lock().unwrap().cells[head.0.as_usize()] = Some(*sid);
         }
 
         // This comes from k = [ N/2, N/4, N/8, ..., 1 ]
@@ -52,7 +48,7 @@ where
         let steps = [6, 3, 1];
 
         for neighbor_distance in steps {
-            (0..(11 * 11)).into_par_iter().for_each(|i| {
+            (0..(11 * 11)).into_iter().for_each(|i| {
                 let neighbor_options = [-neighbor_distance, 0, neighbor_distance];
                 let neighbors = neighbor_options
                     .iter()
@@ -78,16 +74,16 @@ where
                 for neighbor in neighbors {
                     let mut grid = grid.lock().unwrap();
 
-                    if let Some(nid) = grid.cells[neighbor.0 as usize] {
+                    if let Some(nid) = grid.cells[neighbor.0.as_usize()] {
                         if let Some(sid) = grid.cells[i as usize] {
                             if sid != nid {
                                 let n_dist = manhattan_distance(
-                                    self.get_head_as_native_position(&nid).0,
-                                    i as u8,
+                                    self.get_head_as_native_position(&nid).0.as_usize(),
+                                    i,
                                 );
                                 let s_dist = manhattan_distance(
-                                    self.get_head_as_native_position(&sid).0,
-                                    i as u8,
+                                    self.get_head_as_native_position(&sid).0.as_usize(),
+                                    i,
                                 );
 
                                 if n_dist < s_dist {
@@ -107,7 +103,8 @@ where
     }
 }
 
-fn manhattan_distance(a: u8, b: u8) -> u8 {
+fn manhattan_distance(a: usize, b: i32) -> i32 {
+    let a = a as i32;
     let diff = if a > b { a - b } else { b - a };
 
     (diff / 11) + (diff % 11)
