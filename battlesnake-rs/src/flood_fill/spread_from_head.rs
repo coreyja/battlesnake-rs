@@ -95,7 +95,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         total_values
     }
 
-    fn calculate(&self, number_of_cycles: usize) -> Grid<Self> {
+    fn calculate(&self, _number_of_cycles: usize) -> Grid<Self> {
         let mut grid: Grid<Self> = Grid {
             cells: [None; 11 * 11],
         };
