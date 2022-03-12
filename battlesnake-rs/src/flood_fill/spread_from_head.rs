@@ -1,4 +1,5 @@
 use std::cmp::Reverse;
+use std::ops::Deref;
 
 use battlesnake_game_types::compact_representation::*;
 use battlesnake_game_types::types::{
@@ -28,6 +29,22 @@ where
         number_of_cycles: usize,
         hazard_cost: u16,
     ) -> [u16; 4];
+}
+
+struct CellWrapper<T: CellNum>(CellIndex<T>);
+
+impl<T: CellNum> Default for CellWrapper<T> {
+    fn default() -> Self {
+        CellWrapper(CellIndex::from_usize(0))
+    }
+}
+
+impl<T: CellNum> Deref for CellWrapper<T> {
+    type Target = CellIndex<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHead
@@ -90,8 +107,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             sids
         };
 
-        let mut todos = Vec::with_capacity(16);
-        let mut todos_per_snake = [0; 4];
+        let mut todos: TinyVec<[CellWrapper<T>; 16]> = TinyVec::new();
+        let mut todos_per_snake: [u8; 4] = [0; 4];
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_iter(sid) {
@@ -101,12 +118,12 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
         for sid in &sorted_snake_ids {
             let head = self.get_head_as_native_position(sid);
-            todos.push(head);
+            todos.push(CellWrapper(head));
             todos_per_snake[sid.as_usize()] += 1;
         }
 
         for _ in 0..number_of_cycles {
-            let mut new_todos = Vec::with_capacity(todos.capacity() + 16);
+            let mut new_todos = TinyVec::new();
             let mut new_todos_per_snake = [0; 4];
 
             let mut todos_iter = todos.into_iter();
@@ -119,7 +136,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
                     for neighbor in self.neighbors(&pos) {
                         if grid.cells[neighbor.as_usize()].is_none() {
                             grid.cells[neighbor.as_usize()] = Some(*sid);
-                            new_todos.push(neighbor);
+                            new_todos.push(CellWrapper(neighbor));
                             new_todos_per_snake[sid.as_usize()] += 1;
                         }
                     }
