@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::collections::HashMap;
 
 use battlesnake_game_types::{
     compact_representation::{CellNum, StandardCellBoard4Snakes11x11, WrappedCellBoard},
@@ -30,17 +27,15 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
     for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
-        let grid: Grid<StandardCellBoard4Snakes11x11> = Grid {
+        let mut grid: Grid<StandardCellBoard4Snakes11x11> = Grid {
             cells: [None; 11 * 11],
         };
-        let grid = Mutex::new(grid);
-        let grid = Arc::new(grid);
 
         // Pre-seed the grid from the Board
         for sid in self.get_snake_ids().iter() {
             let head = self.get_head_as_native_position(sid);
 
-            grid.lock().unwrap().cells[head.0.as_usize()] = Some(*sid);
+            grid.cells[head.0.as_usize()] = Some(*sid);
         }
 
         // This comes from k = [ N/2, N/4, N/8, ..., 1 ]
@@ -72,8 +67,6 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
                     });
 
                 for neighbor in neighbors {
-                    let mut grid = grid.lock().unwrap();
-
                     if let Some(nid) = grid.cells[neighbor.0.as_usize()] {
                         if let Some(sid) = grid.cells[i as usize] {
                             if sid != nid {
@@ -98,7 +91,6 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
             })
         }
 
-        let grid = grid.lock().unwrap();
         grid.cells.iter().filter_map(|x| *x).counts()
     }
 }
