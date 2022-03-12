@@ -122,7 +122,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             todos_per_snake[sid.as_usize()] += 1;
         }
 
-        for _ in 0..number_of_cycles {
+        // for _ in 0..number_of_cycles {
+        while !todos.is_empty() {
             let mut new_todos = TinyVec::new();
             let mut new_todos_per_snake = [0; 4];
 
