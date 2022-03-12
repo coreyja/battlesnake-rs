@@ -43,6 +43,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             total_values[sid.as_usize()] += 1;
         }
 
+        std::thread::spawn(move || drop(result));
+
         total_values
     }
 
@@ -74,6 +76,8 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         for (sid, value) in sid_and_values {
             total_values[sid.as_usize()] += value;
         }
+
+        std::thread::spawn(move || drop(grid));
 
         total_values
     }
