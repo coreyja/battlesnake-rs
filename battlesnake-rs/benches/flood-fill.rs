@@ -10,7 +10,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     g.bench_function("compact spread", |b| {
         use battlesnake_rs::flood_fill::spread_from_head::SpreadFromHead;
 
-        let game_json = include_str!("../fixtures/start_of_game.json");
+        let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
@@ -25,7 +25,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     g.bench_function("wrapped spread", |b| {
         use battlesnake_rs::flood_fill::spread_from_head::SpreadFromHead;
 
-        let game_json = include_str!("../fixtures/start_of_game.json");
+        let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let mut game: Game = serde_json::from_str(game_json).unwrap();
         game.game.ruleset = Ruleset { name: "wrapped".to_string(), version: "1.0".to_string(), settings: None };
 
@@ -41,7 +41,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     g.bench_function("wrapped jump", |b| {
         use battlesnake_rs::flood_fill::jump_flooding::JumpFlooding;
 
-        let game_json = include_str!("../fixtures/start_of_game.json");
+        let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let mut game: Game = serde_json::from_str(game_json).unwrap();
         game.game.ruleset = Ruleset { name: "wrapped".to_string(), version: "1.0".to_string(), settings: None };
 
