@@ -95,7 +95,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
         total_values
     }
 
-    fn calculate(&self, _number_of_cycles: usize) -> Grid<Self> {
+    fn calculate(&self, number_of_cycles: usize) -> Grid<Self> {
         let mut grid: Grid<Self> = Grid {
             cells: [None; 11 * 11],
         };
@@ -122,8 +122,11 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
             todos_per_snake[sid.as_usize()] += 1;
         }
 
-        // for _ in 0..number_of_cycles {
-        while !todos.is_empty() {
+        for _ in 0..number_of_cycles {
+            if todos.is_empty() {
+                break;
+            }
+
             let mut new_todos = TinyVec::new();
             let mut new_todos_per_snake = [0; 4];
 
