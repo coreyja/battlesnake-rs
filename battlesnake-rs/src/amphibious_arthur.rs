@@ -128,7 +128,7 @@ impl BattlesnakeFactory for AmphibiousArthurFactory {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
             color: Some("#AA66CC".to_owned()),
-            head: Some("chomp".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             tail: Some("swirl".to_owned()),
             version: None,
         }

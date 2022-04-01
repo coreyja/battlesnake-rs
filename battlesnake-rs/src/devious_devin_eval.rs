@@ -130,7 +130,7 @@ impl BattlesnakeFactory for Factory {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
             color: Some("#99cc00".to_owned()),
-            head: Some("snail".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             tail: Some("rbc-necktie".to_owned()),
             version: None,
         }

@@ -44,6 +44,7 @@ impl BattlesnakeFactory for BombasticBobFactory {
         AboutMe {
             author: Some("coreyja".to_owned()),
             color: Some("#AA66CC".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
     }

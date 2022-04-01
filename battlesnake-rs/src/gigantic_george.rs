@@ -144,6 +144,7 @@ impl BattlesnakeFactory for GiganticGeorgeFactory {
         AboutMe {
             author: Some("coreyja".to_owned()),
             color: Some("#FFBB33".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
     }

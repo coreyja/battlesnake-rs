@@ -25,6 +25,7 @@ impl BattlesnakeFactory for ConstantCarterFactory {
         AboutMe {
             author: Some("coreyja".to_owned()),
             color: Some("#AA66CC".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
     }

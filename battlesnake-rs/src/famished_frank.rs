@@ -92,6 +92,7 @@ impl BattlesnakeFactory for FamishedFrankFactory {
         AboutMe {
             author: Some("coreyja".to_owned()),
             color: Some("#FFBB33".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
     }

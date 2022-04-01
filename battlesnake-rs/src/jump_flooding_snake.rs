@@ -44,7 +44,7 @@ impl BattlesnakeFactory for JumpFloodingSnakeFactory {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
             color: Some("#efae09".to_owned()),
-            head: None,
+            head: Some("trans-rights-scarf".to_owned()),
             tail: None,
             version: None,
         }

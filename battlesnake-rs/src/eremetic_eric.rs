@@ -196,6 +196,7 @@ impl BattlesnakeFactory for EremeticEricFactory {
         AboutMe {
             author: Some("coreyja".to_owned()),
             color: Some("#FF4444".to_owned()),
+            head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
     }
