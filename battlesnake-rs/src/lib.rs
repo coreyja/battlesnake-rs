@@ -218,7 +218,10 @@ impl SnakeTailPushableGame for Game {
 pub use battlesnake_minimax::EvalMinimaxSnake;
 use battlesnake_minimax::Instruments;
 
-use crate::{amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory};
+use crate::{
+    amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
+    constant_carter::ConstantCarterFactory,
+};
 
 impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
@@ -254,7 +257,7 @@ pub fn all_factories() -> Vec<BoxedFactory> {
     vec![
         Box::new(AmphibiousArthurFactory {}),
         Box::new(BombasticBobFactory {}),
-        // Box::new(ConstantCarterFactory {}),
+        Box::new(ConstantCarterFactory {}),
         Box::new(devious_devin_eval::Factory {}),
         // Box::new(EremeticEricFactory {}),
         // Box::new(FamishedFrankFactory {}),
