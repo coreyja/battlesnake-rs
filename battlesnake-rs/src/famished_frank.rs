@@ -62,12 +62,14 @@ where
                 .shortest_path_next_direction(head, &[you_body.last().unwrap().clone()], None)
                 .unwrap_or_else(|| {
                     let mut rng = thread_rng();
-                    self.game
+                    let next_move = self
+                        .game
                         .random_reasonable_move_for_each_snake(&mut rng)
                         .into_iter()
                         .find(|(s, _)| s == you_id)
                         .map(|x| x.1)
-                        .unwrap_or(Move::Right)
+                        .unwrap_or(Move::Right);
+                    next_move
                 })
         };
 

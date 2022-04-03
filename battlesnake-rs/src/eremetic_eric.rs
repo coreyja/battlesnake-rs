@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{collections::HashSet, convert::TryInto};
 
 use battlesnake_game_types::types::*;
 use itertools::Itertools;

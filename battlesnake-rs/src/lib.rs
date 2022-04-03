@@ -14,8 +14,8 @@ pub mod amphibious_arthur;
 pub mod bombastic_bob;
 pub mod constant_carter;
 pub mod devious_devin_eval;
-// pub mod eremetic_eric;
-// pub mod famished_frank;
+pub mod eremetic_eric;
+pub mod famished_frank;
 // pub mod gigantic_george;
 pub mod hovering_hobbs;
 // pub mod jump_flooding_snake;
@@ -220,7 +220,8 @@ use battlesnake_minimax::Instruments;
 
 use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
-    constant_carter::ConstantCarterFactory,
+    constant_carter::ConstantCarterFactory, eremetic_eric::EremeticEricFactory,
+    famished_frank::FamishedFrankFactory,
 };
 
 impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
@@ -259,8 +260,8 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(BombasticBobFactory {}),
         Box::new(ConstantCarterFactory {}),
         Box::new(devious_devin_eval::Factory {}),
-        // Box::new(EremeticEricFactory {}),
-        // Box::new(FamishedFrankFactory {}),
+        Box::new(EremeticEricFactory {}),
+        Box::new(FamishedFrankFactory {}),
         // Box::new(GiganticGeorgeFactory {}),
         // Box::new(JumpFloodingSnakeFactory {}),
         Box::new(hovering_hobbs::Factory {}),
