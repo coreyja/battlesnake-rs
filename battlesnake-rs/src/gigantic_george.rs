@@ -1,3 +1,5 @@
+use std::{collections::HashSet, convert::TryInto};
+
 use battlesnake_game_types::types::*;
 
 use crate::eremetic_eric::EremeticEric;
