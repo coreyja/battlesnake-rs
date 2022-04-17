@@ -2636,6 +2636,7 @@ name = "web-axum"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "battlesnake-rs",
  "serde",
  "serde_json",
  "tokio",
