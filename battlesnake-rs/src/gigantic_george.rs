@@ -27,7 +27,7 @@ fn path_to_full_board<T: PositionGettableGame + SizeDeterminableGame + NeighborD
         new_body.push(coor.clone());
 
         if let Some(mut path) = path_to_full_board(&new_body, game) {
-            path.push((dir, coor.clone()));
+            path.push((dir, coor));
             return Some(path);
         }
     }

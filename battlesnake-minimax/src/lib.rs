@@ -322,6 +322,7 @@ where
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn minimax(
         &self,
         mut node: T,
@@ -388,6 +389,7 @@ where
                 .filter(|(_, pos)| !node.is_neck(snake_id, pos))
         };
 
+        #[allow(clippy::type_complexity)]
         let possible_zipped: Vec<(
             (Move, T::NativePositionType),
             Option<MinMaxReturn<T, ScoreType>>,
