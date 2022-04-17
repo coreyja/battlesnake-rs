@@ -1,6 +1,7 @@
 #![deny(warnings)]
 
 use axum::{
+    error_handling::HandleError,
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -9,6 +10,8 @@ use axum::{
 use battlesnake_rs::{all_factories, Game};
 
 use std::net::SocketAddr;
+
+use anyhow::Result;
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +25,13 @@ async fn main() {
         .route("/", get(root))
         .route("/constant-carter", get(constant_carter_info))
         .route("/constant-carter/start", post(constant_carter_start))
-        .route("/constant-carter/move", post(constant_carter_move))
+        .route(
+            "/constant-carter/move",
+            post(HandleError::new(
+                tower::service_fn(constant_carter_move),
+                handle_anyhow_error,
+            )),
+        )
         .route("/constant-carter/end", post(constant_carter_end));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -37,6 +46,13 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
+fn handle_anyhow_error(err: anyhow::Error) -> (StatusCode, String) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Something went wrong: {}", err),
+    )
+}
+
 async fn constant_carter_info() -> impl IntoResponse {
     let factories = all_factories();
     let carter_factory = factories
@@ -48,7 +64,7 @@ async fn constant_carter_info() -> impl IntoResponse {
     Json(carter_info)
 }
 
-async fn constant_carter_move(Json(game): Json<Game>) -> impl IntoResponse {
+fn constant_carter_move(Json(game): Json<Game>) -> Result<impl IntoResponse> {
     let factories = all_factories();
     let carter_factory = factories
         .iter()
@@ -56,10 +72,11 @@ async fn constant_carter_move(Json(game): Json<Game>) -> impl IntoResponse {
         .unwrap();
     let carter = carter_factory.from_wire_game(game);
 
-    // TODO: Figure out how to return errors nicely here
-    // Unwrapping and panicking isn't ideal, we want to return a 500 of some kind
-    // when we run into an error
-    Json(carter.make_move().unwrap())
+    Ok(Json(
+        carter
+            .make_move()
+            .map_err(|x| x.context("error making move"))?,
+    ))
 }
 
 async fn constant_carter_start() -> impl IntoResponse {

@@ -5,7 +5,7 @@ use super::*;
 pub struct ConstantCarter {}
 
 impl BattlesnakeAI for ConstantCarter {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         Ok(MoveOutput {
             r#move: format!("{}", Move::Right),
             shout: None,

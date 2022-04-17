@@ -6,6 +6,8 @@ extern crate serde_derive;
 
 use std::fmt::Debug;
 
+use anyhow::Result;
+
 pub use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
 pub use battlesnake_game_types::types::*;
 pub use battlesnake_game_types::wire_representation::Game;
@@ -187,7 +189,7 @@ pub type BoxedFactory = Box<dyn BattlesnakeFactory + Send + Sync>;
 
 pub trait BattlesnakeAI {
     fn end(&self) {}
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>>;
+    fn make_move(&self) -> Result<MoveOutput>;
 }
 
 pub trait BattlesnakeFactory {
@@ -245,7 +247,7 @@ where
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let m: Move = Self::make_move_inner(self);
 
         Ok(MoveOutput {

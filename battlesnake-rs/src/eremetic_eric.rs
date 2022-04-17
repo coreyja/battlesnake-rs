@@ -35,7 +35,7 @@ where
         }
     }
 
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
         let body = self.game.get_snake_body_vec(self.game.you_id());
         let modified_board = {

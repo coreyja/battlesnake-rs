@@ -87,7 +87,7 @@ impl<
             + HealthGettableGame,
     > BattlesnakeAI for AmphibiousArthur<T>
 {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
         let possible = self
             .game

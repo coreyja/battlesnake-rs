@@ -20,7 +20,7 @@ where
         + SnakeIDGettableGame
         + YouDeterminableGame,
 {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let target_length = self.game.get_height() * 2 + self.game.get_width();
         let you_body = self.game.get_snake_body_vec(self.game.you_id());
         let targets = if you_body.len() < target_length as usize {

@@ -101,6 +101,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.56"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
+
+[[package]]
 name = "approx"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -271,6 +277,7 @@ dependencies = [
 name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "battlesnake-game-types",
  "battlesnake-minimax",
  "criterion",
@@ -2635,11 +2642,13 @@ checksum = "3d958d035c4438e28c70e4321a2911302f10135ce78a9c7834c0cab4123d06a2"
 name = "web-axum"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "battlesnake-rs",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
  "tracing",
  "tracing-subscriber 0.3.8",
 ]

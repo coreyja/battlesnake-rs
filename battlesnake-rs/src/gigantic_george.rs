@@ -75,7 +75,7 @@ where
         + TurnDeterminableGame
         + std::clone::Clone,
 {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
 
         if let Some(s) = self.game.get_shout(you_id) {

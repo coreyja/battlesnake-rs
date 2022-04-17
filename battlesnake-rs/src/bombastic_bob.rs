@@ -12,7 +12,7 @@ pub struct BombasticBob<T> {
 impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> BattlesnakeAI
     for BombasticBob<T>
 {
-    fn make_move(&self) -> Result<MoveOutput, Box<dyn std::error::Error + Send + Sync>> {
+    fn make_move(&self) -> Result<MoveOutput> {
         let mut rng = thread_rng();
         let chosen = self
             .game
