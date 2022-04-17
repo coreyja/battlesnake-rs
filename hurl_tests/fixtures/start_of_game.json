@@ -1,0 +1,72 @@
+{
+  "game": {
+    "id": "813456",
+    "ruleset": { "name": "standard", "version": "v.1.2.3" },
+    "timeout": 500
+  },
+  "turn": 200,
+  "you": {
+    "health": 100,
+    "id": "you",
+    "name": "#22aa34",
+    "body": [
+      { "x": 9, "y": 5 },
+      { "x": 9, "y": 5 },
+      { "x": 9, "y": 5 }
+    ],
+    "head": { "x": 9, "y": 5 },
+    "latency": null,
+    "length": 3
+  },
+  "board": {
+    "food": [
+      { "x": 6, "y": 8 },
+      { "x": 0, "y": 2 },
+      { "x": 5, "y": 5 }
+    ],
+    "hazards": [],
+    "height": 11,
+    "width": 11,
+    "snakes": [
+      {
+        "health": 100,
+        "id": "you",
+        "name": "#22aa34",
+        "body": [
+          { "x": 9, "y": 5 },
+          { "x": 9, "y": 5 },
+          { "x": 9, "y": 5 }
+        ],
+        "head": { "x": 9, "y": 5 },
+        "latency": null,
+        "length": 3
+      },
+      {
+        "health": 100,
+        "id": "#FF6c96",
+        "name": "#FF6c96",
+        "body": [
+          { "x": 5, "y": 9 },
+          { "x": 5, "y": 9 },
+          { "x": 5, "y": 9 }
+        ],
+        "head": { "x": 5, "y": 9 },
+        "latency": null,
+        "length": 3
+      },
+      {
+        "health": 100,
+        "id": "#FF6444",
+        "name": "#FF6444",
+        "body": [
+          { "x": 1, "y": 1 },
+          { "x": 1, "y": 1 },
+          { "x": 1, "y": 1 }
+        ],
+        "head": { "x": 1, "y": 1 },
+        "latency": null,
+        "length": 3
+      }
+    ]
+  }
+}
