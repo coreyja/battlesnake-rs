@@ -1,3 +1,5 @@
+use tracing::info;
+
 use super::*;
 
 pub struct ConstantCarter {}
@@ -8,6 +10,10 @@ impl BattlesnakeAI for ConstantCarter {
             r#move: format!("{}", Move::Right),
             shout: None,
         })
+    }
+
+    fn end(&self) {
+        info!("ConstantCarter has ended");
     }
 }
 
