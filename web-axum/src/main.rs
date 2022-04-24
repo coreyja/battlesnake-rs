@@ -48,37 +48,8 @@ async fn main() {
         .route("/", get(root))
         .route("/:snake_name", get(route_info))
         .route("/:snake_name/start", post(route_start))
-        .route("/:snake_name/move", post(constant_carter_move))
+        .route("/:snake_name/move", post(route_move))
         .route("/:snake_name/end", post(route_end));
-
-    // NOTE: Axum routes must start with a leading slash.
-    // This is NOT checked at compile time
-    //
-    // .route("/constant-carter", get(constant_carter_info))
-    // .route("/constant-carter/start", post(constant_carter_start))
-    // .route("/constant-carter/move", post(constant_carter_move))
-    // .route("/constant-carter/end", post(constant_carter_end));
-
-    // for factory in factories {
-    //     let wrapped = WrappedFactory::new(factory);
-
-    //     app = app.route(
-    //         &format!("/{}", wrapped.name()),
-    //         get(wrapped.make_info_route()),
-    //     );
-    //     app = app.route(
-    //         &format!("/{}/start", wrapped.name()),
-    //         post(constant_carter_start),
-    //     );
-    //     app = app.route(
-    //         &format!("/{}/move", wrapped.name()),
-    //         post(constant_carter_move),
-    //     );
-    //     app = app.route(
-    //         &format!("/{}/end", wrapped.name()),
-    //         post(constant_carter_end),
-    //     );
-    // }
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("listening on {}", addr);
@@ -92,20 +63,13 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
-// fn handle_anyhow_error(err: anyhow::Error) -> (StatusCode, String) {
-//     (
-//         StatusCode::INTERNAL_SERVER_ERROR,
-//         format!("Something went wrong: {}", err),
-//     )
-// }
-
 async fn route_info(ExtractSnakeFactory(factory): ExtractSnakeFactory) -> impl IntoResponse {
     let carter_info = factory.about();
 
     Json(carter_info)
 }
 
-async fn constant_carter_move(
+async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
@@ -131,3 +95,12 @@ async fn route_end(
 
     StatusCode::NO_CONTENT
 }
+
+// Logging Goals:
+// - We want to see a Log Line for each request including
+//     - Full URL
+
+// async fn log_request(
+//     req: Request<Body>,
+//     next: Next<Body>,
+// ) -> Result<impl IntoResponse, (StatusCode, String)> {
