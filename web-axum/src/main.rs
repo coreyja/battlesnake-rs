@@ -11,6 +11,7 @@ use axum::{
     Json, Router,
 };
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
+use tokio::time::Instant;
 
 use std::net::SocketAddr;
 
@@ -120,10 +121,17 @@ async fn log_request(
         tracing::info!(?factory_name, ?url, "Request received");
     }
 
+    let start = Instant::now();
+
     let req = req_parts
         .try_into_request()
         .map_err(|_err| (StatusCode::BAD_REQUEST, "Couldn't parse request"))?;
 
     let res = next.run(req).await;
+
+    let duration = start.elapsed();
+
+    tracing::info!(?duration, "Request processed");
+
     Ok(res)
 }
