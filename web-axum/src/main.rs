@@ -2,8 +2,10 @@
 
 use axum::{
     async_trait,
+    body::Body,
     extract::{FromRequest, Path, RequestParts},
-    http::StatusCode,
+    http::{Request, StatusCode},
+    middleware::Next,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -49,7 +51,8 @@ async fn main() {
         .route("/:snake_name", get(route_info))
         .route("/:snake_name/start", post(route_start))
         .route("/:snake_name/move", post(route_move))
-        .route("/:snake_name/end", post(route_end));
+        .route("/:snake_name/end", post(route_end))
+        .layer(axum::middleware::from_fn(log_request));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("listening on {}", addr);
@@ -100,7 +103,27 @@ async fn route_end(
 // - We want to see a Log Line for each request including
 //     - Full URL
 
-// async fn log_request(
-//     req: Request<Body>,
-//     next: Next<Body>,
-// ) -> Result<impl IntoResponse, (StatusCode, String)> {
+async fn log_request(
+    req: Request<Body>,
+    next: Next<Body>,
+) -> Result<impl IntoResponse, (StatusCode, &'static str)> {
+    let mut req_parts = RequestParts::new(req);
+    let factory: Option<ExtractSnakeFactory> = req_parts
+        .extract()
+        .await
+        .expect("This has an infallible error type so this unwrap is always safe");
+
+    {
+        let factory_name = factory.as_ref().map(|f| f.0.name());
+        let url = req_parts.uri();
+
+        tracing::info!(?factory_name, ?url, "Request received");
+    }
+
+    let req = req_parts
+        .try_into_request()
+        .map_err(|_err| (StatusCode::BAD_REQUEST, "Couldn't parse request"))?;
+
+    let res = next.run(req).await;
+    Ok(res)
+}
