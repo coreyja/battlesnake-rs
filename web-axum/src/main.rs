@@ -13,7 +13,7 @@ use axum::{
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
 use tokio::time::Instant;
 
-use tracing::span;
+use tracing::{span, Instrument};
 use tracing_subscriber::{prelude::*, registry::Registry};
 
 use std::net::SocketAddr;
@@ -115,6 +115,7 @@ async fn route_end(
 // - We want to see a Log Line for each request including
 //     - Full URL
 
+#[tracing::instrument(level = "info")]
 async fn log_request(
     req: Request<Body>,
     next: Next<Body>,
@@ -125,6 +126,8 @@ async fn log_request(
         .await
         .expect("This has an infallible error type so this unwrap is always safe");
 
+    let start = Instant::now();
+
     {
         let factory_name = factory.as_ref().map(|f| f.0.name());
         let url = req_parts.uri();
@@ -132,18 +135,14 @@ async fn log_request(
         tracing::info!(?factory_name, ?url, "Request received");
     }
 
-    let root = span!(tracing::Level::INFO, "axum request");
-    let enter = root.enter();
-    let start = Instant::now();
-
     let req = req_parts
         .try_into_request()
         .map_err(|_err| (StatusCode::BAD_REQUEST, "Couldn't parse request"))?;
 
-    let res = next.run(req).await;
+    let root = span!(tracing::Level::INFO, "axum request");
+    let res = next.run(req).instrument(root).await;
 
     let duration = start.elapsed();
-    drop(enter);
 
     tracing::info!(?duration, "Request processed");
 

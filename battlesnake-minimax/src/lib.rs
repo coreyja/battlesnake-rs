@@ -470,6 +470,7 @@ where
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
+        let inner_span = info_span!("deepened_minmax_inner");
         let node = self.game;
         let you_id = node.you_id();
 
@@ -482,17 +483,21 @@ where
         thread::spawn(move || {
             let mut current_depth = players.len();
             let mut current_return = None;
+
             loop {
-                let next = self.minimax(
-                    node,
-                    &players,
-                    0,
-                    WrappedScore::<ScoreType>::worst_possible_score(),
-                    WrappedScore::<ScoreType>::best_possible_score(),
-                    current_depth,
-                    current_return,
-                    vec![],
-                );
+                let next = info_span!(parent: &inner_span, "single_depth", depth = current_depth)
+                    .in_scope(|| {
+                        self.minimax(
+                            node,
+                            &players,
+                            0,
+                            WrappedScore::<ScoreType>::worst_possible_score(),
+                            WrappedScore::<ScoreType>::best_possible_score(),
+                            current_depth,
+                            current_return,
+                            vec![],
+                        )
+                    });
 
                 if tx.send((current_depth, next.clone())).is_err() {
                     return;
