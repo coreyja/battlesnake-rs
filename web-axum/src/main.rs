@@ -49,8 +49,10 @@ async fn main() {
     }
 
     // Install a new OpenTelemetry trace pipeline
-    use opentelemetry::sdk::export::trace::stdout;
-    let tracer = stdout::new_pipeline().install_simple();
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name("web-axum")
+        .install_simple()
+        .unwrap();
     // Create a tracing layer with the configured tracer
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
