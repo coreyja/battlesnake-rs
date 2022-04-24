@@ -13,6 +13,9 @@ use axum::{
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
 use tokio::time::Instant;
 
+use tracing::span;
+use tracing_subscriber::{prelude::*, registry::Registry};
+
 use std::net::SocketAddr;
 
 struct ExtractSnakeFactory(BoxedFactory);
@@ -45,7 +48,13 @@ async fn main() {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    tracing_subscriber::fmt::init();
+    // Install a new OpenTelemetry trace pipeline
+    use opentelemetry::sdk::export::trace::stdout;
+    let tracer = stdout::new_pipeline().install_simple();
+    // Create a tracing layer with the configured tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    Registry::default().with(telemetry).try_init().unwrap();
 
     let app = Router::new()
         .route("/", get(root))
@@ -121,6 +130,8 @@ async fn log_request(
         tracing::info!(?factory_name, ?url, "Request received");
     }
 
+    let root = span!(tracing::Level::INFO, "axum request");
+    let enter = root.enter();
     let start = Instant::now();
 
     let req = req_parts
@@ -130,6 +141,7 @@ async fn log_request(
     let res = next.run(req).await;
 
     let duration = start.elapsed();
+    drop(enter);
 
     tracing::info!(?duration, "Request processed");
 
