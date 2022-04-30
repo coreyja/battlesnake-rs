@@ -15,5 +15,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1.0.56"
 tower = "0.4.12"
 tracing-opentelemetry = "0.17.2"
-# tracing-honeycomb = { git = "https://github.com/agrinman/tracing-honeycomb", rev = "687bafa722ccd584f45aa470fbb637bc57c999cd", features = ["use_parking_lot"] }
-tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }
+tracing-honeycomb = { git = "https://github.com/coreyja/tracing-honeycomb", rev = "862dade", features = ["use_parking_lot"] }
+# tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }
