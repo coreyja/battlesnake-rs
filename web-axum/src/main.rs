@@ -12,7 +12,7 @@ use axum::{
 };
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
 
-use tokio::time::Instant;
+use tokio::{task::JoinHandle, time::Instant};
 
 use tracing::{span, Instrument};
 use tracing_honeycomb::{new_honeycomb_telemetry_layer, register_dist_tracing_root, TraceId};
@@ -116,17 +116,28 @@ async fn route_info(ExtractSnakeFactory(factory): ExtractSnakeFactory) -> impl I
     Json(carter_info)
 }
 
+fn spawn_blocking_with_tracing<F, R>(f: F) -> JoinHandle<R>
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    let current_span = tracing::Span::current();
+    tokio::task::spawn_blocking(move || current_span.in_scope(f))
+}
+
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
     let snake = factory.from_wire_game(game);
 
-    let output = tokio::task::spawn_blocking(move || {
+    let root = span!(tracing::Level::INFO, "make_move");
+    let output = spawn_blocking_with_tracing(move || {
         snake
             .make_move()
             .expect("TODO: We need to work on our error handling")
     })
+    .instrument(root)
     .await
     .unwrap();
 
@@ -155,6 +166,7 @@ async fn route_end(
     http.path =? req.uri().path(),
     http.method =? req.method(),
     factory_name,
+    request_duration,
   ),
 )]
 async fn log_request(
@@ -162,6 +174,7 @@ async fn log_request(
     next: Next<Body>,
 ) -> Result<impl IntoResponse, (StatusCode, &'static str)> {
     register_dist_tracing_root(TraceId::new(), None).unwrap();
+    let current_span = tracing::Span::current();
 
     let mut req_parts = RequestParts::new(req);
     let factory: Option<ExtractSnakeFactory> = req_parts
@@ -171,7 +184,7 @@ async fn log_request(
 
     if let Some(f) = factory {
         let factory_name = f.0.name();
-        tracing::Span::current().record("factory_name", &format!("{:?}", &factory_name).as_str());
+        current_span.record("factory_name", &format!("{:?}", &factory_name).as_str());
     }
 
     let req = req_parts
@@ -186,6 +199,7 @@ async fn log_request(
     let duration = start.elapsed();
 
     tracing::info!(?duration, "Request processed");
+    current_span.record("request_duration", &format!("{:?}", &duration).as_str());
 
     Ok(res)
 }
