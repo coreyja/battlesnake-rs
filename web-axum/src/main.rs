@@ -122,9 +122,13 @@ async fn route_move(
 ) -> impl IntoResponse {
     let snake = factory.from_wire_game(game);
 
-    let output = snake
-        .make_move()
-        .expect("TODO: We need to work on our error handling");
+    let output = tokio::task::spawn_blocking(move || {
+        snake
+            .make_move()
+            .expect("TODO: We need to work on our error handling")
+    })
+    .await
+    .unwrap();
 
     Json(output)
 }

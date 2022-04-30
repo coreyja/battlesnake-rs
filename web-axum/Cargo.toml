@@ -22,3 +22,4 @@ opentelemetry-jaeger = "0.16.0"
 opentelemetry-otlp = { version = "0.10.0", features = ["tokio", "grpc-sys"] }
 tracing-honeycomb = { version = "0.4.3", features = ["use_parking_lot"] }
 libhoney-rust = "0.1.6"
+# opentelemetry-honeycomb = { git = "https://github.com/ramosbugs/opentelemetry-honeycomb-rs", branch = "main" }
