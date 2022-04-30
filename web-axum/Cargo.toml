@@ -3,23 +3,17 @@ name = "web-axum"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 battlesnake-rs = { path = "../battlesnake-rs" }
 
 axum = { version = "0.5.1"  }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.68"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1.0.56"
 tower = "0.4.12"
 tracing-opentelemetry = "0.17.2"
-opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
-opentelemetry-jaeger = "0.16.0"
-opentelemetry-otlp = { version = "0.10.0", features = ["tokio", "grpc-sys"] }
-tracing-honeycomb = { version = "0.4.3", features = ["use_parking_lot"] }
-libhoney-rust = "0.1.6"
-# opentelemetry-honeycomb = { git = "https://github.com/ramosbugs/opentelemetry-honeycomb-rs", branch = "main" }
+# tracing-honeycomb = { git = "https://github.com/agrinman/tracing-honeycomb", rev = "687bafa722ccd584f45aa470fbb637bc57c999cd", features = ["use_parking_lot"] }
+tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }

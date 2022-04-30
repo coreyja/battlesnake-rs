@@ -15,7 +15,10 @@ use battlesnake_rs::{all_factories, BoxedFactory, Game};
 use tokio::{task::JoinHandle, time::Instant};
 
 use tracing::{span, Instrument};
-use tracing_honeycomb::{new_honeycomb_telemetry_layer, register_dist_tracing_root, TraceId};
+use tracing_honeycomb::{
+    libhoney, new_blackhole_telemetry_layer, new_honeycomb_telemetry_layer,
+    register_dist_tracing_root, TraceId,
+};
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 
@@ -48,7 +51,7 @@ where
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        std::env::set_var("RUST_LOG", "info,libhoney=warn");
     }
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
@@ -78,8 +81,10 @@ async fn main() {
             .try_init()
             .expect("Failed to initialize tracing");
     } else {
+        let telemetry_layer = new_blackhole_telemetry_layer();
         Registry::default()
             .with(logging)
+            .with(telemetry_layer)
             .with(env_filter)
             .try_init()
             .expect("Failed to initialize tracing");
