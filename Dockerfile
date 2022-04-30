@@ -43,7 +43,6 @@ COPY --from=builder /home/rust/target/release/web-axum .
 
 ENV JSON_LOGS=1
 ENV PORT=8000
-ENV RUST_LOG=info
 
 EXPOSE 8000
 
