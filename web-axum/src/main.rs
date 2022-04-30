@@ -15,7 +15,7 @@ use battlesnake_rs::{all_factories, BoxedFactory, Game};
 use tokio::time::Instant;
 
 use tracing::{span, Instrument};
-use tracing_honeycomb::new_honeycomb_telemetry_layer;
+use tracing_honeycomb::{new_honeycomb_telemetry_layer, register_dist_tracing_root, TraceId};
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 
@@ -157,6 +157,8 @@ async fn log_request(
     req: Request<Body>,
     next: Next<Body>,
 ) -> Result<impl IntoResponse, (StatusCode, &'static str)> {
+    register_dist_tracing_root(TraceId::new(), None).unwrap();
+
     let mut req_parts = RequestParts::new(req);
     let factory: Option<ExtractSnakeFactory> = req_parts
         .extract()
