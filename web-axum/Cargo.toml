@@ -20,5 +20,5 @@ tracing-opentelemetry = "0.17.2"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = "0.16.0"
 opentelemetry-otlp = { version = "0.10.0", features = ["tokio", "grpc-sys"] }
-tracing-honeycomb = { version = "0.4.3" }
+tracing-honeycomb = { version = "0.4.3", features = ["use_parking_lot"] }
 libhoney-rust = "0.1.6"
