@@ -14,6 +14,7 @@ use battlesnake_rs::{all_factories, BoxedFactory, Game};
 use tokio::time::Instant;
 
 use tracing::{span, Instrument};
+use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 
 use std::net::SocketAddr;
@@ -49,14 +50,25 @@ async fn main() {
     }
 
     // Install a new OpenTelemetry trace pipeline
-    let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_service_name("web-axum")
-        .install_simple()
-        .unwrap();
+    // let tracer = opentelemetry_jaeger::new_pipeline()
+    //     .with_service_name("web-axum")
+    //     .install_simple()
+    //     .unwrap();
     // Create a tracing layer with the configured tracer
-    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    // let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
+        Box::new(tracing_subscriber::fmt::layer().json())
+    } else {
+        Box::new(tracing_subscriber::fmt::layer())
+    };
+    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
 
-    Registry::default().with(telemetry).try_init().unwrap();
+    Registry::default()
+        .with(logging)
+        .with(env_filter)
+        // .with(telemetry)
+        .try_init()
+        .unwrap();
 
     let app = Router::new()
         .route("/", get(root))
@@ -66,7 +78,12 @@ async fn main() {
         .route("/:snake_name/end", post(route_end))
         .layer(axum::middleware::from_fn(log_request));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse()
+        .expect("PORT must be a number");
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -111,11 +128,16 @@ async fn route_end(
     StatusCode::NO_CONTENT
 }
 
-// Logging Goals:
-// - We want to see a Log Line for each request including
-//     - Full URL
-
-#[tracing::instrument(level = "info")]
+#[tracing::instrument(
+  level = "info",
+  skip_all,
+  fields(
+    http.uri =? req.uri(),
+    http.path =? req.uri().path(),
+    http.method =? req.method(),
+    factory_name,
+  ),
+)]
 async fn log_request(
     req: Request<Body>,
     next: Next<Body>,
@@ -126,18 +148,16 @@ async fn log_request(
         .await
         .expect("This has an infallible error type so this unwrap is always safe");
 
-    let start = Instant::now();
-
-    {
-        let factory_name = factory.as_ref().map(|f| f.0.name());
-        let url = req_parts.uri();
-
-        tracing::info!(?factory_name, ?url, "Request received");
+    if let Some(f) = factory {
+        let factory_name = f.0.name();
+        tracing::Span::current().record("factory_name", &format!("{:?}", &factory_name).as_str());
     }
 
     let req = req_parts
         .try_into_request()
         .map_err(|_err| (StatusCode::BAD_REQUEST, "Couldn't parse request"))?;
+
+    let start = Instant::now();
 
     let root = span!(tracing::Level::INFO, "axum request");
     let res = next.run(req).instrument(root).await;
