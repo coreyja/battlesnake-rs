@@ -8,6 +8,8 @@ COPY rust-toolchain.toml .
 
 RUN rustc --version; cargo --version; rustup --version
 
+RUN apt update && apt install cmake -y
+
 # Avoid having to install/build all dependencies by copying
 # the Cargo files and making a dummy src/main.rs
 COPY Cargo.toml .

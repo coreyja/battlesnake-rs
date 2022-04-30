@@ -11,9 +11,11 @@ use axum::{
     Json, Router,
 };
 use battlesnake_rs::{all_factories, BoxedFactory, Game};
+
 use tokio::time::Instant;
 
 use tracing::{span, Instrument};
+use tracing_honeycomb::new_honeycomb_telemetry_layer;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 
@@ -43,19 +45,11 @@ where
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-
-    // Install a new OpenTelemetry trace pipeline
-    // let tracer = opentelemetry_jaeger::new_pipeline()
-    //     .with_service_name("web-axum")
-    //     .install_simple()
-    //     .unwrap();
-    // Create a tracing layer with the configured tracer
-    // let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
     } else {
@@ -63,12 +57,33 @@ async fn main() {
     };
     let env_filter = tracing_subscriber::EnvFilter::from_default_env();
 
-    Registry::default()
-        .with(logging)
-        .with(env_filter)
-        // .with(telemetry)
-        .try_init()
-        .unwrap();
+    let honeycomb_api_key = std::env::var("HONEYCOMB_API_KEY");
+    if let Ok(honeycomb_api_key) = honeycomb_api_key {
+        let honeycomb_config = libhoney::Config {
+            options: libhoney::client::Options {
+                api_key: honeycomb_api_key,
+                dataset: "battlesnakes".to_string(),
+                ..libhoney::client::Options::default()
+            },
+            transmission_options: libhoney::transmission::Options::default(),
+        };
+
+        let telemetry_layer = new_honeycomb_telemetry_layer("web-axum", honeycomb_config);
+        println!("Sending traces to Honeycomb");
+
+        Registry::default()
+            .with(logging)
+            .with(telemetry_layer)
+            .with(env_filter)
+            .try_init()
+            .expect("Failed to initialize tracing");
+    } else {
+        Registry::default()
+            .with(logging)
+            .with(env_filter)
+            .try_init()
+            .expect("Failed to initialize tracing");
+    };
 
     let app = Router::new()
         .route("/", get(root))
