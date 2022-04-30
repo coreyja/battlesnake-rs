@@ -171,7 +171,7 @@ async fn route_end(
     http.path =? req.uri().path(),
     http.method =? req.method(),
     factory_name,
-    request_duration,
+    request_duration_ms,
   ),
 )]
 async fn log_request(
@@ -204,7 +204,7 @@ async fn log_request(
     let duration = start.elapsed();
 
     tracing::info!(?duration, "Request processed");
-    current_span.record("request_duration", &format!("{:?}", &duration).as_str());
+    current_span.record("request_duration_ms", &(duration.as_millis() as u64));
 
     Ok(res)
 }
