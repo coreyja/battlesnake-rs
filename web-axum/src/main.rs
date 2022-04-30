@@ -167,8 +167,7 @@ async fn route_end(
   level = "info",
   skip_all,
   fields(
-    http.uri =? req.uri(),
-    http.path =? req.uri().path(),
+    http.uri =? req.uri().path(),
     http.method =? req.method(),
     factory_name,
     request_duration_ms,
