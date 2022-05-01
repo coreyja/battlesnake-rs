@@ -1,5 +1,6 @@
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use decorum::{Infinite, Real, N64};
+use rand::prelude::ThreadRng;
 use tracing::info;
 
 use super::*;
@@ -49,16 +50,37 @@ impl BattlesnakeFactory for MctsSnakeFactory {
     }
 }
 
-impl<T: Clone + SimulableGame<Instrument, 4>> BattlesnakeAI for MctsSnake<T> {
+impl<
+        T: Clone
+            + SimulableGame<Instrument, 4>
+            + PartialEq
+            + RandomReasonableMovesGame
+            + VictorDeterminableGame
+            + YouDeterminableGame,
+    > BattlesnakeAI for MctsSnake<T>
+{
     fn make_move(&self) -> Result<MoveOutput> {
-        let _ = &self.game;
+        let mut rng = rand::thread_rng();
+
         let mut root_node = Node::new(self.game.clone());
 
-        dbg!(&root_node.children);
         root_node.expand();
-        dbg!(&root_node.children.as_ref().unwrap().len());
 
-        let _best = root_node.best_child();
+        let total_number_of_iterations = 1;
+
+        // This will eventually be in the loop
+
+        let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
+
+        // If next_leaf_node HAS been visited, then we expand it
+        if next_leaf_node.number_of_visits > 0 {
+            next_leaf_node.expand();
+            next_leaf_node = next_leaf_node.next_leaf_node(total_number_of_iterations);
+        }
+
+        //Now we do a simulation for this leaf node
+        let score = next_leaf_node.simulate(&mut rng);
+        dbg!(&score);
 
         Ok(MoveOutput {
             r#move: format!("{}", Move::Right),
@@ -71,7 +93,7 @@ impl<T: Clone + SimulableGame<Instrument, 4>> BattlesnakeAI for MctsSnake<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Node<T> {
     game_state: T,
     total_score: N64,
@@ -100,8 +122,47 @@ impl<T> Node<T> {
 
 impl<T> Node<T>
 where
-    T: SimulableGame<Instrument, 4> + SnakeIDGettableGame,
+    T: SimulableGame<Instrument, 4>
+        + SnakeIDGettableGame
+        + RandomReasonableMovesGame
+        + Clone
+        + VictorDeterminableGame
+        + YouDeterminableGame,
 {
+    fn simulate(&self, rng: &mut ThreadRng) -> N64 {
+        // TODO: This clone might not be the best
+        let mut current_state = self.game_state.clone();
+
+        while !current_state.is_over() {
+            let random_moves: Vec<_> = current_state
+                .random_reasonable_move_for_each_snake(rng)
+                .map(|(sid, mv)| (sid, [mv]))
+                .collect();
+
+            let next_state = {
+                let mut simulation_result =
+                    current_state.simulate_with_moves(&Instrument {}, random_moves);
+
+                // TODO: This unwrap might NOT be safe
+                simulation_result.next().unwrap().1.clone()
+            };
+
+            current_state = next_state;
+        }
+
+        let you_id = current_state.you_id();
+        match current_state.get_winner() {
+            Some(sid) => {
+                if &sid == you_id {
+                    N64::from(1.0)
+                } else {
+                    N64::from(-1.0)
+                }
+            }
+            None => N64::from(0.0),
+        }
+    }
+
     fn has_been_expanded(&self) -> bool {
         self.children.is_some()
     }
@@ -124,12 +185,32 @@ where
         average_score + right_hand_side
     }
 
-    fn best_child(&self) -> Option<&Node<T>> {
+    fn next_leaf_node(&mut self, total_number_of_iterations: usize) -> &mut Node<T> {
+        let mut best_node = self;
+
+        while !best_node.is_leaf() {
+            debug_assert!(best_node.has_been_expanded());
+
+            best_node = best_node
+                .best_child(total_number_of_iterations)
+                .expect("We are not a leaf node so we should have a best child");
+        }
+
+        best_node
+    }
+
+    fn is_leaf(&self) -> bool {
+        self.children.is_none() || self.children.as_ref().unwrap().is_empty()
+    }
+
+    fn best_child(&mut self, total_number_of_iterations: usize) -> Option<&mut Node<T>> {
         debug_assert!(self.has_been_expanded());
-        let children = self.children.as_ref().unwrap();
+        let children = self.children.as_mut().unwrap();
 
         // TODO: Get a total number of iterations here
-        children.iter().max_by_key(|child| child.ucb1_score(1))
+        children
+            .iter_mut()
+            .max_by_key(|child| child.ucb1_score(total_number_of_iterations))
     }
 
     fn expand(&mut self) {
