@@ -26,6 +26,7 @@ rayon = "1.5.1"
 tinyvec = { version = "1.5.1", features = ["alloc", "rustc_1_40"] }
 battlesnake-minimax = { path = "../battlesnake-minimax" }
 anyhow = "1.0.56"
+typed-arena = "2.0.1"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

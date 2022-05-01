@@ -1,7 +1,10 @@
+use std::cell::RefCell;
+
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use decorum::{Infinite, Real, N64};
 use rand::prelude::ThreadRng;
 use tracing::info;
+use typed_arena::Arena;
 
 use super::*;
 
@@ -56,15 +59,18 @@ impl<
             + PartialEq
             + RandomReasonableMovesGame
             + VictorDeterminableGame
-            + YouDeterminableGame,
+            + YouDeterminableGame
+            + 'static,
     > BattlesnakeAI for MctsSnake<T>
 {
     fn make_move(&self) -> Result<MoveOutput> {
+        let arena = Arena::new();
+
         let mut rng = rand::thread_rng();
 
-        let mut root_node = Node::new(self.game.clone());
+        let root_node: &mut Node<T> = arena.alloc(Node::new(self.game.clone()));
 
-        root_node.expand();
+        root_node.expand(&arena);
 
         let total_number_of_iterations = 1;
 
@@ -72,11 +78,18 @@ impl<
 
         let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
 
-        // If next_leaf_node HAS been visited, then we expand it
-        if next_leaf_node.number_of_visits > 0 {
-            next_leaf_node.expand();
-            next_leaf_node = next_leaf_node.next_leaf_node(total_number_of_iterations);
-        }
+        next_leaf_node = {
+            let mut borrowed = next_leaf_node;
+
+            // If next_leaf_node HAS been visited, then we expand it
+            if borrowed.number_of_visits > 0 {
+                borrowed.expand(&arena);
+
+                borrowed.next_leaf_node(total_number_of_iterations)
+            } else {
+                next_leaf_node.clone()
+            }
+        };
 
         //Now we do a simulation for this leaf node
         let score = next_leaf_node.simulate(&mut rng);
@@ -94,11 +107,11 @@ impl<
 }
 
 #[derive(Debug, PartialEq)]
-struct Node<T> {
+struct Node<'arena, T: 'static> {
     game_state: T,
     total_score: N64,
     number_of_visits: usize,
-    children: Option<Vec<Node<T>>>,
+    children: RefCell<Option<Vec<&'arena mut Node<'arena, T>>>>,
 }
 
 #[derive(Debug)]
@@ -109,18 +122,18 @@ impl SimulatorInstruments for Instrument {
     }
 }
 
-impl<T> Node<T> {
+impl<'arena, T> Node<'arena, T> {
     fn new(game_state: T) -> Self {
         Self {
             game_state,
             total_score: N64::from(0.0),
             number_of_visits: 0,
-            children: None,
+            children: RefCell::new(None),
         }
     }
 }
 
-impl<T> Node<T>
+impl<'arena, T> Node<'arena, T>
 where
     T: SimulableGame<Instrument, 4>
         + SnakeIDGettableGame
@@ -164,7 +177,7 @@ where
     }
 
     fn has_been_expanded(&self) -> bool {
-        self.children.is_some()
+        self.children.borrow().is_some()
     }
 
     fn ucb1_score(&self, total_number_of_iterations: usize) -> N64 {
@@ -185,35 +198,36 @@ where
         average_score + right_hand_side
     }
 
-    fn next_leaf_node(&mut self, total_number_of_iterations: usize) -> &mut Node<T> {
-        let mut best_node = self;
+    fn next_leaf_node(&'arena self, total_number_of_iterations: usize) -> &'arena Node<'arena, T> {
+        let mut best_node: &'arena Node<'arena, T> = self;
 
         while !best_node.is_leaf() {
             debug_assert!(best_node.has_been_expanded());
 
-            best_node = best_node
+            let next = best_node
                 .best_child(total_number_of_iterations)
                 .expect("We are not a leaf node so we should have a best child");
+            best_node = next;
         }
 
         best_node
     }
 
     fn is_leaf(&self) -> bool {
-        self.children.is_none() || self.children.as_ref().unwrap().is_empty()
+        self.children.borrow().is_none() || self.children.borrow().unwrap().is_empty()
     }
 
-    fn best_child(&mut self, total_number_of_iterations: usize) -> Option<&mut Node<T>> {
+    fn best_child(&self, total_number_of_iterations: usize) -> Option<&'arena mut Node<T>> {
         debug_assert!(self.has_been_expanded());
-        let children = self.children.as_mut().unwrap();
+        let children: &Vec<&'arena mut Node<'arena, T>> = self.children.borrow().unwrap().as_ref();
 
         // TODO: Get a total number of iterations here
         children
-            .iter_mut()
+            .into_iter()
             .max_by_key(|child| child.ucb1_score(total_number_of_iterations))
     }
 
-    fn expand(&mut self) {
+    fn expand(&mut self, arena: &'arena Arena<Node<'arena, T>>) {
         debug_assert!(!self.has_been_expanded());
 
         let snakes = self.game_state.get_snake_ids();
@@ -223,12 +237,12 @@ where
         // TODO: Keep the actions around here somehow so that we know which direction to move based
         // on the nodes we 'like'
 
-        let children: Vec<Node<T>> = next_states
-            .into_iter()
-            .map(|(_, game_state)| Node::new(game_state))
-            .collect();
+        let allocated_nodes =
+            arena.alloc_extend(next_states.map(|(_, game_state)| Node::new(game_state)));
 
-        self.children = Some(children);
+        let children = allocated_nodes.into_iter().collect();
+
+        self.children = RefCell::new(Some(children));
     }
 }
 
@@ -243,7 +257,7 @@ mod test {
         let fixture = include_str!("../fixtures/start_of_game.json");
         let game = serde_json::from_str::<Game>(fixture).unwrap();
         let id_map = build_snake_id_map(&game);
-        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = StandardRefBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         let n = Node::new(game);
 
         assert_eq!(n.ucb1_score(1), N64::INFINITY);
