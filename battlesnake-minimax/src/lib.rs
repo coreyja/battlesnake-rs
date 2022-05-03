@@ -490,6 +490,7 @@ where
         thread::spawn(move || {
             let mut current_depth = players.len();
             let mut current_return = None;
+            let you_id = node.you_id();
 
             loop {
                 let next = info_span!(
@@ -513,7 +514,10 @@ where
 
                     let current_span = tracing::Span::current();
                     current_span.record("score", &format!("{:?}", result.score()).as_str());
-                    current_span.record("direction", &format!("{:?}", result.score()).as_str());
+                    current_span.record(
+                        "direction",
+                        &format!("{:?}", result.direction_for(you_id)).as_str(),
+                    );
 
                     result
                 });
