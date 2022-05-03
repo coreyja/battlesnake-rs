@@ -237,6 +237,12 @@ where
 
 use text_trees::StringTreeNode;
 
+#[derive(Debug, Copy, Clone)]
+/// This type is used to represent that the main thread
+/// told the worker thread to stop running so we returned
+/// out of the current context
+pub struct AbortedEarly;
+
 impl<T, ScoreType, const N_SNAKES: usize> EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
@@ -333,7 +339,8 @@ where
         max_depth: usize,
         previous_return: Option<MinMaxReturn<T, ScoreType>>,
         mut pending_moves: Vec<(T::SnakeIDType, Move)>,
-    ) -> MinMaxReturn<T, ScoreType> {
+        worker_halt_reciever: Option<&mpsc::Receiver<()>>,
+    ) -> Result<MinMaxReturn<T, ScoreType>, AbortedEarly> {
         let mut alpha = alpha;
         let mut beta = beta;
 
@@ -363,7 +370,7 @@ where
             max_depth.try_into().unwrap(),
             players.len() as i64,
         ) {
-            return MinMaxReturn::Leaf { score: s };
+            return Ok(MinMaxReturn::Leaf { score: s });
         }
 
         let snake_id = &players[depth % players.len()];
@@ -372,7 +379,7 @@ where
 
         let is_maximizing = snake_id == node.you_id();
 
-        let possible_moves = if node.get_health_i64(snake_id) == 0 {
+        if node.get_health_i64(snake_id) == 0 {
             return self.minimax(
                 node,
                 players,
@@ -382,12 +389,14 @@ where
                 max_depth,
                 previous_return,
                 pending_moves,
+                worker_halt_reciever,
             );
-        } else {
-            assert!(node.get_health_i64(snake_id) > 0);
-            node.possible_moves(&node.get_head_as_native_position(snake_id))
-                .filter(|(_, pos)| !node.is_neck(snake_id, pos))
-        };
+        }
+
+        assert!(node.get_health_i64(snake_id) > 0);
+        let possible_moves = node
+            .possible_moves(&node.get_head_as_native_position(snake_id))
+            .filter(|(_, pos)| !node.is_neck(snake_id, pos));
 
         #[allow(clippy::type_complexity)]
         let possible_zipped: Vec<(
@@ -413,6 +422,12 @@ where
         };
 
         for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
+            if let Some(worker_halt_reciever) = worker_halt_reciever {
+                if worker_halt_reciever.try_recv().is_ok() {
+                    return Err(AbortedEarly);
+                }
+            }
+
             // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
             new_pending_moves.push((*snake_id, dir));
@@ -425,7 +440,8 @@ where
                 max_depth,
                 previous_return,
                 new_pending_moves,
-            );
+                worker_halt_reciever,
+            )?;
             let value = *next_move_return.score();
             // node.reverse_move(last_move);
             options.push((dir, next_move_return));
@@ -447,12 +463,12 @@ where
         }
         let chosen_score = *options[0].1.score();
 
-        MinMaxReturn::Node {
+        Ok(MinMaxReturn::Node {
             options,
             is_maximizing,
             moving_snake_id: *snake_id,
             score: chosen_score,
-        }
+        })
     }
 
     fn time_limit_ms(&self) -> i64 {
@@ -484,6 +500,8 @@ where
         let max_duration = self.max_duration();
 
         let (to_main_thread, from_worker_thread) = mpsc::channel();
+        let (suspend_worker, worker_halt_reciever) = mpsc::channel();
+
         let cloned_inner = inner_span.clone();
         thread::spawn(move || {
             let mut current_depth = players.len();
@@ -508,17 +526,25 @@ where
                         current_depth,
                         current_return,
                         vec![],
+                        Some(&worker_halt_reciever),
                     );
 
-                    let current_span = tracing::Span::current();
-                    current_span.record("score", &format!("{:?}", result.score()).as_str());
-                    current_span.record(
-                        "direction",
-                        &format!("{:?}", result.direction_for(you_id)).as_str(),
-                    );
+                    if let Ok(ref result) = result {
+                        let current_span = tracing::Span::current();
+                        current_span.record("score", &format!("{:?}", result.score()).as_str());
+                        current_span.record(
+                            "direction",
+                            &format!("{:?}", result.direction_for(you_id)).as_str(),
+                        );
+                    }
 
                     result
                 });
+
+                let next = match next {
+                    Ok(x) => x,
+                    Err(AbortedEarly) => break,
+                };
 
                 let current_score = next.score();
                 let terminal_depth = current_score.terminal_depth();
@@ -563,6 +589,11 @@ where
             }
         }
 
+        // We send a signal to the worker thread to stop
+        // We can't kill the thread so we use this to help the
+        // worker know when to stop
+        let _ = suspend_worker.send(());
+
         if let Some((depth, result)) = &current {
             inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
             inner_span.record(
@@ -593,7 +624,9 @@ where
             max_turns * sorted_ids.len(),
             None,
             vec![],
+            None,
         )
+        .unwrap()
     }
 
     /// Used to benchmark a deepened minimax. In 'real' play a deepened_minmax is run with a
@@ -609,16 +642,20 @@ where
         let mut current_depth = players.len();
         let mut current_return = None;
         while current_depth <= max_depth {
-            current_return = Some(self.minimax(
-                self.game,
-                &players,
-                0,
-                WrappedScore::<ScoreType>::worst_possible_score(),
-                WrappedScore::<ScoreType>::best_possible_score(),
-                current_depth,
-                current_return,
-                vec![],
-            ));
+            current_return = Some(
+                self.minimax(
+                    self.game,
+                    &players,
+                    0,
+                    WrappedScore::<ScoreType>::worst_possible_score(),
+                    WrappedScore::<ScoreType>::best_possible_score(),
+                    current_depth,
+                    current_return,
+                    vec![],
+                    None,
+                )
+                .unwrap(),
+            );
 
             current_depth += players.len();
         }
