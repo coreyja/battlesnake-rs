@@ -470,7 +470,13 @@ where
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
-        let inner_span = info_span!("deepened_minmax_inner");
+        let inner_span = info_span!(
+            "deepened_minmax_inner",
+            chosen_score = tracing::field::Empty,
+            chosen_direction = tracing::field::Empty,
+            all_moves = tracing::field::Empty,
+            depth = tracing::field::Empty,
+        );
         let node = self.game;
         let you_id = node.you_id();
 
@@ -480,24 +486,37 @@ where
         let max_duration = self.max_duration();
 
         let (tx, rx) = mpsc::channel();
+        let cloned_inner = inner_span.clone();
         thread::spawn(move || {
             let mut current_depth = players.len();
             let mut current_return = None;
 
             loop {
-                let next = info_span!(parent: &inner_span, "single_depth", depth = current_depth)
-                    .in_scope(|| {
-                        self.minimax(
-                            node,
-                            &players,
-                            0,
-                            WrappedScore::<ScoreType>::worst_possible_score(),
-                            WrappedScore::<ScoreType>::best_possible_score(),
-                            current_depth,
-                            current_return,
-                            vec![],
-                        )
-                    });
+                let next = info_span!(
+                    parent: &cloned_inner,
+                    "single_depth",
+                    depth = current_depth,
+                    score = tracing::field::Empty,
+                    direction = tracing::field::Empty
+                )
+                .in_scope(|| {
+                    let result = self.minimax(
+                        node,
+                        &players,
+                        0,
+                        WrappedScore::<ScoreType>::worst_possible_score(),
+                        WrappedScore::<ScoreType>::best_possible_score(),
+                        current_depth,
+                        current_return,
+                        vec![],
+                    );
+
+                    let current_span = tracing::Span::current();
+                    current_span.record("score", &format!("{:?}", result.score()).as_str());
+                    current_span.record("direction", &format!("{:?}", result.score()).as_str());
+
+                    result
+                });
 
                 if tx.send((current_depth, next.clone())).is_err() {
                     return;
@@ -515,13 +534,12 @@ where
             if let Ok((depth, result)) = rx.try_recv() {
                 let current_score = result.score();
                 let terminal_depth = current_score.terminal_depth();
-                info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), elapsed_ms = ?started_at.elapsed().as_millis(), "Just finished depth");
 
                 // println!("{}", self.game.evaluate_moves(&result.all_moves()));
                 current = Some((depth, result));
 
                 if let Some(terminal_depth) = terminal_depth {
-                    if depth > (terminal_depth as usize) {
+                    if depth >= (terminal_depth as usize) {
                         info!(depth, "This game is over, no need to keep going");
                         break;
                     }
@@ -534,8 +552,13 @@ where
         }
 
         if let Some((depth, result)) = &current {
-            // println!("{}", result.to_text_tree().unwrap());
-            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), all_moves = ?result.all_moves(), elapsed_ms = ?started_at.elapsed().as_millis(), "Finished deepened_minimax");
+            inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            inner_span.record(
+                "chosen_direction",
+                &format!("{:?}", result.direction_for(you_id)).as_str(),
+            );
+            inner_span.record("all_moves", &format!("{:?}", result.all_moves()).as_str());
+            inner_span.record("depth", &depth);
         }
 
         current
