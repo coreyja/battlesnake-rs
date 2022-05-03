@@ -480,12 +480,10 @@ where
         let node = self.game;
         let you_id = node.you_id();
 
-        const RUNAWAY_DEPTH_LIMIT: usize = 100;
-
         let started_at = Instant::now();
         let max_duration = self.max_duration();
 
-        let (tx, rx) = mpsc::channel();
+        let (to_main_thread, from_worker_thread) = mpsc::channel();
         let cloned_inner = inner_span.clone();
         thread::spawn(move || {
             let mut current_depth = players.len();
@@ -522,7 +520,23 @@ where
                     result
                 });
 
-                if tx.send((current_depth, next.clone())).is_err() {
+                let current_score = next.score();
+                let terminal_depth = current_score.terminal_depth();
+
+                let action = match terminal_depth {
+                    Some(terminal_depth) => {
+                        if current_depth >= terminal_depth.try_into().unwrap() {
+                            FromWorkerAction::Stop
+                        } else {
+                            FromWorkerAction::KeepGoing
+                        }
+                    }
+                    None => FromWorkerAction::KeepGoing,
+                };
+
+                let send_result = to_main_thread.send((action, current_depth, next.clone()));
+
+                if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
                     return;
                 }
 
@@ -535,23 +549,17 @@ where
         let mut current = None;
 
         while started_at.elapsed() < max_duration {
-            if let Ok((depth, result)) = rx.try_recv() {
-                let current_score = result.score();
-                let terminal_depth = current_score.terminal_depth();
-
+            if let Ok((action, depth, result)) = from_worker_thread.try_recv() {
                 // println!("{}", self.game.evaluate_moves(&result.all_moves()));
                 current = Some((depth, result));
 
-                if let Some(terminal_depth) = terminal_depth {
-                    if depth >= (terminal_depth as usize) {
+                match action {
+                    FromWorkerAction::KeepGoing => {}
+                    FromWorkerAction::Stop => {
                         info!(depth, "This game is over, no need to keep going");
                         break;
                     }
                 }
-
-                if depth > RUNAWAY_DEPTH_LIMIT {
-                    break;
-                };
             }
         }
 
@@ -617,6 +625,12 @@ where
 
         current_return.unwrap()
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum FromWorkerAction {
+    KeepGoing,
+    Stop,
 }
 
 #[cfg(test)]
