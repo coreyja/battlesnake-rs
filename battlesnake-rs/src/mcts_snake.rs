@@ -77,30 +77,32 @@ impl<
 
         root_node.expand(&arena);
 
-        let total_number_of_iterations = 1;
+        let mut total_number_of_iterations = 0;
 
-        // This will eventually be in the loop
+        while total_number_of_iterations < 100 {
+            total_number_of_iterations += 1;
 
-        let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
+            let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
 
-        next_leaf_node = {
-            let borrowed = next_leaf_node;
+            next_leaf_node = {
+                let borrowed = next_leaf_node;
 
-            // If next_leaf_node HAS been visited, then we expand it
-            if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
-                borrowed.expand(&arena);
+                // If next_leaf_node HAS been visited, then we expand it
+                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
+                    borrowed.expand(&arena);
 
-                borrowed.next_leaf_node(total_number_of_iterations)
-            } else {
-                next_leaf_node
-            }
-        };
+                    borrowed.next_leaf_node(total_number_of_iterations)
+                } else {
+                    next_leaf_node
+                }
+            };
 
-        //Now we do a simulation for this leaf node
-        let score = next_leaf_node.simulate(&mut rng);
+            //Now we do a simulation for this leaf node
+            let score = next_leaf_node.simulate(&mut rng);
 
-        //We now need to backpropagate the score
-        next_leaf_node.backpropagate(score);
+            //We now need to backpropagate the score
+            next_leaf_node.backpropagate(score);
+        }
 
         // We are outside the loop now and need to pick the best move
         debug!(visits = ?root_node.number_of_visits, score = ?root_node.total_score);
@@ -278,6 +280,10 @@ where
     fn expand(&'arena self, arena: &'arena Arena<Node<'arena, T>>) {
         debug_assert!(!self.has_been_expanded());
 
+        if self.game_state.is_over() {
+            return;
+        }
+
         let snakes = self.game_state.get_snake_ids();
 
         let next_states = self.game_state.simulate(&Instrument {}, snakes);
@@ -286,6 +292,7 @@ where
         // on the nodes we 'like'
 
         let allocated_nodes = arena.alloc_extend(next_states.map(|(actions, game_state)| {
+            debug!(actions = ?actions);
             let r#move = actions.own_move();
             Node::new_with_parent(game_state, self, r#move)
         }));
@@ -380,5 +387,40 @@ mod test {
 
         assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 2);
         assert_eq!(root.total_score.load(Ordering::Relaxed), 30.0);
+    }
+
+    #[test]
+    fn test_board_repr() {
+        // This test was a sanity check to make sure the Board knew I died when running into my
+        // tail
+        // For somet reason MCTS is sometimes saying thats the best move, even though its instant
+        // death for me
+        let fixture = include_str!("../fixtures/check_board_doubled_up.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let you_id = game.you_id();
+        let body = game.get_snake_body_vec(you_id);
+
+        assert_eq!(body.len(), 5);
+
+        let other_id = game
+            .get_snake_ids()
+            .into_iter()
+            .find(|&id| id != *you_id)
+            .unwrap();
+
+        let result: Vec<_> = game
+            .simulate_with_moves(
+                &Instrument {},
+                [(*you_id, vec![Move::Up]), (other_id, vec![Move::Down])],
+            )
+            .collect();
+        assert_eq!(result.len(), 1);
+        let (_, new_state) = result[0];
+
+        assert!(new_state.is_over());
+        assert_eq!(new_state.get_winner(), Some(other_id));
     }
 }

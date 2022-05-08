@@ -1,0 +1,102 @@
+{
+  "you": {
+    "latency": "96.305",
+    "id": "fd43df63-ae6a-4bd8-ac87-59f5c15a89f8",
+    "health": 100,
+    "length": 5,
+    "shout": "",
+    "head": { "y": 5, "x": 5 },
+    "customizations": {
+      "color": "#fc0398",
+      "tail": "default",
+      "head": "trans-rights-scarf"
+    },
+    "body": [
+      { "y": 5, "x": 5 },
+      { "y": 5, "x": 6 },
+      { "y": 6, "x": 6 },
+      { "y": 6, "x": 5 },
+      { "y": 6, "x": 5 }
+    ],
+    "name": "Local MCTS",
+    "squad": ""
+  },
+  "turn": 24,
+  "board": {
+    "snakes": [
+      {
+        "latency": "1.818",
+        "id": "edb52f6c-93e6-4a6d-baaf-f5f823ef836d",
+        "health": 100,
+        "length": 4,
+        "shout": "",
+        "head": { "y": 2, "x": 0 },
+        "customizations": {
+          "color": "#AA66CC",
+          "tail": "default",
+          "head": "trans-rights-scarf"
+        },
+        "body": [
+          { "y": 2, "x": 0 },
+          { "y": 2, "x": 1 },
+          { "y": 3, "x": 1 },
+          { "y": 3, "x": 1 }
+        ],
+        "name": "Local Bob",
+        "squad": ""
+      },
+      {
+        "latency": "96.305",
+        "id": "fd43df63-ae6a-4bd8-ac87-59f5c15a89f8",
+        "health": 100,
+        "length": 5,
+        "shout": "",
+        "head": { "y": 5, "x": 5 },
+        "customizations": {
+          "color": "#fc0398",
+          "tail": "default",
+          "head": "trans-rights-scarf"
+        },
+        "body": [
+          { "y": 5, "x": 5 },
+          { "y": 5, "x": 6 },
+          { "y": 6, "x": 6 },
+          { "y": 6, "x": 5 },
+          { "y": 6, "x": 5 }
+        ],
+        "name": "Local MCTS",
+        "squad": ""
+      }
+    ],
+    "width": 11,
+    "hazards": [],
+    "height": 11,
+    "food": [
+      { "y": 6, "x": 9 },
+      { "y": 0, "x": 4 },
+      { "y": 9, "x": 8 },
+      { "y": 1, "x": 2 }
+    ]
+  },
+  "game": {
+    "source": "custom",
+    "ruleset": {
+      "version": "Mojave/3.5.2",
+      "name": "standard",
+      "settings": {
+        "hazardDamagePerTurn": 14,
+        "royale": { "shrinkEveryNTurns": 25 },
+        "squad": {
+          "sharedHealth": true,
+          "sharedLength": true,
+          "allowBodyCollisions": true,
+          "sharedElimination": true
+        },
+        "minimumFood": 1,
+        "foodSpawnChance": 15
+      }
+    },
+    "timeout": 500,
+    "id": "e5c413d3-43b7-4794-a44e-9def9de87dec"
+  }
+}
