@@ -7,7 +7,7 @@ use atomic_float::AtomicF64;
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use decorum::N64;
 use rand::prelude::ThreadRng;
-use tracing::info;
+use tracing::{debug, info};
 use typed_arena::Arena;
 
 use super::*;
@@ -98,13 +98,22 @@ impl<
 
         //Now we do a simulation for this leaf node
         let score = next_leaf_node.simulate(&mut rng);
-        dbg!(&score);
 
         //We now need to backpropagate the score
         next_leaf_node.backpropagate(score);
 
+        // We are outside the loop now and need to pick the best move
+        debug!(visits = ?root_node.number_of_visits, score = ?root_node.total_score);
+        let best_child = root_node.best_child(root_node.number_of_visits.load(Ordering::Relaxed));
+        let chosen_move = best_child
+            .expect("The root should have a child")
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
         Ok(MoveOutput {
-            r#move: format!("{}", Move::Right),
+            r#move: format!("{}", chosen_move),
             shout: None,
         })
     }
@@ -115,12 +124,18 @@ impl<
 }
 
 #[derive(Debug)]
+struct TreeContext<'arena, T> {
+    parent: RefCell<&'arena Node<'arena, T>>,
+    r#move: Move,
+}
+
+#[derive(Debug)]
 struct Node<'arena, T> {
     game_state: T,
     total_score: AtomicF64,
     number_of_visits: AtomicUsize,
     children: RefCell<Option<Vec<&'arena Node<'arena, T>>>>,
-    parent: RefCell<Option<&'arena Node<'arena, T>>>,
+    tree_context: Option<TreeContext<'arena, T>>,
 }
 
 #[derive(Debug)]
@@ -138,17 +153,20 @@ impl<'arena, T> Node<'arena, T> {
             total_score: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
-            parent: RefCell::new(None),
+            tree_context: None,
         }
     }
 
-    fn new_with_parent(game_state: T, parent: &'arena Self) -> Self {
+    fn new_with_parent(game_state: T, parent: &'arena Self, r#move: Move) -> Self {
         Self {
             game_state,
             total_score: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
-            parent: RefCell::new(Some(parent)),
+            tree_context: Some(TreeContext {
+                parent: RefCell::new(parent),
+                r#move,
+            }),
         }
     }
 }
@@ -267,9 +285,10 @@ where
         // TODO: Keep the actions around here somehow so that we know which direction to move based
         // on the nodes we 'like'
 
-        let allocated_nodes = arena.alloc_extend(
-            next_states.map(|(_, game_state)| Node::new_with_parent(game_state, self)),
-        );
+        let allocated_nodes = arena.alloc_extend(next_states.map(|(actions, game_state)| {
+            let r#move = actions.own_move();
+            Node::new_with_parent(game_state, self, r#move)
+        }));
 
         let children = allocated_nodes.iter().collect();
 
@@ -282,8 +301,8 @@ where
         self.number_of_visits.fetch_add(1, Ordering::Relaxed);
         self.total_score.fetch_add(score, Ordering::Relaxed);
 
-        if let Some(parent) = self.parent.borrow().as_ref() {
-            parent.backpropagate(score)
+        if let Some(tree_context) = &self.tree_context {
+            tree_context.parent.borrow().backpropagate(score)
         }
     }
 }
@@ -310,13 +329,10 @@ mod test {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
         let id_map = build_snake_id_map(&game);
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        let n = Node {
-            game_state: game,
-            total_score: AtomicF64::new(10.0),
-            number_of_visits: AtomicUsize::new(1),
-            children: RefCell::new(None),
-            parent: RefCell::new(None),
-        };
+
+        let n = Node::new(game);
+        n.number_of_visits.store(1, Ordering::Relaxed);
+        n.total_score.store(10.0, Ordering::Relaxed);
 
         assert_eq!(n.ucb1_score(1), 10.0);
         assert!(n.ucb1_score(2) > 11.6);
@@ -346,7 +362,7 @@ mod test {
 
         let root = Node::new(game);
 
-        let child = Node::new_with_parent(game, &root);
+        let child = Node::new_with_parent(game, &root, Move::Up);
 
         child.backpropagate(10.0);
 
@@ -356,7 +372,7 @@ mod test {
         assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 1);
         assert_eq!(root.total_score.load(Ordering::Relaxed), 10.0);
 
-        let other_child = Node::new_with_parent(game, &root);
+        let other_child = Node::new_with_parent(game, &root, Move::Down);
         other_child.backpropagate(20.0);
 
         assert_eq!(other_child.number_of_visits.load(Ordering::Relaxed), 1);
