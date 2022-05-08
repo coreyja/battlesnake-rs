@@ -1,10 +1,13 @@
 use std::{
     cell::RefCell,
+    convert::TryInto,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use atomic_float::AtomicF64;
-use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
+use battlesnake_game_types::{
+    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
+};
 use decorum::N64;
 use rand::prelude::ThreadRng;
 use tracing::info;
@@ -14,11 +17,12 @@ use super::*;
 
 pub struct MctsSnake<T> {
     game: T,
+    game_info: NestedGame,
 }
 
 impl<T> MctsSnake<T> {
-    pub fn new(game: T) -> Self {
-        Self { game }
+    pub fn new(game: T, game_info: NestedGame) -> Self {
+        Self { game, game_info }
     }
 }
 
@@ -36,13 +40,13 @@ impl BattlesnakeFactory for MctsSnakeFactory {
         if game_info.ruleset.name == "wrapped" {
             let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = MctsSnake::new(game);
+            let snake = MctsSnake::new(game, game_info);
 
             Box::new(snake)
         } else {
             let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = MctsSnake::new(game);
+            let snake = MctsSnake::new(game, game_info);
 
             Box::new(snake)
         }
@@ -88,7 +92,10 @@ impl<
 
         let start = std::time::Instant::now();
 
-        while start.elapsed().as_millis() < 400 {
+        const NETWORK_LATENCY_PADDING: i64 = 100;
+        let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        while start.elapsed().as_millis() < max_duration.try_into().unwrap() {
             total_number_of_iterations += 1;
 
             let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
