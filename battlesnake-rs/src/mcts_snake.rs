@@ -7,7 +7,7 @@ use atomic_float::AtomicF64;
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use decorum::N64;
 use rand::prelude::ThreadRng;
-use tracing::{debug, info};
+use tracing::info;
 use typed_arena::Arena;
 
 use super::*;
@@ -68,7 +68,14 @@ impl<
             + 'static,
     > BattlesnakeAI for MctsSnake<T>
 {
+    #[tracing::instrument(
+        level = "info",
+        skip_all,
+        fields(total_number_of_iterations, total_score,)
+    )]
     fn make_move(&self) -> Result<MoveOutput> {
+        let current_span = tracing::Span::current();
+
         let arena = Arena::new();
 
         let mut rng = rand::thread_rng();
@@ -79,7 +86,9 @@ impl<
 
         let mut total_number_of_iterations = 0;
 
-        while total_number_of_iterations < 100 {
+        let start = std::time::Instant::now();
+
+        while start.elapsed().as_millis() < 400 {
             total_number_of_iterations += 1;
 
             let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
@@ -105,7 +114,12 @@ impl<
         }
 
         // We are outside the loop now and need to pick the best move
-        debug!(visits = ?root_node.number_of_visits, score = ?root_node.total_score);
+        current_span.record("total_number_of_iterations", &total_number_of_iterations);
+        current_span.record(
+            "total_score",
+            &root_node.total_score.load(Ordering::Relaxed),
+        );
+
         let best_child = root_node.best_child(root_node.number_of_visits.load(Ordering::Relaxed));
         let chosen_move = best_child
             .expect("The root should have a child")
@@ -292,7 +306,6 @@ where
         // on the nodes we 'like'
 
         let allocated_nodes = arena.alloc_extend(next_states.map(|(actions, game_state)| {
-            debug!(actions = ?actions);
             let r#move = actions.own_move();
             Node::new_with_parent(game_state, self, r#move)
         }));
