@@ -237,6 +237,12 @@ where
 
 use text_trees::StringTreeNode;
 
+#[derive(Debug, Copy, Clone)]
+/// This type is used to represent that the main thread
+/// told the worker thread to stop running so we returned
+/// out of the current context
+pub struct AbortedEarly;
+
 impl<T, ScoreType, const N_SNAKES: usize> EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
@@ -333,7 +339,8 @@ where
         max_depth: usize,
         previous_return: Option<MinMaxReturn<T, ScoreType>>,
         mut pending_moves: Vec<(T::SnakeIDType, Move)>,
-    ) -> MinMaxReturn<T, ScoreType> {
+        worker_halt_reciever: Option<&mpsc::Receiver<()>>,
+    ) -> Result<MinMaxReturn<T, ScoreType>, AbortedEarly> {
         let mut alpha = alpha;
         let mut beta = beta;
 
@@ -363,7 +370,7 @@ where
             max_depth.try_into().unwrap(),
             players.len() as i64,
         ) {
-            return MinMaxReturn::Leaf { score: s };
+            return Ok(MinMaxReturn::Leaf { score: s });
         }
 
         let snake_id = &players[depth % players.len()];
@@ -372,7 +379,7 @@ where
 
         let is_maximizing = snake_id == node.you_id();
 
-        let possible_moves = if node.get_health_i64(snake_id) == 0 {
+        if node.get_health_i64(snake_id) == 0 {
             return self.minimax(
                 node,
                 players,
@@ -382,12 +389,14 @@ where
                 max_depth,
                 previous_return,
                 pending_moves,
+                worker_halt_reciever,
             );
-        } else {
-            assert!(node.get_health_i64(snake_id) > 0);
-            node.possible_moves(&node.get_head_as_native_position(snake_id))
-                .filter(|(_, pos)| !node.is_neck(snake_id, pos))
-        };
+        }
+
+        assert!(node.get_health_i64(snake_id) > 0);
+        let possible_moves = node
+            .possible_moves(&node.get_head_as_native_position(snake_id))
+            .filter(|(_, pos)| !node.is_neck(snake_id, pos));
 
         #[allow(clippy::type_complexity)]
         let possible_zipped: Vec<(
@@ -413,6 +422,12 @@ where
         };
 
         for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
+            if let Some(worker_halt_reciever) = worker_halt_reciever {
+                if worker_halt_reciever.try_recv().is_ok() {
+                    return Err(AbortedEarly);
+                }
+            }
+
             // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
             new_pending_moves.push((*snake_id, dir));
@@ -425,7 +440,8 @@ where
                 max_depth,
                 previous_return,
                 new_pending_moves,
-            );
+                worker_halt_reciever,
+            )?;
             let value = *next_move_return.score();
             // node.reverse_move(last_move);
             options.push((dir, next_move_return));
@@ -447,12 +463,12 @@ where
         }
         let chosen_score = *options[0].1.score();
 
-        MinMaxReturn::Node {
+        Ok(MinMaxReturn::Node {
             options,
             is_maximizing,
             moving_snake_id: *snake_id,
             score: chosen_score,
-        }
+        })
     }
 
     fn time_limit_ms(&self) -> i64 {
@@ -470,36 +486,83 @@ where
     }
 
     fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
-        let inner_span = info_span!("deepened_minmax_inner");
+        let inner_span = info_span!(
+            "deepened_minmax_inner",
+            chosen_score = tracing::field::Empty,
+            chosen_direction = tracing::field::Empty,
+            all_moves = tracing::field::Empty,
+            depth = tracing::field::Empty,
+        );
         let node = self.game;
         let you_id = node.you_id();
-
-        const RUNAWAY_DEPTH_LIMIT: usize = 100;
 
         let started_at = Instant::now();
         let max_duration = self.max_duration();
 
-        let (tx, rx) = mpsc::channel();
+        let (to_main_thread, from_worker_thread) = mpsc::channel();
+        let (suspend_worker, worker_halt_reciever) = mpsc::channel();
+
+        let cloned_inner = inner_span.clone();
         thread::spawn(move || {
             let mut current_depth = players.len();
             let mut current_return = None;
+            let you_id = node.you_id();
 
             loop {
-                let next = info_span!(parent: &inner_span, "single_depth", depth = current_depth)
-                    .in_scope(|| {
-                        self.minimax(
-                            node,
-                            &players,
-                            0,
-                            WrappedScore::<ScoreType>::worst_possible_score(),
-                            WrappedScore::<ScoreType>::best_possible_score(),
-                            current_depth,
-                            current_return,
-                            vec![],
-                        )
-                    });
+                let next = info_span!(
+                    parent: &cloned_inner,
+                    "single_depth",
+                    depth = current_depth,
+                    score = tracing::field::Empty,
+                    direction = tracing::field::Empty
+                )
+                .in_scope(|| {
+                    let result = self.minimax(
+                        node,
+                        &players,
+                        0,
+                        WrappedScore::<ScoreType>::worst_possible_score(),
+                        WrappedScore::<ScoreType>::best_possible_score(),
+                        current_depth,
+                        current_return,
+                        vec![],
+                        Some(&worker_halt_reciever),
+                    );
 
-                if tx.send((current_depth, next.clone())).is_err() {
+                    if let Ok(ref result) = result {
+                        let current_span = tracing::Span::current();
+                        current_span.record("score", &format!("{:?}", result.score()).as_str());
+                        current_span.record(
+                            "direction",
+                            &format!("{:?}", result.direction_for(you_id)).as_str(),
+                        );
+                    }
+
+                    result
+                });
+
+                let next = match next {
+                    Ok(x) => x,
+                    Err(AbortedEarly) => break,
+                };
+
+                let current_score = next.score();
+                let terminal_depth = current_score.terminal_depth();
+
+                let action = match terminal_depth {
+                    Some(terminal_depth) => {
+                        if current_depth >= terminal_depth.try_into().unwrap() {
+                            FromWorkerAction::Stop
+                        } else {
+                            FromWorkerAction::KeepGoing
+                        }
+                    }
+                    None => FromWorkerAction::KeepGoing,
+                };
+
+                let send_result = to_main_thread.send((action, current_depth, next.clone()));
+
+                if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
                     return;
                 }
 
@@ -512,30 +575,33 @@ where
         let mut current = None;
 
         while started_at.elapsed() < max_duration {
-            if let Ok((depth, result)) = rx.try_recv() {
-                let current_score = result.score();
-                let terminal_depth = current_score.terminal_depth();
-                info!(depth, current_score = ?&current_score, current_direction = ?result.direction_for(you_id), elapsed_ms = ?started_at.elapsed().as_millis(), "Just finished depth");
-
+            if let Ok((action, depth, result)) = from_worker_thread.try_recv() {
                 // println!("{}", self.game.evaluate_moves(&result.all_moves()));
                 current = Some((depth, result));
 
-                if let Some(terminal_depth) = terminal_depth {
-                    if depth > (terminal_depth as usize) {
+                match action {
+                    FromWorkerAction::KeepGoing => {}
+                    FromWorkerAction::Stop => {
                         info!(depth, "This game is over, no need to keep going");
                         break;
                     }
                 }
-
-                if depth > RUNAWAY_DEPTH_LIMIT {
-                    break;
-                };
             }
         }
 
+        // We send a signal to the worker thread to stop
+        // We can't kill the thread so we use this to help the
+        // worker know when to stop
+        let _ = suspend_worker.send(());
+
         if let Some((depth, result)) = &current {
-            // println!("{}", result.to_text_tree().unwrap());
-            info!(depth, score = ?result.score(), direction = ?result.direction_for(you_id), all_moves = ?result.all_moves(), elapsed_ms = ?started_at.elapsed().as_millis(), "Finished deepened_minimax");
+            inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            inner_span.record(
+                "chosen_direction",
+                &format!("{:?}", result.direction_for(you_id)).as_str(),
+            );
+            inner_span.record("all_moves", &format!("{:?}", result.all_moves()).as_str());
+            inner_span.record("depth", &depth);
         }
 
         current
@@ -558,7 +624,9 @@ where
             max_turns * sorted_ids.len(),
             None,
             vec![],
+            None,
         )
+        .unwrap()
     }
 
     /// Used to benchmark a deepened minimax. In 'real' play a deepened_minmax is run with a
@@ -574,22 +642,32 @@ where
         let mut current_depth = players.len();
         let mut current_return = None;
         while current_depth <= max_depth {
-            current_return = Some(self.minimax(
-                self.game,
-                &players,
-                0,
-                WrappedScore::<ScoreType>::worst_possible_score(),
-                WrappedScore::<ScoreType>::best_possible_score(),
-                current_depth,
-                current_return,
-                vec![],
-            ));
+            current_return = Some(
+                self.minimax(
+                    self.game,
+                    &players,
+                    0,
+                    WrappedScore::<ScoreType>::worst_possible_score(),
+                    WrappedScore::<ScoreType>::best_possible_score(),
+                    current_depth,
+                    current_return,
+                    vec![],
+                    None,
+                )
+                .unwrap(),
+            );
 
             current_depth += players.len();
         }
 
         current_return.unwrap()
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum FromWorkerAction {
+    KeepGoing,
+    Stop,
 }
 
 #[cfg(test)]
