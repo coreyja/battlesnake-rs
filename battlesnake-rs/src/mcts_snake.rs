@@ -275,7 +275,7 @@ where
 
             let next = best_node
                 .best_child(total_number_of_iterations)
-                .expect("We are not 'arena a leaf node so we should have a best child");
+                .expect("We are not a leaf node so we should have a best child");
             best_node = next;
         }
 
@@ -291,7 +291,6 @@ where
         let borrowed = self.children.borrow();
         let children = borrowed.as_ref().unwrap();
 
-        // TODO: Get a total number of iterations here
         children
             .iter()
             .cloned()
@@ -308,9 +307,6 @@ where
         let snakes = self.game_state.get_snake_ids();
 
         let next_states = self.game_state.simulate(&Instrument {}, snakes);
-
-        // TODO: Keep the actions around here somehow so that we know which direction to move based
-        // on the nodes we 'like'
 
         let allocated_nodes = arena.alloc_extend(next_states.map(|(actions, game_state)| {
             let r#move = actions.own_move();
