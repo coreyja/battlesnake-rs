@@ -3,8 +3,9 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use atomic_float::AtomicF64;
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
-use decorum::{Infinite, Real, N64};
+use decorum::N64;
 use rand::prelude::ThreadRng;
 use tracing::info;
 use typed_arena::Arena;
@@ -116,7 +117,7 @@ impl<
 #[derive(Debug)]
 struct Node<'arena, T> {
     game_state: T,
-    total_score: N64,
+    total_score: AtomicF64,
     number_of_visits: AtomicUsize,
     children: RefCell<Option<Vec<&'arena Node<'arena, T>>>>,
     parent: RefCell<Option<&'arena Node<'arena, T>>>,
@@ -134,7 +135,7 @@ impl<'arena, T> Node<'arena, T> {
     fn new(game_state: T) -> Self {
         Self {
             game_state,
-            total_score: N64::from(0.0),
+            total_score: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
             parent: RefCell::new(None),
@@ -144,7 +145,7 @@ impl<'arena, T> Node<'arena, T> {
     fn new_with_parent(game_state: T, parent: &'arena Self) -> Self {
         Self {
             game_state,
-            total_score: N64::from(0.0),
+            total_score: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
             parent: RefCell::new(Some(parent)),
@@ -161,7 +162,7 @@ where
         + VictorDeterminableGame
         + YouDeterminableGame,
 {
-    fn simulate(&self, rng: &mut ThreadRng) -> N64 {
+    fn simulate(&self, rng: &mut ThreadRng) -> f64 {
         // TODO: This clone might not be the best
         let mut current_state = self.game_state.clone();
 
@@ -186,12 +187,12 @@ where
         match current_state.get_winner() {
             Some(sid) => {
                 if &sid == you_id {
-                    N64::from(1.0)
+                    1.0
                 } else {
-                    N64::from(-1.0)
+                    -1.0
                 }
             }
-            None => N64::from(0.0),
+            None => 0.0,
         }
     }
 
@@ -199,23 +200,25 @@ where
         self.children.borrow().is_some()
     }
 
-    fn ucb1_score(&self, total_number_of_iterations: usize) -> N64 {
-        let constant: N64 = N64::from(2.0);
+    fn ucb1_score(&self, total_number_of_iterations: usize) -> f64 {
+        let constant = 2.0;
 
         // TODO: This should be fine when we are single threaded
         // But if/when we get to multi-threaded, we might want to think about if this wants
         // to use the same visits value like this.
         // Or do we need to re-load it for each usage?
         let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
+        let total_score = self.total_score.load(Ordering::Relaxed);
 
         if number_of_visits == 0 {
-            return N64::INFINITY;
+            return f64::INFINITY;
         }
 
-        let number_of_visits = N64::from(number_of_visits as f64);
+        let number_of_visits = number_of_visits as f64;
 
-        let average_score = self.total_score / number_of_visits;
-        let total_number_of_iterations = N64::from(total_number_of_iterations as f64);
+        let average_score = total_score / number_of_visits;
+        let total_number_of_iterations = total_number_of_iterations as f64;
+
         let ln_total_number_of_iterations = total_number_of_iterations.ln();
 
         let right_hand_side = constant * (ln_total_number_of_iterations / number_of_visits).sqrt();
@@ -251,7 +254,7 @@ where
         children
             .iter()
             .cloned()
-            .max_by_key(|child| child.ucb1_score(total_number_of_iterations))
+            .max_by_key(|child| N64::from(child.ucb1_score(total_number_of_iterations)))
     }
 
     fn expand(&'arena self, arena: &'arena Arena<Node<'arena, T>>) {
@@ -270,22 +273,23 @@ where
 
         let children = allocated_nodes.iter().collect();
 
+        debug_assert!(self.children.borrow().is_none());
+
         self.children.replace(Some(children));
     }
 
-    fn backpropagate(&self, _score: N64) {
-        // self.total_score += score;
-
-        let _ = self.parent;
-
+    fn backpropagate(&self, score: f64) {
         self.number_of_visits.fetch_add(1, Ordering::Relaxed);
+        self.total_score.fetch_add(score, Ordering::Relaxed);
+
+        if let Some(parent) = self.parent.borrow().as_ref() {
+            parent.backpropagate(score)
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use decorum::Infinite;
-
     use super::*;
 
     #[test]
@@ -296,8 +300,8 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         let n = Node::new(game);
 
-        assert_eq!(n.ucb1_score(1), N64::INFINITY);
-        assert_eq!(n.ucb1_score(0), N64::INFINITY);
+        assert_eq!(n.ucb1_score(1), f64::INFINITY);
+        assert_eq!(n.ucb1_score(0), f64::INFINITY);
     }
 
     #[test]
@@ -308,14 +312,57 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         let n = Node {
             game_state: game,
-            total_score: N64::from(10.0),
+            total_score: AtomicF64::new(10.0),
             number_of_visits: AtomicUsize::new(1),
             children: RefCell::new(None),
             parent: RefCell::new(None),
         };
 
-        assert_eq!(n.ucb1_score(1), N64::from(10.0));
+        assert_eq!(n.ucb1_score(1), 10.0);
         assert!(n.ucb1_score(2) > 11.6);
         assert!(n.ucb1_score(2) < 11.7);
+    }
+
+    #[test]
+    fn test_backpropagate_root() {
+        let fixture = include_str!("../fixtures/start_of_game.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let n = Node::new(game);
+
+        n.backpropagate(10.0);
+
+        assert_eq!(n.number_of_visits.load(Ordering::Relaxed), 1);
+        assert_eq!(n.total_score.load(Ordering::Relaxed), 10.0);
+    }
+
+    #[test]
+    fn test_backpropagate_first_child() {
+        let fixture = include_str!("../fixtures/start_of_game.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let root = Node::new(game);
+
+        let child = Node::new_with_parent(game, &root);
+
+        child.backpropagate(10.0);
+
+        assert_eq!(child.number_of_visits.load(Ordering::Relaxed), 1);
+        assert_eq!(child.total_score.load(Ordering::Relaxed), 10.0);
+
+        assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 1);
+        assert_eq!(root.total_score.load(Ordering::Relaxed), 10.0);
+
+        let other_child = Node::new_with_parent(game, &root);
+        other_child.backpropagate(20.0);
+
+        assert_eq!(other_child.number_of_visits.load(Ordering::Relaxed), 1);
+        assert_eq!(other_child.total_score.load(Ordering::Relaxed), 20.0);
+
+        assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 2);
+        assert_eq!(root.total_score.load(Ordering::Relaxed), 30.0);
     }
 }
