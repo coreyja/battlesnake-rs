@@ -80,7 +80,7 @@ impl<
         skip_all,
         fields(total_number_of_iterations, total_score,)
     )]
-    pub fn mcts_bench(&self, max_iterations: usize) -> Result<MoveOutput> {
+    fn mcts(&self, while_condition: &dyn Fn(&Node<T>, usize) -> bool) -> Result<MoveOutput> {
         let current_span = tracing::Span::current();
 
         let arena = Arena::new();
@@ -93,7 +93,7 @@ impl<
 
         let mut total_number_of_iterations = 0;
 
-        while total_number_of_iterations < max_iterations {
+        while while_condition(&root_node, total_number_of_iterations) {
             total_number_of_iterations += 1;
 
             let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
@@ -139,88 +139,36 @@ impl<
         })
     }
 
-    #[tracing::instrument(
-        level = "info",
-        skip_all,
-        fields(total_number_of_iterations, total_score,)
-    )]
+    pub fn mcts_bench(&self, max_iterations: usize) -> Result<MoveOutput> {
+        let while_condition = |_root: &Node<T>, total_number_of_iterations: usize| {
+            total_number_of_iterations < max_iterations
+        };
+
+        self.mcts(&while_condition)
+    }
+
     pub fn graph_move(&self) -> Result<MoveOutput> {
         info!(player_count =? self.game.get_snake_ids(), "Graphing MCTS");
-
-        let current_span = tracing::Span::current();
-
-        let arena = Arena::new();
-
-        let mut rng = rand::thread_rng();
-
-        let mut total_number_of_iterations = 0;
-        let root_node: &mut Node<T> = arena.alloc(Node::new(self.game.clone()));
-
-        let mut file = File::create("tmp/initial.dot")?;
-        file.write_all(format!("{}", root_node.graph(total_number_of_iterations)).as_bytes())?;
-
-        root_node.expand(&arena);
-
-        let mut file = File::create("tmp/expanded.dot")?;
-        file.write_all(format!("{}", root_node.graph(total_number_of_iterations)).as_bytes())?;
-
         let start = std::time::Instant::now();
 
         const NETWORK_LATENCY_PADDING: i64 = 100;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
-        while start.elapsed().as_millis() < max_duration.try_into().unwrap() {
-            total_number_of_iterations += 1;
-
-            let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
-
-            next_leaf_node = {
-                let borrowed = next_leaf_node;
-
-                // If next_leaf_node HAS been visited, then we expand it
-                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
-                    borrowed.expand(&arena);
-
-                    borrowed.next_leaf_node(total_number_of_iterations)
-                } else {
-                    next_leaf_node
-                }
-            };
-
-            //Now we do a simulation for this leaf node
-            let score = next_leaf_node.simulate(&mut rng);
-
-            //We now need to backpropagate the score
-            next_leaf_node.backpropagate(score);
-
+        let while_condition = |root_node: &Node<T>, total_number_of_iterations: usize| {
             if total_number_of_iterations % 64 == 0 {
                 let mut file =
-                    File::create(format!("tmp/iteration_{total_number_of_iterations}.dot"))?;
+                    File::create(format!("tmp/iteration_{total_number_of_iterations}.dot"))
+                        .unwrap();
                 file.write_all(
                     format!("{}", root_node.graph(total_number_of_iterations)).as_bytes(),
-                )?;
+                )
+                .unwrap();
             }
-        }
 
-        // We are outside the loop now and need to pick the best move
-        current_span.record("total_number_of_iterations", &total_number_of_iterations);
-        current_span.record(
-            "total_score",
-            &root_node.total_score.load(Ordering::Relaxed),
-        );
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
 
-        let best_child = root_node.highest_average_score_child();
-        let chosen_move = best_child
-            .expect("The root should have a child")
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        Ok(MoveOutput {
-            r#move: format!("{}", chosen_move),
-            shout: None,
-        })
+        self.mcts(&while_condition)
     }
 }
 
@@ -234,73 +182,17 @@ impl<
             + 'static,
     > BattlesnakeAI for MctsSnake<T>
 {
-    #[tracing::instrument(
-        level = "info",
-        skip_all,
-        fields(total_number_of_iterations, total_score,)
-    )]
     fn make_move(&self) -> Result<MoveOutput> {
-        let current_span = tracing::Span::current();
-
-        let arena = Arena::new();
-
-        let mut rng = rand::thread_rng();
-
-        let root_node: &mut Node<T> = arena.alloc(Node::new(self.game.clone()));
-
-        root_node.expand(&arena);
-
-        let mut total_number_of_iterations = 0;
-
         let start = std::time::Instant::now();
 
         const NETWORK_LATENCY_PADDING: i64 = 100;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
-        while start.elapsed().as_millis() < max_duration.try_into().unwrap() {
-            total_number_of_iterations += 1;
+        let while_condition = |_root_node: &Node<T>, _total_number_of_iterations: usize| {
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
 
-            let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
-
-            next_leaf_node = {
-                let borrowed = next_leaf_node;
-
-                // If next_leaf_node HAS been visited, then we expand it
-                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
-                    borrowed.expand(&arena);
-
-                    borrowed.next_leaf_node(total_number_of_iterations)
-                } else {
-                    next_leaf_node
-                }
-            };
-
-            //Now we do a simulation for this leaf node
-            let score = next_leaf_node.simulate(&mut rng);
-
-            //We now need to backpropagate the score
-            next_leaf_node.backpropagate(score);
-        }
-
-        // We are outside the loop now and need to pick the best move
-        current_span.record("total_number_of_iterations", &total_number_of_iterations);
-        current_span.record(
-            "total_score",
-            &root_node.total_score.load(Ordering::Relaxed),
-        );
-
-        let best_child = root_node.highest_average_score_child();
-        let chosen_move = best_child
-            .expect("The root should have a child")
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        Ok(MoveOutput {
-            r#move: format!("{}", chosen_move),
-            shout: None,
-        })
+        self.mcts(&while_condition)
     }
 
     fn end(&self) {
