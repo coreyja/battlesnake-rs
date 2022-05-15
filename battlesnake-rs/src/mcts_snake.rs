@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     convert::TryInto,
     sync::atomic::{AtomicUsize, Ordering},
@@ -204,8 +205,7 @@ where
         + YouDeterminableGame,
 {
     fn simulate(&self, rng: &mut ThreadRng) -> f64 {
-        // TODO: This clone might not be the best
-        let mut current_state = self.game_state.clone();
+        let mut current_state: Cow<T> = Cow::Borrowed(&self.game_state);
 
         while !current_state.is_over() {
             let random_moves: Vec<_> = current_state
@@ -218,10 +218,10 @@ where
                     current_state.simulate_with_moves(&Instrument {}, random_moves);
 
                 // TODO: This unwrap might NOT be safe
-                simulation_result.next().unwrap().1.clone()
+                simulation_result.next().unwrap().1
             };
 
-            current_state = next_state;
+            current_state = Cow::Owned(next_state);
         }
 
         let you_id = current_state.you_id();
