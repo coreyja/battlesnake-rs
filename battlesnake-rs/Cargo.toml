@@ -28,6 +28,7 @@ battlesnake-minimax = { path = "../battlesnake-minimax" }
 anyhow = "1.0.56"
 typed-arena = "2.0.1"
 atomic_float = "0.1.0"
+dotavious = "0.2.1"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
@@ -46,6 +47,11 @@ path = "benches/devin.rs"
 name = "hobbs"
 harness = false
 path = "benches/hobbs.rs"
+
+[[bench]]
+name = "mcts"
+harness = false
+path = "benches/mcts.rs"
 
 [[bench]]
 name = "a-prime"

@@ -290,6 +290,7 @@ dependencies = [
  "criterion",
  "debug_print",
  "decorum",
+ "dotavious",
  "itertools 0.10.3",
  "pprof",
  "rand 0.8.4",
@@ -654,6 +655,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "dotavious"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "961fa4e2a7d4d6e705e27721bb0194ae8deae8711e4b605035cd216293c828f6"
+dependencies = [
+ "indexmap",
 ]
 
 [[package]]

@@ -2,6 +2,8 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::TryInto,
+    fs::File,
+    io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -10,6 +12,7 @@ use battlesnake_game_types::{
     compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
 };
 use decorum::N64;
+use dotavious::{Dot, Edge, GraphBuilder};
 use rand::prelude::ThreadRng;
 use tracing::info;
 use typed_arena::Arena;
@@ -60,6 +63,164 @@ impl BattlesnakeFactory for MctsSnakeFactory {
             head: Some("trans-rights-scarf".to_owned()),
             ..Default::default()
         }
+    }
+}
+impl<
+        T: Clone
+            + SimulableGame<Instrument, 4>
+            + PartialEq
+            + RandomReasonableMovesGame
+            + VictorDeterminableGame
+            + YouDeterminableGame
+            + 'static,
+    > MctsSnake<T>
+{
+    #[tracing::instrument(
+        level = "info",
+        skip_all,
+        fields(total_number_of_iterations, total_score,)
+    )]
+    pub fn mcts_bench(&self, max_iterations: usize) -> Result<MoveOutput> {
+        let current_span = tracing::Span::current();
+
+        let arena = Arena::new();
+
+        let mut rng = rand::thread_rng();
+
+        let root_node: &mut Node<T> = arena.alloc(Node::new(self.game.clone()));
+
+        root_node.expand(&arena);
+
+        let mut total_number_of_iterations = 0;
+
+        while total_number_of_iterations < max_iterations {
+            total_number_of_iterations += 1;
+
+            let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
+
+            next_leaf_node = {
+                let borrowed = next_leaf_node;
+
+                // If next_leaf_node HAS been visited, then we expand it
+                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
+                    borrowed.expand(&arena);
+
+                    borrowed.next_leaf_node(total_number_of_iterations)
+                } else {
+                    next_leaf_node
+                }
+            };
+
+            //Now we do a simulation for this leaf node
+            let score = next_leaf_node.simulate(&mut rng);
+
+            //We now need to backpropagate the score
+            next_leaf_node.backpropagate(score);
+        }
+
+        // We are outside the loop now and need to pick the best move
+        current_span.record("total_number_of_iterations", &total_number_of_iterations);
+        current_span.record(
+            "total_score",
+            &root_node.total_score.load(Ordering::Relaxed),
+        );
+
+        let best_child = root_node.highest_average_score_child();
+        let chosen_move = best_child
+            .expect("The root should have a child")
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
+        Ok(MoveOutput {
+            r#move: format!("{}", chosen_move),
+            shout: None,
+        })
+    }
+
+    #[tracing::instrument(
+        level = "info",
+        skip_all,
+        fields(total_number_of_iterations, total_score,)
+    )]
+    pub fn graph_move(&self) -> Result<MoveOutput> {
+        info!(player_count =? self.game.get_snake_ids(), "Graphing MCTS");
+
+        let current_span = tracing::Span::current();
+
+        let arena = Arena::new();
+
+        let mut rng = rand::thread_rng();
+
+        let mut total_number_of_iterations = 0;
+        let root_node: &mut Node<T> = arena.alloc(Node::new(self.game.clone()));
+
+        let mut file = File::create("tmp/initial.dot")?;
+        file.write_all(format!("{}", root_node.graph(total_number_of_iterations)).as_bytes())?;
+
+        root_node.expand(&arena);
+
+        let mut file = File::create("tmp/expanded.dot")?;
+        file.write_all(format!("{}", root_node.graph(total_number_of_iterations)).as_bytes())?;
+
+        let start = std::time::Instant::now();
+
+        const NETWORK_LATENCY_PADDING: i64 = 100;
+        let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        while start.elapsed().as_millis() < max_duration.try_into().unwrap() {
+            total_number_of_iterations += 1;
+
+            let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
+
+            next_leaf_node = {
+                let borrowed = next_leaf_node;
+
+                // If next_leaf_node HAS been visited, then we expand it
+                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
+                    borrowed.expand(&arena);
+
+                    borrowed.next_leaf_node(total_number_of_iterations)
+                } else {
+                    next_leaf_node
+                }
+            };
+
+            //Now we do a simulation for this leaf node
+            let score = next_leaf_node.simulate(&mut rng);
+
+            //We now need to backpropagate the score
+            next_leaf_node.backpropagate(score);
+
+            if total_number_of_iterations % 64 == 0 {
+                let mut file =
+                    File::create(format!("tmp/iteration_{total_number_of_iterations}.dot"))?;
+                file.write_all(
+                    format!("{}", root_node.graph(total_number_of_iterations)).as_bytes(),
+                )?;
+            }
+        }
+
+        // We are outside the loop now and need to pick the best move
+        current_span.record("total_number_of_iterations", &total_number_of_iterations);
+        current_span.record(
+            "total_score",
+            &root_node.total_score.load(Ordering::Relaxed),
+        );
+
+        let best_child = root_node.highest_average_score_child();
+        let chosen_move = best_child
+            .expect("The root should have a child")
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
+        Ok(MoveOutput {
+            r#move: format!("{}", chosen_move),
+            shout: None,
+        })
     }
 }
 
@@ -351,6 +512,52 @@ where
         if let Some(tree_context) = &self.tree_context {
             tree_context.parent.borrow().backpropagate(score)
         }
+    }
+
+    fn graph(&self, total_number_of_iterations: usize) -> Dot {
+        let mut builder = GraphBuilder::new_named_directed("example");
+        self.graph_with(&mut builder, 0, vec![], total_number_of_iterations);
+
+        let graph = builder.build().unwrap();
+        Dot { graph }
+    }
+
+    // Takes in a builder and adds itself and all children as nodes in the graph
+    // Returns a string that corresponds to the name of the current node
+    fn graph_with<'a>(
+        &self,
+        builder: &mut GraphBuilder<'a>,
+        depth: usize,
+        child_id: Vec<usize>,
+        total_number_of_iterations: usize,
+    ) -> String {
+        let me_id: String = format!(
+            "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}",
+            child_id,
+            self.tree_context.as_ref().map(|t| t.r#move),
+            self.total_score,
+            self.number_of_visits,
+            self.ucb1_score(total_number_of_iterations),
+            self.average_score(),
+        );
+
+        builder.add_node(dotavious::Node::new(me_id.as_str()));
+
+        let borrow = self.children.borrow();
+        let children = borrow.as_ref();
+
+        if let Some(children) = children {
+            for (i, child) in children.iter().enumerate() {
+                let mut new_child_id = child_id.clone();
+                new_child_id.push(i);
+                let child_id =
+                    child.graph_with(builder, depth + 1, new_child_id, total_number_of_iterations);
+
+                builder.add_edge(Edge::new(me_id.as_str(), child_id.as_str()));
+            }
+        }
+
+        me_id
     }
 }
 
