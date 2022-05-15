@@ -23,7 +23,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = MctsSnake::new(black_box(game), game_info);
 
-            snake.mcts_bench(3)
+            snake.mcts_bench(10000)
         })
     });
 
@@ -42,7 +42,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = MctsSnake::new(black_box(game), game_info);
 
-            snake.mcts_bench(3)
+            snake.mcts_bench(10000)
         });
     });
 }
