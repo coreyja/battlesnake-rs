@@ -156,6 +156,11 @@ async fn route_move(
 async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
     let game_info = game.game.clone();
     let id_map = build_snake_id_map(&game);
+
+    assert_ne!(
+        game_info.ruleset.name, "wrapped",
+        "Graphing does not currently support wrapped games"
+    );
     let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
     let snake = MctsSnake::new(game, game_info);

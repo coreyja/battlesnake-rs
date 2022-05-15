@@ -27,7 +27,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    g.bench_function("Hobbs Wrapped", |b| {
+    g.bench_function("MCTS Wrapped", |b| {
         b.iter(|| {
             let mut game: Game = serde_json::from_str(game_json).unwrap();
             game.game.ruleset = Ruleset {
