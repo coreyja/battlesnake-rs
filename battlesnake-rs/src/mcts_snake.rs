@@ -127,7 +127,7 @@ impl<
             &root_node.total_score.load(Ordering::Relaxed),
         );
 
-        let best_child = root_node.best_child(root_node.number_of_visits.load(Ordering::Relaxed));
+        let best_child = root_node.highest_average_score_child();
         let chosen_move = best_child
             .expect("The root should have a child")
             .tree_context
@@ -267,6 +267,20 @@ where
         average_score + right_hand_side
     }
 
+    fn average_score(&self) -> Option<f64> {
+        let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
+        let total_score = self.total_score.load(Ordering::Relaxed);
+
+        if number_of_visits == 0 {
+            return None;
+        }
+
+        let number_of_visits = number_of_visits as f64;
+
+        let average_score = total_score / number_of_visits;
+        Some(average_score)
+    }
+
     fn next_leaf_node(&'arena self, total_number_of_iterations: usize) -> &'arena Node<'arena, T> {
         let mut best_node: &'arena Node<'arena, T> = self;
 
@@ -274,7 +288,7 @@ where
             debug_assert!(best_node.has_been_expanded());
 
             let next = best_node
-                .best_child(total_number_of_iterations)
+                .next_child_to_explore(total_number_of_iterations)
                 .expect("We are not a leaf node so we should have a best child");
             best_node = next;
         }
@@ -286,7 +300,7 @@ where
         self.children.borrow().is_none() || self.children.borrow().as_ref().unwrap().is_empty()
     }
 
-    fn best_child(&self, total_number_of_iterations: usize) -> Option<&'arena Node<T>> {
+    fn next_child_to_explore(&self, total_number_of_iterations: usize) -> Option<&'arena Node<T>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
         let children = borrowed.as_ref().unwrap();
@@ -295,6 +309,16 @@ where
             .iter()
             .cloned()
             .max_by_key(|child| N64::from(child.ucb1_score(total_number_of_iterations)))
+    }
+
+    fn highest_average_score_child(&self) -> Option<&'arena Node<T>> {
+        let borrowed = self.children.borrow();
+        let children = borrowed.as_ref().unwrap();
+
+        children
+            .iter()
+            .cloned()
+            .max_by_key(|child| child.average_score().map(N64::from))
     }
 
     fn expand(&'arena self, arena: &'arena Arena<Node<'arena, T>>) {
@@ -360,6 +384,36 @@ mod test {
         assert_eq!(n.ucb1_score(1), 10.0);
         assert!(n.ucb1_score(2) > 11.6);
         assert!(n.ucb1_score(2) < 11.7);
+    }
+
+    #[test]
+    fn test_average_empty_score() {
+        let fixture = include_str!("../fixtures/start_of_game.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let n = Node::new(game);
+
+        assert_eq!(n.average_score(), None);
+    }
+
+    #[test]
+    fn test_average_non_empty() {
+        let fixture = include_str!("../fixtures/start_of_game.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let n = Node::new(game);
+        n.number_of_visits.store(1, Ordering::Relaxed);
+        n.total_score.store(10.0, Ordering::Relaxed);
+
+        assert_eq!(n.average_score(), Some(10.0));
+
+        n.number_of_visits.store(2, Ordering::Relaxed);
+        n.total_score.store(25.0, Ordering::Relaxed);
+
+        assert_eq!(n.average_score(), Some(12.5));
     }
 
     #[test]
