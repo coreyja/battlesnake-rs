@@ -21,6 +21,12 @@ use tracing::{info, info_span};
 
 use std::fmt::Debug;
 
+mod score;
+pub use score::WrappedScore;
+
+mod minimax_return;
+pub use minimax_return::MinMaxReturn;
+
 #[derive(Debug, Clone, Copy)]
 /// Any empty struct that implements `SimulatorInstruments` as a no-op which can be used when you don't want
 /// to time the simulation
@@ -39,51 +45,6 @@ pub struct MoveOutput {
     pub shout: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
-/// The wrapped score type. This takes into account the score provided by the score function, but
-/// wraps it with a Score based on the game state. This allows us to say that wins are better than
-/// any score and loses are worse than any score, etc.
-pub enum WrappedScore<ScoreType>
-where
-    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
-{
-    /// We lost, the depth is recorded because we prefer surviving longer
-    Lose(i64),
-    /// We tied, the depth is recorded because we prefer surviving longer
-    Tie(i64),
-    /// We order this based on the score provided by the score function
-    Scored(ScoreType),
-    /// We won, the depth is recorded because we prefer winning sooner
-    Win(i64),
-}
-
-impl<ScoreType> WrappedScore<ScoreType>
-where
-    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
-{
-    fn best_possible_score() -> Self {
-        WrappedScore::Win(std::i64::MAX)
-    }
-    fn worst_possible_score() -> Self {
-        WrappedScore::Lose(std::i64::MIN)
-    }
-
-    fn terminal_depth(&self) -> Option<i64> {
-        match &self {
-            Self::Win(d) => Some(-d),
-            Self::Tie(d) | Self::Lose(d) => Some(*d),
-            _ => None,
-        }
-    }
-}
-
-trait Scoreable<BoardType, ScoreType>: Sync + Send
-where
-    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
-{
-    fn score(&self, node: &BoardType) -> WrappedScore<ScoreType>;
-}
-
 use derivative::Derivative;
 
 #[derive(Derivative, Clone)]
@@ -91,7 +52,7 @@ use derivative::Derivative;
 /// This is the struct that wraps a game board and a scoring function and can be used to run
 /// minimax
 ///
-/// It also outputs traces using the `tracing` crate which can be subcribed to
+/// It also outputs traces using the `tracing` crate which can be subscribed to
 pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize>
 where
     T: SnakeIDGettableGame
@@ -117,125 +78,6 @@ where
     score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
     name: &'static str,
 }
-
-#[derive(Debug, Clone)]
-/// This is returned from an iteration of the minimax algorithm
-/// It contains all the information we generated about the game tree
-pub enum MinMaxReturn<
-    T: SnakeIDGettableGame + Clone + Debug,
-    ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
-> {
-    /// This is a non-leaf node in the game tree
-    /// We have information about all the options we looked at as well as the chosen score
-    Node {
-        /// Whether this node was a maximizing node or not
-        is_maximizing: bool,
-        /// A recursive look at all the moves under us
-        options: Vec<(Move, Self)>,
-        /// Which snake was moving at this node
-        moving_snake_id: T::SnakeIDType,
-        /// The chosen score
-        score: WrappedScore<ScoreType>,
-    },
-    /// Represents a leaf node in the game tree
-    /// This happens when we reach a terminal state (win/lose/tie)
-    /// or when we reach the maximum depth
-    Leaf {
-        /// The score of the leaf node
-        score: WrappedScore<ScoreType>,
-    },
-}
-
-impl<T, ScoreType> MinMaxReturn<T, ScoreType>
-where
-    T: SnakeIDGettableGame + Debug + Clone,
-    ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
-{
-    /// Returns the score for this node
-    pub fn score(&self) -> &WrappedScore<ScoreType> {
-        match self {
-            MinMaxReturn::Node { score, .. } => score,
-            MinMaxReturn::Leaf { score } => score,
-        }
-    }
-
-    /// Returns the direction our snake should move to maximize the score
-    /// If we are a leaf node, this will return None
-    ///
-    /// We take advantage of the fact that the moves are sorted by score, so we can just return the
-    /// first option where our snake is moving
-    pub fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
-        match self {
-            MinMaxReturn::Leaf { .. } => None,
-            MinMaxReturn::Node {
-                moving_snake_id,
-                options,
-                ..
-            } => {
-                let chosen = options.first()?;
-                if moving_snake_id == snake_id {
-                    Some(chosen.0)
-                } else {
-                    chosen.1.direction_for(snake_id)
-                }
-            }
-        }
-    }
-
-    /// Returns all the moves in the 'route' through the game tree that minimax took
-    /// This is useful for debugging as it shows each of the moves we and our opponents made during
-    /// the simulation
-    pub fn all_moves(&self) -> Vec<(T::SnakeIDType, Move)> {
-        match self {
-            MinMaxReturn::Leaf { .. } => vec![],
-            MinMaxReturn::Node {
-                moving_snake_id,
-                options,
-                ..
-            } => {
-                if let Some(chosen) = options.first() {
-                    let mut tail = chosen.1.all_moves();
-                    tail.insert(0, (moving_snake_id.clone(), chosen.0));
-                    tail
-                } else {
-                    vec![]
-                }
-            }
-        }
-    }
-
-    fn to_text_tree_node(&self, label: String) -> Option<StringTreeNode> {
-        match self {
-            MinMaxReturn::Leaf { .. } => None,
-            MinMaxReturn::Node {
-                moving_snake_id,
-                options,
-                score,
-                ..
-            } => {
-                let mut node = StringTreeNode::new(format!("{} {:?}", label, score));
-                for (m, result) in options {
-                    if let Some(next_node) =
-                        result.to_text_tree_node(format!("{} {:?}", m, moving_snake_id))
-                    {
-                        node.push_node(next_node);
-                    }
-                }
-
-                Some(node)
-            }
-        }
-    }
-
-    /// This returns a visual representation of the game tree that minimax generated
-    /// It shows the chosen score, the moving snake and the chosen move at each level
-    pub fn to_text_tree(&self) -> Option<String> {
-        let tree_node = self.to_text_tree_node("".to_owned())?;
-        Some(format!("{}", tree_node))
-    }
-}
-
-use text_trees::StringTreeNode;
 
 #[derive(Debug, Copy, Clone)]
 /// This type is used to represent that the main thread
@@ -600,7 +442,10 @@ where
                 "chosen_direction",
                 &format!("{:?}", result.direction_for(you_id)).as_str(),
             );
-            inner_span.record("all_moves", &format!("{:?}", result.all_moves()).as_str());
+            inner_span.record(
+                "all_moves",
+                &format!("{:?}", result.chosen_route()).as_str(),
+            );
             inner_span.record("depth", &depth);
         }
 
