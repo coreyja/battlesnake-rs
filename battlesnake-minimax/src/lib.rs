@@ -53,24 +53,7 @@ use derivative::Derivative;
 /// minimax
 ///
 /// It also outputs traces using the `tracing` crate which can be subscribed to
-pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize>
-where
-    T: SnakeIDGettableGame
-        + YouDeterminableGame
-        + PositionGettableGame
-        + HealthGettableGame
-        + VictorDeterminableGame
-        + HeadGettableGame
-        + NeighborDeterminableGame
-        + SimulableGame<Instruments, N_SNAKES>
-        + Clone
-        + Copy
-        + Sync
-        + Send
-        + Sized,
-    T::SnakeIDType: Copy + Send + Sync,
-    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-{
+pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
     game: T,
     game_info: NestedGame,
     turn: i32,
@@ -88,19 +71,8 @@ pub struct AbortedEarly;
 impl<GameType, ScoreType, const N_SNAKES: usize> Scorable<GameType, ScoreType>
     for EvalMinimaxSnake<GameType, ScoreType, N_SNAKES>
 where
-    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-    GameType: Clone
-        + Copy
-        + Sync
-        + Send
-        + Sized
-        + YouDeterminableGame
-        + VictorDeterminableGame
-        + NeighborDeterminableGame
-        + HeadGettableGame
-        + HealthGettableGame
-        + SimulableGame<Instruments, N_SNAKES>,
-    GameType::SnakeIDType: Copy + Send + Sync,
+    ScoreType: Debug + PartialOrd + Ord + Copy,
+    GameType: YouDeterminableGame + VictorDeterminableGame,
 {
     fn score(&self, node: &GameType) -> ScoreType {
         (self.score_function)(node)
