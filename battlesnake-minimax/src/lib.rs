@@ -122,15 +122,22 @@ where
     }
 
     /// Pick the next move to make
-    pub fn make_move_inner(&self) -> Move {
+    pub fn make_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
         let copy = self.clone();
 
-        let best_option =
-            info_span!("deepened_minmax", snake_name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
+        let best_option = info_span!(
+          "deepened_minmax",
+          snake_name = self.name,
+          game_id = %&self.game_info.id,
+          turn = self.turn,
+          ruleset_name = %self.game_info.ruleset.name,
+          ruleset_version = %self.game_info.ruleset.version,
+        )
+        .in_scope(|| copy.deepened_minimax(sorted_ids));
 
         best_option.your_best_move(my_id).unwrap()
     }
