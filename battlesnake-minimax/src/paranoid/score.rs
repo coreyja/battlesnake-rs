@@ -61,6 +61,7 @@ where
     GameType: YouDeterminableGame + VictorDeterminableGame,
 {
     /// This is the the scoring function for your Minimax snake
+    ///
     /// The score for all non end state nodes will be defined by this score
     fn score(&self, node: &GameType) -> ScoreType;
 

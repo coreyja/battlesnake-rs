@@ -7,10 +7,13 @@
 //! This crate implements the minimax algorithm for the battlesnake game. You provide a 'scoring'
 //! function that turns a given board into anything that implements the `Ord` trait.
 //!
-//! We lean on the `battlesnake-game-types` crate for the game logic, and in particular for the
+//! There are multiple variants to multiplayer minimax. This crate currently only supports the
+//! `paranoid` variant, which can be found in the [paranoid] module
+//!
+//! We lean on the [battlesnake_game_types] crate for the game logic, and in particular for the
 //! simulate logic, which is used to generate the next board states.
 
-use std::fmt::Debug;
+pub use battlesnake_game_types;
 
 pub mod paranoid;
 

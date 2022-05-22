@@ -94,6 +94,17 @@ where
     }
 
     /// Pick the next move to make
+    ///
+    /// This will do a iterative deepening minimax until we reach the time limit [with some padding
+    /// for network latency]. Iterative deepening means it will first start by evaluating minimax
+    /// at a turn count of 1. Then it moves on to a minimax for turn 2, but evaluating the best
+    /// move from the previous turn first. This allows the Alpha-Beta pruning to be more efficient
+    /// for the second round. We keep repeating this process with deeper depths until we run out of time.
+    ///
+    /// The actual minimax algorithm is run in a separate thread so that we don't have issues with
+    /// returning in time if we started a long minimax process that may not return in time.
+    /// When we return from the main/timing thread we also send a signal the the 'worker' thread
+    /// telling it to stop, so as not to waste CPU cycles
     pub fn make_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
@@ -258,6 +269,7 @@ where
     }
 
     fn time_limit_ms(&self) -> i64 {
+        // TODO: Do we want to think about a way to make this something users can specify/override
         const NETWORK_LATENCY_PADDING: i64 = 100;
         self.game_info.timeout - NETWORK_LATENCY_PADDING
     }
@@ -418,7 +430,7 @@ where
         .unwrap()
     }
 
-    /// Used to benchmark a deepened minimax. In 'real' play a deepened_minmax is run with a
+    /// Used to benchmark a deepened minimax. In 'real' usage a deepened_minmax is run with a
     /// timeout, but to work better with benchmarking we run this for a certain number of turns.
     pub fn deepend_minimax_bench(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
         let my_id = self.game.you_id();
