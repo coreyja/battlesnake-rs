@@ -1,6 +1,6 @@
 use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use crate::*;
-use battlesnake_minimax::EvalMinimaxSnake;
+use battlesnake_minimax::paranoid::EvalMinimaxSnake;
 
 use battlesnake_game_types::types::*;
 

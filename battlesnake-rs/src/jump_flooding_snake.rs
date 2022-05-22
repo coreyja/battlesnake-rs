@@ -1,7 +1,7 @@
 use crate::flood_fill::jump_flooding::JumpFlooding;
 use crate::*;
 
-use battlesnake_minimax::EvalMinimaxSnake;
+use battlesnake_minimax::paranoid::EvalMinimaxSnake;
 
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use battlesnake_game_types::types::*;

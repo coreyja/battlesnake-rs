@@ -219,7 +219,7 @@ impl SnakeTailPushableGame for Game {
     }
 }
 
-pub use battlesnake_minimax::EvalMinimaxSnake;
+pub use battlesnake_minimax::paranoid::EvalMinimaxSnake;
 use battlesnake_minimax::Instruments;
 
 use crate::{

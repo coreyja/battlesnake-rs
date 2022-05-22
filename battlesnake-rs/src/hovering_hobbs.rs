@@ -6,7 +6,7 @@ use battlesnake_game_types::compact_representation::{
     StandardCellBoard4Snakes11x11, WrappedCellBoard4Snakes11x11,
 };
 use battlesnake_game_types::types::*;
-use battlesnake_minimax::EvalMinimaxSnake;
+use battlesnake_minimax::paranoid::EvalMinimaxSnake;
 use decorum::N64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
