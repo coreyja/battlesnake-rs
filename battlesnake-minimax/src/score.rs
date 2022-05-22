@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use battlesnake_game_types::types::{VictorDeterminableGame, YouDeterminableGame};
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 /// The wrapped score type. This takes into account the score provided by the score function, but
 /// wraps it with a Score based on the game state. This allows us to say that wins are better than
@@ -45,5 +47,59 @@ where
             Self::Tie(d) | Self::Lose(d) => Some(*d),
             _ => None,
         }
+    }
+}
+
+/// Provides an implementation for `wrapped_score` if the implementer implements the `score`
+/// function.
+///
+/// `wrapped_score` takes into account if the node is an end_state, and depth based ordering so
+/// that the underlying scoring functions don't need to worry about this
+pub trait Scorable<GameType, ScoreType>: Sync + Send
+where
+    ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
+    GameType: YouDeterminableGame + VictorDeterminableGame,
+{
+    /// This is the the scoring function for your Minimax snake
+    /// The score for all non end state nodes will be defined by this score
+    fn score(&self, node: &GameType) -> ScoreType;
+
+    /// `wrapped_score` takes into account the depth and number of players. It checks the game
+    /// board and decides if this is a leaf in our Minimax tree. If it IS a leaf we score it based
+    /// on the outcome of the game board. If we've hit the maximum depth, we use the scoring
+    /// function provided by `score`
+    fn wrapped_score(
+        &self,
+        node: &GameType,
+        depth: i64,
+        max_depth: i64,
+        num_players: i64,
+    ) -> Option<WrappedScore<ScoreType>> {
+        if depth % num_players != 0 {
+            return None;
+        }
+
+        let you_id = node.you_id();
+
+        if node.is_over() {
+            let score = match node.get_winner() {
+                Some(s) => {
+                    if s == *you_id {
+                        WrappedScore::Win(-(depth as i64))
+                    } else {
+                        WrappedScore::Lose(depth as i64)
+                    }
+                }
+                None => WrappedScore::Tie(depth as i64),
+            };
+
+            return Some(score);
+        }
+
+        if depth >= max_depth {
+            return Some(WrappedScore::Scored(self.score(node)));
+        }
+
+        None
     }
 }

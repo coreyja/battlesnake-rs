@@ -22,7 +22,7 @@ use tracing::{info, info_span};
 use std::fmt::Debug;
 
 mod score;
-pub use score::WrappedScore;
+pub use score::{Scorable, WrappedScore};
 
 mod minimax_return;
 pub use minimax_return::MinMaxReturn;
@@ -85,6 +85,28 @@ where
 /// out of the current context
 pub struct AbortedEarly;
 
+impl<GameType, ScoreType, const N_SNAKES: usize> Scorable<GameType, ScoreType>
+    for EvalMinimaxSnake<GameType, ScoreType, N_SNAKES>
+where
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
+    GameType: Clone
+        + Copy
+        + Sync
+        + Send
+        + Sized
+        + YouDeterminableGame
+        + VictorDeterminableGame
+        + NeighborDeterminableGame
+        + HeadGettableGame
+        + HealthGettableGame
+        + SimulableGame<Instruments, N_SNAKES>,
+    GameType::SnakeIDType: Copy + Send + Sync,
+{
+    fn score(&self, node: &GameType) -> ScoreType {
+        (self.score_function)(node)
+    }
+}
+
 impl<T, ScoreType, const N_SNAKES: usize> EvalMinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
@@ -140,41 +162,6 @@ where
         .in_scope(|| copy.deepened_minimax(sorted_ids));
 
         best_option.your_best_move(my_id).unwrap()
-    }
-
-    fn wrapped_score(
-        &self,
-        node: &T,
-        depth: i64,
-        max_depth: i64,
-        num_players: i64,
-    ) -> Option<WrappedScore<ScoreType>> {
-        if depth % num_players != 0 {
-            return None;
-        }
-
-        let you_id = node.you_id();
-
-        if node.is_over() {
-            let score = match node.get_winner() {
-                Some(s) => {
-                    if s == *you_id {
-                        WrappedScore::Win(-(depth as i64))
-                    } else {
-                        WrappedScore::Lose(depth as i64)
-                    }
-                }
-                None => WrappedScore::Tie(depth as i64),
-            };
-
-            return Some(score);
-        }
-
-        if depth >= max_depth {
-            return Some(WrappedScore::Scored((self.score_function)(node)));
-        }
-
-        None
     }
 
     #[allow(clippy::too_many_arguments)]
