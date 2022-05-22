@@ -32,9 +32,9 @@ pub enum MinMaxReturn<
     },
 }
 
-impl<T, ScoreType> MinMaxReturn<T, ScoreType>
+impl<GameType, ScoreType> MinMaxReturn<GameType, ScoreType>
 where
-    T: SnakeIDGettableGame + Debug + Clone,
+    GameType: SnakeIDGettableGame + Debug + Clone,
     ScoreType: Clone + Debug + PartialOrd + Ord + Copy,
 {
     /// Returns the score for this node
@@ -45,14 +45,16 @@ where
         }
     }
 
-    /// Returns the direction the given snake should move to maximize the score
+    /// Returns the direction you should move to maximize the score
     /// If we are a leaf node, this will return None
     ///
     /// We take advantage of the fact that the moves are sorted by score, so we can just return the
     /// first option where our snake is moving
-    /// TODO: Take away the snake_id from here, since this method implementation only makes sense in the context
     /// of 'ourself'
-    pub fn direction_for(&self, snake_id: &T::SnakeIDType) -> Option<Move> {
+    ///
+    /// If the given snake_id does NOT correspond to 'you' this method may not return the 'correct'
+    /// results, as it leans into sorting specific for your snake
+    pub fn your_best_move(&self, you_id: &GameType::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
             MinMaxReturn::Node {
@@ -61,10 +63,10 @@ where
                 ..
             } => {
                 let chosen = options.first()?;
-                if moving_snake_id == snake_id {
+                if moving_snake_id == you_id {
                     Some(chosen.0)
                 } else {
-                    chosen.1.direction_for(snake_id)
+                    chosen.1.your_best_move(you_id)
                 }
             }
         }
@@ -73,7 +75,7 @@ where
     /// Returns all the moves in the 'route' through the game tree that minimax took
     /// This is useful for debugging as it shows each of the moves we and our opponents made during
     /// the simulation
-    pub fn chosen_route(&self) -> Vec<(T::SnakeIDType, Move)> {
+    pub fn chosen_route(&self) -> Vec<(GameType::SnakeIDType, Move)> {
         match self {
             MinMaxReturn::Leaf { .. } => vec![],
             MinMaxReturn::Node {
@@ -94,7 +96,6 @@ where
 
     /// This returns a visual representation of the game tree that minimax generated
     /// It shows the chosen score, the moving snake and the chosen move at each level
-    /// TODO: Decide if this should be in the public API
     pub fn to_text_tree(&self) -> Option<String> {
         let tree_node = self.to_text_tree_node("".to_owned())?;
         Some(format!("{}", tree_node))

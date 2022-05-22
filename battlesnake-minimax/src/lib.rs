@@ -132,7 +132,7 @@ where
         let best_option =
             info_span!("deepened_minmax", snake_name = self.name, game_id = %&self.game_info.id, turn = self.turn, ruleset_name = %self.game_info.ruleset.name, ruleset_version = %self.game_info.ruleset.version).in_scope(|| copy.deepened_minimax(sorted_ids));
 
-        best_option.direction_for(my_id).unwrap()
+        best_option.your_best_move(my_id).unwrap()
     }
 
     fn wrapped_score(
@@ -376,7 +376,7 @@ where
                         current_span.record("score", &format!("{:?}", result.score()).as_str());
                         current_span.record(
                             "direction",
-                            &format!("{:?}", result.direction_for(you_id)).as_str(),
+                            &format!("{:?}", result.your_best_move(you_id)).as_str(),
                         );
                     }
 
@@ -440,7 +440,7 @@ where
             inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
             inner_span.record(
                 "chosen_direction",
-                &format!("{:?}", result.direction_for(you_id)).as_str(),
+                &format!("{:?}", result.your_best_move(you_id)).as_str(),
             );
             inner_span.record(
                 "all_moves",
