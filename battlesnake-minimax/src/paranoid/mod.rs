@@ -14,4 +14,4 @@ mod minimax_return;
 pub use minimax_return::MinMaxReturn;
 
 mod eval;
-pub use eval::EvalMinimaxSnake;
+pub use eval::{EvalMinimaxSnake, SnakeOptions};

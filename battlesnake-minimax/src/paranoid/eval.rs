@@ -34,6 +34,37 @@ pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usiz
     #[derivative(Debug = "ignore")]
     score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
     name: &'static str,
+    options: SnakeOptions,
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Optional properties that can be defined for an [EvalMinimaxSnake]
+///
+/// The defaults (as implemented by [Default]) are as follows:
+/// ```
+/// use std::time::Duration;
+/// use battlesnake_minimax::paranoid::SnakeOptions;
+///
+/// let defaults: SnakeOptions = Default::default();
+///
+/// assert_eq!(defaults.network_latency_padding, Duration::from_millis(100));
+/// ```
+pub struct SnakeOptions {
+    /// How long should we 'reserve' for Network Latency
+    ///
+    /// This is used in conjunction with the timeout for the game to determine how much time we can
+    /// spend calculating the next move in our Deepened Minimax
+    ///
+    /// Defaults to 100 milliseconds
+    pub network_latency_padding: Duration,
+}
+
+impl Default for SnakeOptions {
+    fn default() -> Self {
+        Self {
+            network_latency_padding: Duration::from_millis(100),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -90,21 +121,37 @@ where
             turn,
             score_function,
             name,
+            options: Default::default(),
+        }
+    }
+
+    /// Construct a new `EvalMinimaxSnake` providing an optional set of [SnakeOptions]
+    ///
+    /// [SnakeOptions] implements [Default] so you can override specific options and rely on
+    /// defaults for the rest.
+    pub fn new_with_options(
+        game: T,
+        game_info: NestedGame,
+        turn: i32,
+        score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+        name: &'static str,
+        options: SnakeOptions,
+    ) -> Self {
+        Self {
+            game,
+            game_info,
+            turn,
+            score_function,
+            name,
+            options,
         }
     }
 
     /// Pick the next move to make
     ///
-    /// This will do a iterative deepening minimax until we reach the time limit [with some padding
-    /// for network latency]. Iterative deepening means it will first start by evaluating minimax
-    /// at a turn count of 1. Then it moves on to a minimax for turn 2, but evaluating the best
-    /// move from the previous turn first. This allows the Alpha-Beta pruning to be more efficient
-    /// for the second round. We keep repeating this process with deeper depths until we run out of time.
-    ///
-    /// The actual minimax algorithm is run in a separate thread so that we don't have issues with
-    /// returning in time if we started a long minimax process that may not return in time.
-    /// When we return from the main/timing thread we also send a signal the the 'worker' thread
-    /// telling it to stop, so as not to waste CPU cycles
+    /// This uses [EvalMinimaxSnake::deepened_minimax()] to run the Minimax algorihm until we run out of time, and
+    /// return the chosen move. For more information on the inner working see the docs for
+    /// [EvalMinimaxSnake::deepened_minimax()]
     pub fn make_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
@@ -120,7 +167,7 @@ where
           ruleset_name = %self.game_info.ruleset.name,
           ruleset_version = %self.game_info.ruleset.version,
         )
-        .in_scope(|| copy.deepened_minimax(sorted_ids));
+        .in_scope(|| copy.deepened_minimax_until_timelimit(sorted_ids));
 
         best_option.your_best_move(my_id).unwrap()
     }
@@ -268,22 +315,31 @@ where
         })
     }
 
-    fn time_limit_ms(&self) -> i64 {
-        // TODO: Do we want to think about a way to make this something users can specify/override
-        const NETWORK_LATENCY_PADDING: i64 = 100;
-        self.game_info.timeout - NETWORK_LATENCY_PADDING
-    }
-
     fn max_duration(&self) -> Duration {
-        let seconds = self.time_limit_ms() / 1000;
-        let millis = self.time_limit_ms() % 1000;
-        Duration::new(
-            seconds.try_into().unwrap(),
-            (millis * 1_000_000).try_into().unwrap(),
-        )
+        let timeout = self
+          .game_info
+          .timeout
+          .try_into()
+          .expect("We are dealing with things on the order of hundreds of millis or a couple seconds. We shouldn't have a padding that can't convert from an i64 to a u64");
+        let timeout = Duration::from_millis(timeout);
+
+        timeout - self.options.network_latency_padding
     }
 
-    fn deepened_minimax(self, players: Vec<T::SnakeIDType>) -> MinMaxReturn<T, ScoreType> {
+    /// This will do a iterative deepening minimax until we reach the time limit [with some padding
+    /// for network latency]. Iterative deepening means it will first start by evaluating minimax
+    /// at a turn count of 1. Then it moves on to a minimax for turn 2, but evaluating the best
+    /// move from the previous turn first. This allows the Alpha-Beta pruning to be more efficient
+    /// for the second round. We keep repeating this process with deeper depths until we run out of time.
+    ///
+    /// The actual minimax algorithm is run in a separate thread so that we don't have issues with
+    /// returning in time if we started a long minimax process that may not return in time.
+    /// When we return from the main/timing thread we also send a signal the the 'worker' thread
+    /// telling it to stop, so as not to waste CPU cycles
+    pub fn deepened_minimax_until_timelimit(
+        self,
+        players: Vec<T::SnakeIDType>,
+    ) -> MinMaxReturn<T, ScoreType> {
         let inner_span = info_span!(
             "deepened_minmax_inner",
             chosen_score = tracing::field::Empty,
@@ -410,8 +466,14 @@ where
             .expect("We weren't able to do even a single layer of minmax")
     }
 
-    /// Benchmark entry point for running a single minimax to the given number of turns
-    pub fn single_minimax_bench(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+    /// This runs the minimax algorithm to the specified number of turns, returning an struct that
+    /// contains all the information about the 'tree' we searched.
+    ///
+    /// The return value is a recursive struct that tells you the score of the current, and the
+    /// score of all its children nodes.
+    ///
+    /// This can/is also be used as a benchmark entry point
+    pub fn single_minimax(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
@@ -430,9 +492,15 @@ where
         .unwrap()
     }
 
-    /// Used to benchmark a deepened minimax. In 'real' usage a deepened_minmax is run with a
-    /// timeout, but to work better with benchmarking we run this for a certain number of turns.
-    pub fn deepend_minimax_bench(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+    /// This will do a iterative deepening minimax until the specified number of turns. This is
+    /// currently used mostly for debugging and benchmarking
+    ///
+    /// Iterative deepening means it will first start by evaluating minimax
+    /// at a turn count of 1. Then it moves on to a minimax for turn 2, but evaluating the best
+    /// move from the previous turn first. This allows the Alpha-Beta pruning to be more efficient
+    /// for the second round. We keep repeating this process with deeper depths until we hit the
+    /// specified
+    pub fn deepend_minimax_to_turn(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });

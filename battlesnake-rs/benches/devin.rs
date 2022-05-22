@@ -35,7 +35,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
         b.iter(|| {
             let game_state: Game = serde_json::from_str(game_json).unwrap();
             let devin = battlesnake_rs::devious_devin_eval::Factory::new().create(game_state);
-            devin.single_minimax_bench(max_turns)
+            devin.single_minimax(max_turns)
         })
     });
 
@@ -43,7 +43,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
         b.iter(|| {
             let game_state: Game = serde_json::from_str(game_json).unwrap();
             let devin = battlesnake_rs::devious_devin_eval::Factory::new().create(game_state);
-            devin.deepend_minimax_bench(max_turns)
+            devin.deepend_minimax_to_turn(max_turns)
         })
     });
 
