@@ -13,12 +13,11 @@ pub enum Score {
     FloodFill(N64),
 }
 
-pub fn score<T>(node: &T) -> Score
+pub fn score<BoardType, CellType>(node: &BoardType) -> Score
 where
-    T::SnakeIDType: Copy,
-    T: SnakeIDGettableGame<SnakeIDType = SnakeId>
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
-        + SpreadFromHead
+        + SpreadFromHead<CellType>
         + APrimeCalculable
         + HeadGettableGame
         + HazardQueryableGame
