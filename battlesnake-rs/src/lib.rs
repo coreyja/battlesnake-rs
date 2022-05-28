@@ -22,6 +22,8 @@ pub mod gigantic_george;
 pub mod hovering_hobbs;
 pub mod jump_flooding_snake;
 
+pub mod mcts_snake;
+
 pub mod a_prime;
 pub mod flood_fill;
 
@@ -224,7 +226,7 @@ use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
     constant_carter::ConstantCarterFactory, eremetic_eric::EremeticEricFactory,
     famished_frank::FamishedFrankFactory, gigantic_george::GiganticGeorgeFactory,
-    jump_flooding_snake::JumpFloodingSnakeFactory,
+    jump_flooding_snake::JumpFloodingSnakeFactory, mcts_snake::MctsSnakeFactory,
 };
 
 impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
@@ -268,5 +270,6 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(GiganticGeorgeFactory {}),
         Box::new(JumpFloodingSnakeFactory {}),
         Box::new(hovering_hobbs::Factory {}),
+        Box::new(MctsSnakeFactory {}),
     ]
 }

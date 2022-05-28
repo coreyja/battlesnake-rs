@@ -157,6 +157,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic_float"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62af46d040ba9df09edc6528dae9d8e49f5f3e82f55b7d2ec31a733c38dbc49d"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,11 +284,13 @@ name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atomic_float",
  "battlesnake-game-types",
  "battlesnake-minimax",
  "criterion",
  "debug_print",
  "decorum",
+ "dotavious",
  "itertools 0.10.3",
  "pprof",
  "rand 0.8.4",
@@ -294,6 +302,7 @@ dependencies = [
  "text_trees",
  "tinyvec",
  "tracing",
+ "typed-arena",
 ]
 
 [[package]]
@@ -646,6 +655,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "dotavious"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "961fa4e2a7d4d6e705e27721bb0194ae8deae8711e4b605035cd216293c828f6"
+dependencies = [
+ "indexmap",
 ]
 
 [[package]]
@@ -2734,6 +2752,12 @@ name = "typeable"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1410f6f91f21d1612654e7cc69193b0334f909dcf2c790c4826254fbb86f8887"
+
+[[package]]
+name = "typed-arena"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0685c84d5d54d1c26f7d3eb96cd41550adb97baed141a761cf335d3d33bcd0ae"
 
 [[package]]
 name = "typenum"

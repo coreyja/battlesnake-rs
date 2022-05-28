@@ -10,7 +10,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use battlesnake_rs::{all_factories, BoxedFactory, Game};
+use battlesnake_rs::{
+    all_factories, build_snake_id_map, mcts_snake::MctsSnake, BoxedFactory, Game,
+    StandardCellBoard4Snakes11x11,
+};
 
 use tokio::{task::JoinHandle, time::Instant};
 
@@ -95,6 +98,7 @@ async fn main() {
         .route("/:snake_name", get(route_info))
         .route("/:snake_name/start", post(route_start))
         .route("/:snake_name/move", post(route_move))
+        .route("/mcts/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
         .layer(axum::middleware::from_fn(log_request));
 
@@ -140,6 +144,31 @@ async fn route_move(
     let output = spawn_blocking_with_tracing(move || {
         snake
             .make_move()
+            .expect("TODO: We need to work on our error handling")
+    })
+    .instrument(root)
+    .await
+    .unwrap();
+
+    Json(output)
+}
+
+async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
+    let game_info = game.game.clone();
+    let id_map = build_snake_id_map(&game);
+
+    assert_ne!(
+        game_info.ruleset.name, "wrapped",
+        "Graphing does not currently support wrapped games"
+    );
+    let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+    let snake = MctsSnake::new(game, game_info);
+
+    let root = span!(tracing::Level::INFO, "graph_move");
+    let output = spawn_blocking_with_tracing(move || {
+        snake
+            .graph_move()
             .expect("TODO: We need to work on our error handling")
     })
     .instrument(root)
