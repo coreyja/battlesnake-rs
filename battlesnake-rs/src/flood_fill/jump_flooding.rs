@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use battlesnake_game_types::{
-    compact_representation::{CellNum, StandardCellBoard4Snakes11x11, WrappedCellBoard},
+    compact_representation::{
+        dimensions::Dimensions, CellNum, StandardCellBoard4Snakes11x11, WrappedCellBoard,
+    },
     types::{HeadGettableGame, PositionGettableGame, SnakeIDGettableGame},
     wire_representation::Position,
 };
@@ -23,8 +25,8 @@ where
     cells: [Option<T::SnakeIDType>; 11 * 11],
 }
 
-impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
-    for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize> JumpFlooding
+    for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn squares_per_snake(&self) -> HashMap<Self::SnakeIDType, usize> {
         let mut grid: Grid<StandardCellBoard4Snakes11x11> = Grid {

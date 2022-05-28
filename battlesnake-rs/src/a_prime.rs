@@ -1,3 +1,4 @@
+use battlesnake_game_types::compact_representation::dimensions::Dimensions;
 use battlesnake_game_types::compact_representation::{
     CellNum, StandardCellBoard, StandardCellBoard4Snakes11x11, WrappedCellBoard,
 };
@@ -121,8 +122,8 @@ struct Node<T> {
     coordinate: T,
 }
 
-impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
-    for StandardCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
+    for StandardCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn a_prime_inner(
         &self,
@@ -191,9 +192,10 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalcula
 
 impl<
         T: battlesnake_game_types::compact_representation::CellNum,
+        D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
-    > APrimeCalculable for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+    > APrimeCalculable for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn a_prime_inner(
         &self,
@@ -291,9 +293,10 @@ pub trait HueristicAble: PositionGettableGame {
 
 impl<
         T: battlesnake_game_types::compact_representation::CellNum,
+        D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
-    > HueristicAble for StandardCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+    > HueristicAble for StandardCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn hueristic(
         start: &Self::NativePositionType,
@@ -320,9 +323,10 @@ impl<
 
 impl<
         T: battlesnake_game_types::compact_representation::CellNum,
+        D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
-    > HueristicAble for WrappedCellBoard<T, BOARD_SIZE, MAX_SNAKES>
+    > HueristicAble for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn hueristic(
         start: &Self::NativePositionType,

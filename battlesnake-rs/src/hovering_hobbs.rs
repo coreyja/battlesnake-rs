@@ -2,7 +2,6 @@ use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::*;
 
-use battlesnake_game_types::compact_representation::{StandardCellBoard, WrappedCellBoard};
 use battlesnake_game_types::types::*;
 use battlesnake_minimax::EvalMinimaxSnake;
 use decorum::N64;
@@ -56,24 +55,33 @@ impl BattlesnakeFactory for Factory {
     fn from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let turn = game.turn;
-        let id_map = build_snake_id_map(&game);
 
         let name = "hovering-hobbs";
 
         if game_info.ruleset.name == "wrapped" {
-            let game =
-                WrappedCellBoard::<u16, { 19 * 21 }, 4>::convert_from_game(game, &id_map).unwrap();
-
-            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
-
-            Box::new(snake)
+            match battlesnake_game_types::compact_representation::wrapped::ToBestCellBoard::to_best_cell_board(game).unwrap() {
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::Tiny(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::SmallExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::Standard(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::MediumExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::LargestU8(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::LargeExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::ArcadeMaze(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::Large(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::wrapped::BestCellBoard::Silly(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+            }
         } else {
-            let game =
-                StandardCellBoard::<u16, { 19 * 21 }, 4>::convert_from_game(game, &id_map).unwrap();
-
-            let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, name);
-
-            Box::new(snake)
+            match battlesnake_game_types::compact_representation::standard::ToBestCellBoard::to_best_cell_board(game).unwrap() {
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::Tiny(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::SmallExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::Standard(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::MediumExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::LargestU8(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::LargeExact(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::ArcadeMaze(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::Large(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+                battlesnake_game_types::compact_representation::standard::BestCellBoard::Silly(game) => Box::new(EvalMinimaxSnake::new(*game, game_info, turn, &score, name)),
+            }
         }
     }
 
