@@ -4,7 +4,7 @@ use std::ops::Deref;
 use battlesnake_game_types::compact_representation::*;
 use battlesnake_game_types::types::{
     HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-    PositionGettableGame, SnakeBodyGettableGame, SnakeIDGettableGame,
+    PositionGettableGame, SizeDeterminableGame, SnakeBodyGettableGame, SnakeIDGettableGame,
 };
 
 use battlesnake_game_types::compact_representation::CellNum;
@@ -15,7 +15,7 @@ where
     T: SnakeIDGettableGame + ?Sized,
     T::SnakeIDType: Copy,
 {
-    cells: [Option<T::SnakeIDType>; 11 * 11],
+    cells: Vec<Option<T::SnakeIDType>>,
 }
 
 pub trait SpreadFromHead: SnakeIDGettableGame
@@ -50,54 +50,9 @@ impl<T: CellNum> Deref for CellWrapper<T> {
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHead
     for StandardCellBoard<T, BOARD_SIZE, MAX_SNAKES>
 {
-    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
-        let result = self.calculate(number_of_cycles);
-        let cell_sids = result.cells.iter().filter_map(|x| *x);
-
-        let mut total_values = [0; 4];
-
-        for sid in cell_sids {
-            total_values[sid.as_usize()] += 1;
-        }
-
-        total_values
-    }
-
-    fn squares_per_snake_with_hazard_cost(
-        &self,
-        number_of_cycles: usize,
-        non_hazard_bonus: u16,
-    ) -> [u16; 4] {
-        let grid = self.calculate(number_of_cycles);
-
-        let sid_and_values = grid
-            .cells
-            .iter()
-            .enumerate()
-            .filter_map(|x| x.1.map(|sid| (x.0, sid)))
-            .map(|(i, sid)| {
-                let value = if self
-                    .is_hazard(&<Self as PositionGettableGame>::NativePositionType::from_usize(i))
-                {
-                    1
-                } else {
-                    non_hazard_bonus + 1
-                };
-                (sid, value)
-            });
-
-        let mut total_values = [0; 4];
-
-        for (sid, value) in sid_and_values {
-            total_values[sid.as_usize()] += value;
-        }
-
-        total_values
-    }
-
     fn calculate(&self, number_of_cycles: usize) -> Grid<Self> {
         let mut grid: Grid<Self> = Grid {
-            cells: [None; 11 * 11],
+            cells: vec![None; (self.get_height() * self.get_width()) as usize],
         };
 
         let sorted_snake_ids = {
@@ -153,6 +108,51 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
         grid
     }
+
+    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
+        let result = self.calculate(number_of_cycles);
+        let cell_sids = result.cells.iter().filter_map(|x| *x);
+
+        let mut total_values = [0; 4];
+
+        for sid in cell_sids {
+            total_values[sid.as_usize()] += 1;
+        }
+
+        total_values
+    }
+
+    fn squares_per_snake_with_hazard_cost(
+        &self,
+        number_of_cycles: usize,
+        non_hazard_bonus: u16,
+    ) -> [u16; 4] {
+        let grid = self.calculate(number_of_cycles);
+
+        let sid_and_values = grid
+            .cells
+            .iter()
+            .enumerate()
+            .filter_map(|x| x.1.map(|sid| (x.0, sid)))
+            .map(|(i, sid)| {
+                let value = if self
+                    .is_hazard(&<Self as PositionGettableGame>::NativePositionType::from_usize(i))
+                {
+                    1
+                } else {
+                    non_hazard_bonus + 1
+                };
+                (sid, value)
+            });
+
+        let mut total_values = [0; 4];
+
+        for (sid, value) in sid_and_values {
+            total_values[sid.as_usize()] += value;
+        }
+
+        total_values
+    }
 }
 
 impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHead
@@ -205,7 +205,7 @@ impl<T: CellNum, const BOARD_SIZE: usize, const MAX_SNAKES: usize> SpreadFromHea
 
     fn calculate(&self, number_of_cycles: usize) -> Grid<Self> {
         let mut grid: Grid<Self> = Grid {
-            cells: [None; 11 * 11],
+            cells: vec![None; (self.get_height() * self.get_width()) as usize],
         };
 
         let sorted_snake_ids = {

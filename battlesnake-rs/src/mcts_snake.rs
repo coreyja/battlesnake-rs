@@ -93,7 +93,7 @@ impl<
 
         let mut total_number_of_iterations = 0;
 
-        while while_condition(&root_node, total_number_of_iterations) {
+        while while_condition(root_node, total_number_of_iterations) {
             total_number_of_iterations += 1;
 
             let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
