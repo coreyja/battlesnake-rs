@@ -42,6 +42,10 @@ jobs:
           command: cargo test --locked
 
       - run:
+          name: Build Docs
+          command: cargo doc --workspace
+
+      - run:
           name: Autoclean Cargo cache before storing
           command: cargo-cache || (cargo install cargo-cache --force --git https://github.com/matthiaskrgr/cargo-cache.git --no-default-features --features ci-autoclean && cargo-cache)
 

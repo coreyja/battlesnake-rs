@@ -1,7 +1,7 @@
 use crate::flood_fill::jump_flooding::JumpFlooding;
 use crate::*;
 
-use battlesnake_minimax::paranoid::EvalMinimaxSnake;
+use battlesnake_minimax::paranoid::MinimaxSnake;
 
 use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 use battlesnake_game_types::types::*;
@@ -35,7 +35,7 @@ impl BattlesnakeFactory for JumpFloodingSnakeFactory {
 
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = EvalMinimaxSnake::new(game, game_info, turn, &score, "jump-flooding");
+        let snake = MinimaxSnake::new(game, game_info, turn, &score, "jump-flooding");
 
         Box::new(snake)
     }

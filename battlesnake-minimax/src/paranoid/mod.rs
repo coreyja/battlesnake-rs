@@ -12,7 +12,7 @@
 //!
 //! ```rust
 //! use std::time::Duration;
-//! use battlesnake_minimax::paranoid::{MinMaxReturn, EvalMinimaxSnake, SnakeOptions};
+//! use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
 //! use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
 //!
 //! // This fixture data matches what we expect to come from the Battlesnake Game Server
@@ -41,7 +41,7 @@
 //! };
 //!
 //!
-//! let minimax_snake = EvalMinimaxSnake::new_with_options(
+//! let minimax_snake = MinimaxSnake::new_with_options(
 //!    compact_game,
 //!    game_info,
 //!    0,
@@ -51,7 +51,7 @@
 //! );
 //!
 //! // Now we can use the minimax snake to generate the next move!
-//! // Here we use the function [EvalMinimaxSnake::deepened_minimax_until_timelimit] to run the minimax
+//! // Here we use the function [MinimaxSnake::deepened_minimax_until_timelimit] to run the minimax
 //! // algorithm until the time limit specified in the give game
 //! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect());
 //! ```
@@ -63,4 +63,4 @@ mod minimax_return;
 pub use minimax_return::MinMaxReturn;
 
 mod eval;
-pub use eval::{EvalMinimaxSnake, SnakeOptions};
+pub use eval::{MinimaxSnake, SnakeOptions};

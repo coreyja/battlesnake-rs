@@ -26,8 +26,8 @@ use super::{MinMaxReturn, Scorable, WrappedScore};
 /// This is the struct that wraps a game board and a scoring function and can be used to run
 /// minimax
 ///
-/// It also outputs traces using the `tracing` crate which can be subscribed to
-pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
+/// It also outputs traces using the [tracing] crate.
+pub struct MinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
     game: T,
     game_info: NestedGame,
     turn: i32,
@@ -38,7 +38,7 @@ pub struct EvalMinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usiz
 }
 
 #[derive(Debug, Clone, Copy)]
-/// Optional properties that can be defined for an [EvalMinimaxSnake]
+/// Optional properties that can be defined for an [MinimaxSnake]
 ///
 /// The defaults (as implemented by [Default]) are as follows:
 /// ```
@@ -74,7 +74,7 @@ impl Default for SnakeOptions {
 pub struct AbortedEarly;
 
 impl<GameType, ScoreType, const N_SNAKES: usize> Scorable<GameType, ScoreType>
-    for EvalMinimaxSnake<GameType, ScoreType, N_SNAKES>
+    for MinimaxSnake<GameType, ScoreType, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
     GameType: YouDeterminableGame + VictorDeterminableGame,
@@ -88,7 +88,7 @@ impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _duration: Duration) {}
 }
 
-impl<T, ScoreType, const N_SNAKES: usize> EvalMinimaxSnake<T, ScoreType, N_SNAKES>
+impl<T, ScoreType, const N_SNAKES: usize> MinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -107,11 +107,11 @@ where
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
-    /// Construct a new `EvalMinimaxSnake`
+    /// Construct a new `MinimaxSnake`
     ///
     /// ```rust
     /// use std::time::Duration;
-    /// use battlesnake_minimax::paranoid::{MinMaxReturn, EvalMinimaxSnake, SnakeOptions};
+    /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
     /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
@@ -133,7 +133,7 @@ where
     /// // states are better than others
     /// fn score_function(board: &StandardCellBoard4Snakes11x11) -> i32 { 4 }
     ///
-    /// let minimax_snake = EvalMinimaxSnake::new(
+    /// let minimax_snake = MinimaxSnake::new(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -141,7 +141,6 @@ where
     ///    "minimax_snake",
     /// );
     /// ```
-
     pub fn new(
         game: T,
         game_info: NestedGame,
@@ -159,14 +158,14 @@ where
         }
     }
 
-    /// Construct a new `EvalMinimaxSnake` providing an optional set of [SnakeOptions]
+    /// Construct a new `MinimaxSnake` providing an optional set of [SnakeOptions]
     ///
     /// [SnakeOptions] implements [Default] so you can override specific options and rely on
     /// defaults for the rest.
     ///
     /// ```rust
     /// use std::time::Duration;
-    /// use battlesnake_minimax::paranoid::{MinMaxReturn, EvalMinimaxSnake, SnakeOptions};
+    /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
     /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
@@ -195,7 +194,7 @@ where
     ///   ..Default::default()
     /// };
     ///
-    /// let minimax_snake = EvalMinimaxSnake::new_with_options(
+    /// let minimax_snake = MinimaxSnake::new_with_options(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -224,9 +223,9 @@ where
 
     /// Pick the next move to make
     ///
-    /// This uses [EvalMinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
+    /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
-    /// [EvalMinimaxSnake::deepened_minimax_until_timelimit()]
+    /// [MinimaxSnake::deepened_minimax_until_timelimit()]
     pub fn make_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();

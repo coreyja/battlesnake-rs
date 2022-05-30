@@ -219,7 +219,7 @@ impl SnakeTailPushableGame for Game {
     }
 }
 
-pub use battlesnake_minimax::paranoid::EvalMinimaxSnake;
+pub use battlesnake_minimax::paranoid::MinimaxSnake;
 use battlesnake_minimax::Instruments;
 
 use crate::{
@@ -229,7 +229,7 @@ use crate::{
     jump_flooding_snake::JumpFloodingSnakeFactory, mcts_snake::MctsSnakeFactory,
 };
 
-impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for EvalMinimaxSnake<T, ScoreType, N_SNAKES>
+impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for MinimaxSnake<T, ScoreType, N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
