@@ -108,6 +108,40 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     /// Construct a new `EvalMinimaxSnake`
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use battlesnake_minimax::paranoid::{MinMaxReturn, EvalMinimaxSnake, SnakeOptions};
+    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    ///
+    /// // This fixture data matches what we expect to come from the Battlesnake Game Server
+    /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");
+    ///
+    /// // First we take the JSON from the game server and construct a `Game` struct which
+    /// // represents the 'wire' representation of the game state
+    /// let wire_game: Game = serde_json::from_str(game_state_from_server).unwrap();
+    ///
+    /// // The 'compact' representation of the game state doesn't include the game_info but we use
+    /// // it for some of our tracing so we want to clone it before we create the compact representation
+    /// let game_info = wire_game.game.clone();
+    ///
+    /// let snake_id_map = build_snake_id_map(&wire_game);
+    /// let compact_game = StandardCellBoard4Snakes11x11::convert_from_game(wire_game, &snake_id_map).unwrap();
+    ///
+    /// // This is the scoring function that we will use to evaluate the game states
+    /// // Here it just returns a constant but would ideally contain some logic to decide which
+    /// // states are better than others
+    /// fn score_function(board: &StandardCellBoard4Snakes11x11) -> i32 { 4 }
+    ///
+    /// let minimax_snake = EvalMinimaxSnake::new(
+    ///    compact_game,
+    ///    game_info,
+    ///    0,
+    ///    &score_function,
+    ///    "minimax_snake",
+    /// );
+    /// ```
+
     pub fn new(
         game: T,
         game_info: NestedGame,
@@ -129,6 +163,47 @@ where
     ///
     /// [SnakeOptions] implements [Default] so you can override specific options and rely on
     /// defaults for the rest.
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use battlesnake_minimax::paranoid::{MinMaxReturn, EvalMinimaxSnake, SnakeOptions};
+    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    ///
+    /// // This fixture data matches what we expect to come from the Battlesnake Game Server
+    /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");
+    ///
+    /// // First we take the JSON from the game server and construct a `Game` struct which
+    /// // represents the 'wire' representation of the game state
+    /// let wire_game: Game = serde_json::from_str(game_state_from_server).unwrap();
+    ///
+    /// // The 'compact' representation of the game state doesn't include the game_info but we use
+    /// // it for some of our tracing so we want to clone it before we create the compact representation
+    /// let game_info = wire_game.game.clone();
+    ///
+    /// let snake_id_map = build_snake_id_map(&wire_game);
+    /// let compact_game = StandardCellBoard4Snakes11x11::convert_from_game(wire_game, &snake_id_map).unwrap();
+    ///
+    /// // This is the scoring function that we will use to evaluate the game states
+    /// // Here it just returns a constant but would ideally contain some logic to decide which
+    /// // states are better than others
+    /// fn score_function(board: &StandardCellBoard4Snakes11x11) -> i32 { 4 }
+    ///
+    ///
+    /// // Optional settings for the snake
+    /// let snake_options = SnakeOptions {
+    ///   network_latency_padding: Duration::from_millis(100),
+    ///   ..Default::default()
+    /// };
+    ///
+    /// let minimax_snake = EvalMinimaxSnake::new_with_options(
+    ///    compact_game,
+    ///    game_info,
+    ///    0,
+    ///    &score_function,
+    ///    "minimax_snake",
+    ///    snake_options,
+    /// );
+    /// ```
     pub fn new_with_options(
         game: T,
         game_info: NestedGame,
@@ -149,9 +224,9 @@ where
 
     /// Pick the next move to make
     ///
-    /// This uses [EvalMinimaxSnake::deepened_minimax()] to run the Minimax algorihm until we run out of time, and
+    /// This uses [EvalMinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
-    /// [EvalMinimaxSnake::deepened_minimax()]
+    /// [EvalMinimaxSnake::deepened_minimax_until_timelimit()]
     pub fn make_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();

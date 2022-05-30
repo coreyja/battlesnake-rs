@@ -16,18 +16,22 @@ pub enum MinMaxReturn<
     Node {
         /// Whether this node was a maximizing node or not
         is_maximizing: bool,
-        /// A recursive look at all the moves under us
+        /// A 'recursive' look at all the moves under us
+        /// This array is sorted by the score of the move, and whether we were in a maximizing or minimizing node
+        /// The first element is always the chosen move at this node. It's [MinMaxReturn::score()]
+        /// should always equal the score attribute of this node
         options: Vec<(Move, Self)>,
         /// Which snake was moving at this node
         moving_snake_id: GameType::SnakeIDType,
         /// The chosen score
+        /// This should always match the score of the first element in [MinimaxReturn.options]
         score: WrappedScore<ScoreType>,
     },
     /// Represents a leaf node in the game tree
     /// This happens when we reach a terminal state (win/lose/tie)
     /// or when we reach the maximum depth
     Leaf {
-        /// The score of the leaf node
+        #[allow(missing_docs)]
         score: WrappedScore<ScoreType>,
     },
 }
@@ -52,8 +56,11 @@ where
     /// first option where our snake is moving
     /// of 'ourself'
     ///
-    /// If the given snake_id does NOT correspond to 'you' this method may not return the 'correct'
+    /// WARNING: If the given snake_id does NOT correspond to 'you' this method may not return the correct
     /// results, as it leans into sorting specific for your snake
+    ///
+    /// TODO: Fix this API. We only need the you_id to be able to find our move. Since we generate
+    /// the return values, can we lean on it alwaus being the first one? [Is that even true today?]
     pub fn your_best_move(&self, you_id: &GameType::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
