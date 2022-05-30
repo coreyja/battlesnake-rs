@@ -135,7 +135,7 @@ where
 pub struct GiganticGeorgeFactory {}
 
 impl BattlesnakeFactory for GiganticGeorgeFactory {
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         Box::new(GiganticGeorge { game })
     }
 

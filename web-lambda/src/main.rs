@@ -61,7 +61,7 @@ async fn api_move(
         Some(&"end") | Some(&"move") => {
             let string_body = string_body.ok_or("Body was not a string")?;
             let state: Game = serde_json::from_str(string_body)?;
-            let snake = factory.from_wire_game(state);
+            let snake = factory.create_from_wire_game(state);
 
             match action {
                 Some(&"end") => Ok(json!(snake.end())),

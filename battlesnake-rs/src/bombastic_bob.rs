@@ -36,7 +36,7 @@ impl BattlesnakeFactory for BombasticBobFactory {
         "bombastic-bob".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         Box::new(BombasticBob { game })
     }
 

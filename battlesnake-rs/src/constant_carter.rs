@@ -24,7 +24,7 @@ impl BattlesnakeFactory for ConstantCarterFactory {
         "constant-carter".to_owned()
     }
 
-    fn from_wire_game(&self, _game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, _game: Game) -> BoxedSnake {
         Box::new(ConstantCarter {})
     }
     fn about(&self) -> AboutMe {

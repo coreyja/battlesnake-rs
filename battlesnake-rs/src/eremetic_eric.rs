@@ -56,7 +56,7 @@ where
 
         let food_options: Vec<_> = all_food
             .iter()
-            .map(|food| {
+            .flat_map(|food| {
                 let body_options = body
                     .iter()
                     .map(|body_part| (body_part, dist_between_new(&self.game, food, body_part)))
@@ -69,7 +69,6 @@ where
                     .map(|(body, _)| (food, (body, best.1)))
                     .collect_vec()
             })
-            .flatten()
             .collect();
         let (_, (_, best_cost)) = *food_options
             .iter()
@@ -189,7 +188,7 @@ impl BattlesnakeFactory for EremeticEricFactory {
         "eremetic-eric".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         Box::new(EremeticEric { game })
     }
     fn about(&self) -> AboutMe {

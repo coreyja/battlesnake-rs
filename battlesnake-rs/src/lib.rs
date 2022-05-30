@@ -196,7 +196,7 @@ pub trait BattlesnakeAI {
 
 pub trait BattlesnakeFactory {
     fn name(&self) -> String;
-    fn from_wire_game(&self, game: Game) -> BoxedSnake;
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake;
 
     fn about(&self) -> AboutMe {
         Default::default()

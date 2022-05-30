@@ -52,7 +52,7 @@ impl BattlesnakeFactory for Factory {
         "hovering-hobbs".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let turn = game.turn;
 

@@ -28,7 +28,7 @@ fn api_end(
     let snake_ai = factories
         .iter()
         .find(|s| s.name() == snake)?
-        .from_wire_game(game_state.into_inner());
+        .create_from_wire_game(game_state.into_inner());
     snake_ai.end();
 
     Some(Status::NoContent)
@@ -43,7 +43,7 @@ fn api_move(
     let snake_ai = factories
         .iter()
         .find(|s| s.name() == snake)?
-        .from_wire_game(game_state.into_inner());
+        .create_from_wire_game(game_state.into_inner());
     let m = snake_ai.make_move().ok()?;
 
     Some(Json(m))

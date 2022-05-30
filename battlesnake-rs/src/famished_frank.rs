@@ -87,7 +87,7 @@ impl BattlesnakeFactory for FamishedFrankFactory {
         "famished-frank".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         Box::new(FamishedFrank { game })
     }
     fn about(&self) -> AboutMe {

@@ -138,7 +138,7 @@ async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
-    let snake = factory.from_wire_game(game);
+    let snake = factory.create_from_wire_game(game);
 
     let root = span!(tracing::Level::INFO, "make_move");
     let output = spawn_blocking_with_tracing(move || {
@@ -185,7 +185,7 @@ async fn route_end(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
-    let snake = factory.from_wire_game(game);
+    let snake = factory.create_from_wire_game(game);
 
     snake.end();
 

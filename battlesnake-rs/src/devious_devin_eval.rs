@@ -176,7 +176,7 @@ impl BattlesnakeFactory for Factory {
         "devious-devin".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         self.create(game)
     }
 

@@ -28,7 +28,7 @@ impl BattlesnakeFactory for JumpFloodingSnakeFactory {
         "jump-flooding".to_owned()
     }
 
-    fn from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let turn = game.turn;
         let id_map = build_snake_id_map(&game);
