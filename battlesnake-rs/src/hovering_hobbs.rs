@@ -3,7 +3,7 @@ use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::*;
 
 use battlesnake_game_types::types::*;
-use battlesnake_minimax::EvalMinimaxSnake;
+use battlesnake_minimax::paranoid::EvalMinimaxSnake;
 use decorum::N64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

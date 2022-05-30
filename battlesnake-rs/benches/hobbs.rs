@@ -28,7 +28,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = EvalMinimaxSnake::new(black_box(game), game_info, turn, &score, name);
 
-            snake.deepend_minimax_bench(3)
+            snake.deepend_minimax_to_turn(3)
         })
     });
 
@@ -50,7 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = EvalMinimaxSnake::new(black_box(game), game_info, turn, &score, name);
 
-            snake.deepend_minimax_bench(3)
+            snake.deepend_minimax_to_turn(3)
         });
     });
 }
