@@ -45,15 +45,41 @@ jobs:
           name: Build Docs
           command: cargo doc --workspace
 
-      - run:
-          name: Autoclean Cargo cache before storing
-          command: cargo-cache || (cargo install cargo-cache --force --git https://github.com/matthiaskrgr/cargo-cache.git --no-default-features --features ci-autoclean && cargo-cache)
-
       - save_cache:
           key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - /usr/local/cargo
             - target/debug
+  build-release:
+    docker:
+      - image: rust:latest
+    resource_class: small
+    steps:
+      - checkout
+
+      - run:
+          name: Print Rust Versions
+          command: rustc --version; cargo --version; rustup --version
+
+      - restore_cache:
+          keys:
+            - v2-cargo-cache-build-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+      - run:
+          name: Build
+          command: cargo build --locked --all-targets --release
+
+      - save_cache:
+          key: v2-cargo-cache-build-{{ arch }}-{{ checksum "Cargo.lock" }}
+          paths:
+            - /usr/local/cargo
+            - target/debug
+      - store_artifacts:
+          path: target/web-axum
+          destination: web-axum
+      - store_artifacts:
+          path: target/web-rocket
+          destination: web-rocket
 
   bench:
     docker:
@@ -111,6 +137,14 @@ workflows:
     jobs:
       - test-rust
       - lint-rust
+      - build-release:
+          requires:
+            - test-rust
+            - lint-rust
+          filters:
+            branches:
+              only:
+                - 'main'
       - profile:
           filters:
             branches:
