@@ -45,6 +45,10 @@ jobs:
           name: Build Docs
           command: cargo doc --workspace
 
+      - run:
+          name: Clippy
+          command: cargo clippy --workspace
+
       - save_cache:
           key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
