@@ -1,4 +1,22 @@
 version: 2.1
+commands: # a reusable command with parameters
+  with-cargo-cache:
+    parameters:
+      do:
+        default: []
+        type: steps
+    steps:
+      - restore_cache:
+          keys:
+            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+      - steps: << parameters.do >>
+
+      - save_cache:
+          key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          paths:
+            - /usr/local/cargo
+            - target/debug
 jobs:
   lint-rust:
     docker:
@@ -29,13 +47,11 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - restore_cache:
-          keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-
-      - run:
-          name: Build
-          command: cargo build --locked --all-targets
+      - with-cargo-cache:
+          do:
+            - run:
+                name: Build
+                command: cargo build --locked --all-targets
 
       - run:
           name: Run Tests
@@ -48,12 +64,6 @@ jobs:
       - run:
           name: Clippy
           command: cargo clippy --workspace
-
-      - save_cache:
-          key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-          paths:
-            - /usr/local/cargo
-            - target/debug
   build-release:
     docker:
       - image: rust:latest
@@ -65,19 +75,12 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - restore_cache:
-          keys:
-            - v2-cargo-cache-build-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - with-cargo-cache:
+          do:
+            - run:
+                name: Build
+                command: cargo build --locked --all-targets  --release
 
-      - run:
-          name: Build
-          command: cargo build --locked --all-targets --release
-
-      - save_cache:
-          key: v2-cargo-cache-build-{{ arch }}-{{ checksum "Cargo.lock" }}
-          paths:
-            - /usr/local/cargo
-            - target/debug
       - store_artifacts:
           path: target/web-axum
           destination: web-axum
@@ -96,20 +99,19 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - restore_cache:
-          keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-
-      - run: cd battlesnake-rs/
-      - restore_cache:
-          keys:
-            - v2-criterion-baseline
-
-      - run: cargo bench
-
-      - store_artifacts:
-          path: target/criterion
-          destination: criterion
+      - with-cargo-cache:
+          do:
+            - restore_cache:
+                keys:
+                  - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - run: cd battlesnake-rs/
+            - restore_cache:
+                keys:
+                  - v2-criterion-baseline
+            - run: cargo bench
+            - store_artifacts:
+                path: target/criterion
+                destination: criterion
 
   profile:
     docker:
