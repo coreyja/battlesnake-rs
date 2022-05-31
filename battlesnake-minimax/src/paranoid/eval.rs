@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt::Debug,
     sync::mpsc,
     thread,
@@ -100,11 +101,10 @@ where
         + NeckQueryableGame
         + SimulableGame<Instruments, N_SNAKES>
         + Clone
-        + Copy
         + Sync
         + Send
         + Sized,
-    T::SnakeIDType: Copy + Send + Sync,
+    T::SnakeIDType: Clone + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     /// Construct a new `MinimaxSnake`
@@ -249,7 +249,7 @@ where
     #[allow(clippy::too_many_arguments)]
     fn minimax(
         &self,
-        mut node: T,
+        node: Cow<T>,
         players: &[T::SnakeIDType],
         depth: usize,
         alpha: WrappedScore<ScoreType>,
@@ -267,7 +267,7 @@ where
         // Remove pending moves for dead snakes
         pending_moves.retain(|(snake_id, _)| snake_ids.contains(snake_id));
 
-        if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
+        let node = if !snake_ids.is_empty() && pending_moves.len() == snake_ids.len() {
             let mut simulate_result = node.simulate_with_moves(
                 &Instruments {},
                 pending_moves
@@ -277,8 +277,11 @@ where
             );
             let new_node = simulate_result.next().unwrap().1;
             drop(simulate_result);
-            node = new_node;
             pending_moves = vec![];
+
+            Cow::Owned(new_node)
+        } else {
+            node
         };
 
         let new_depth = depth.try_into().unwrap();
@@ -348,9 +351,9 @@ where
 
             // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
-            new_pending_moves.push((*snake_id, dir));
+            new_pending_moves.push((snake_id.clone(), dir));
             let next_move_return = self.minimax(
-                node,
+                node.clone(),
                 players,
                 depth + 1,
                 alpha,
@@ -384,7 +387,7 @@ where
         Ok(MinMaxReturn::Node {
             options,
             is_maximizing,
-            moving_snake_id: *snake_id,
+            moving_snake_id: snake_id.clone(),
             score: chosen_score,
         })
     }
@@ -421,20 +424,21 @@ where
             all_moves = tracing::field::Empty,
             depth = tracing::field::Empty,
         );
-        let node = self.game;
-        let you_id = node.you_id();
+        let max_duration = self.max_duration();
+        let node = &self.game;
 
         let started_at = Instant::now();
-        let max_duration = self.max_duration();
+        let you_id = node.you_id().clone();
+        let threads_you_id = you_id.clone();
 
         let (to_main_thread, from_worker_thread) = mpsc::channel();
         let (suspend_worker, worker_halt_reciever) = mpsc::channel();
 
         let cloned_inner = inner_span.clone();
         thread::spawn(move || {
+            let you_id = threads_you_id;
             let mut current_depth = players.len();
             let mut current_return = None;
-            let you_id = node.you_id();
 
             loop {
                 let next = info_span!(
@@ -446,7 +450,7 @@ where
                 )
                 .in_scope(|| {
                     let result = self.minimax(
-                        node,
+                        Cow::Borrowed(&self.game),
                         &players,
                         0,
                         WrappedScore::<ScoreType>::worst_possible_score(),
@@ -462,7 +466,7 @@ where
                         current_span.record("score", &format!("{:?}", result.score()).as_str());
                         current_span.record(
                             "direction",
-                            &format!("{:?}", result.your_best_move(you_id)).as_str(),
+                            &format!("{:?}", result.your_best_move(&you_id)).as_str(),
                         );
                     }
 
@@ -526,7 +530,7 @@ where
             inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
             inner_span.record(
                 "chosen_direction",
-                &format!("{:?}", result.your_best_move(you_id)).as_str(),
+                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
             );
             inner_span.record(
                 "all_moves",
@@ -553,7 +557,7 @@ where
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
         self.minimax(
-            self.game,
+            Cow::Borrowed(&self.game),
             &sorted_ids,
             0,
             WrappedScore::<ScoreType>::worst_possible_score(),
@@ -587,7 +591,7 @@ where
         while current_depth <= max_depth {
             current_return = Some(
                 self.minimax(
-                    self.game,
+                    Cow::Borrowed(&self.game),
                     &players,
                     0,
                     WrappedScore::<ScoreType>::worst_possible_score(),
