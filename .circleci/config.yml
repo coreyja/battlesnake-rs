@@ -21,7 +21,7 @@ jobs:
   lint-rust:
     docker:
       - image: rust:latest
-    resource_class: small
+    resource_class: medium
     steps:
       - checkout
 
@@ -39,7 +39,7 @@ jobs:
   test-rust:
     docker:
       - image: rust:latest
-    resource_class: small
+    resource_class: medium
     steps:
       - checkout
 
@@ -67,7 +67,7 @@ jobs:
   build-release:
     docker:
       - image: rust:latest
-    resource_class: small
+    resource_class: medium
     steps:
       - checkout
 
