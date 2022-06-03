@@ -21,7 +21,7 @@ jobs:
   lint-rust:
     docker:
       - image: rust:latest
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
 
@@ -39,7 +39,7 @@ jobs:
   test-rust:
     docker:
       - image: rust:latest
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
 
@@ -51,7 +51,7 @@ jobs:
           do:
             - run:
                 name: Build
-                command: cargo build --locked --all-targets
+                command: cargo build --locked --all-targets --jobs 2
 
       - run:
           name: Run Tests
@@ -67,7 +67,7 @@ jobs:
   build-release:
     docker:
       - image: rust:latest
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
 
@@ -79,7 +79,7 @@ jobs:
           do:
             - run:
                 name: Build
-                command: cargo build --locked --all-targets  --release
+                command: cargo build --locked --all-targets  --release --jobs 2
 
       - store_artifacts:
           path: target/web-axum
@@ -91,7 +91,7 @@ jobs:
   bench:
     docker:
       - image: rust:latest
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
 
@@ -116,7 +116,7 @@ jobs:
   profile:
     docker:
       - image: rust:latest
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
 
