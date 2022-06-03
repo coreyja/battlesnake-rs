@@ -60,7 +60,7 @@ where
     /// results, as it leans into sorting specific for your snake
     ///
     /// TODO: Fix this API. We only need the you_id to be able to find our move. Since we generate
-    /// the return values, can we lean on it alwaus being the first one? [Is that even true today?]
+    /// the return values, can we lean on it always being the first one? [Is that even true today?]
     pub fn your_best_move(&self, you_id: &GameType::SnakeIDType) -> Option<Move> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
