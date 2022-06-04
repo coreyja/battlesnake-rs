@@ -91,7 +91,7 @@ jobs:
 
             - run:
                 name: Build Docs
-                command: cargo doc --workspace
+                command: cargo doc --workspace --no-deps
 
             - run:
                 name: Clippy
