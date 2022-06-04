@@ -82,10 +82,10 @@ jobs:
                 command: cargo build --locked --all-targets  --release --jobs 2
 
       - store_artifacts:
-          path: target/web-axum
+          path: target/release/web-axum
           destination: web-axum
       - store_artifacts:
-          path: target/web-rocket
+          path: target/release/web-rocket
           destination: web-rocket
 
   bench:
