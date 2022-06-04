@@ -228,6 +228,8 @@ workflows:
             branches:
               only:
                 - 'main'
+          context:
+            - Tailscale
       - build-release:
           filters:
             branches:
