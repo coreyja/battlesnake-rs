@@ -1,25 +1,48 @@
 version: 2.1
-orbs:
-  circleci-tailscale: threecomma/circleci-tailscale@2.2.0
 
 commands: # a reusable command with parameters
+  setup-sccache:
+    steps:
+      - run:
+          name: Install sccache
+          command: |
+            curl https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz > sccache-v0.3.tar.qz
+            tar -xvf sccache-v0.3.tar.qz
+            chmod +x sccache
+
+            # This configures Rust to use sccache.
+            echo 'export "RUSTC_WRAPPER"="sccache"' >> $BASH_ENV
+            # This is the maximum space sccache cache will use on disk.
+            echo 'export "SCCACHE_CACHE_SIZE"="500M"' >> $BASH_ENV
+            sccache --version
+  restore-sccache-cache:
+    steps:
+      - restore_cache:
+          name: Restore sccache cache
+          key: v1-sccache-cache-stable-{{ arch }}-{{ .Environment.CIRCLE_JOB }}
+  save-sccache-cache:
+    steps:
+      - save_cache:
+          name: Save sccache cache
+          # We use {{ epoch }} to always upload a fresh cache:
+          # Of course, restore_cache will not find this exact key,
+          # but it will fall back to the closest key (aka the most recent).
+          # See https://discuss.circleci.com/t/add-mechanism-to-update-existing-cache-key/9014/13
+          key: v1-sccache-cache-stable-{{ arch }}-{{ .Environment.CIRCLE_JOB }}-{{ epoch }}
+          paths:
+            - "~/.cache/sccache"
   with-cargo-cache:
     parameters:
       do:
         default: []
         type: steps
     steps:
-      - restore_cache:
-          keys:
-            - v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - setup-sccache
+      - restore-sccache-cache
 
       - steps: << parameters.do >>
 
-      - save_cache:
-          key: v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-          paths:
-            - /usr/local/cargo
-            - target
+      - save-sccache-cache
 jobs:
   lint-rust:
     docker:
@@ -104,7 +127,47 @@ jobs:
       - add_ssh_keys
       - attach_workspace:
           at: target
-      - circleci-tailscale/connect
+      # Copied from
+      # Changes from source:
+      #  - removed `sudo` usage in mv since its not needed/in the container
+      - run:
+          name: "Download tailscale if not installed"
+          command: |
+            if ! command -v tailscale --version >/dev/null 2>&1; then
+              echo "Tailscale is not installed, installing..."
+              VERSION=<< parameters.tailscale-version >>
+              MINOR=$(echo << parameters.tailscale-version >> | awk -F '.' {'print $2'})
+              if [ $((MINOR % 2)) -eq 0 ]; then
+                URL="https://pkgs.tailscale.com/stable/tailscale_${VERSION}_amd64.tgz"
+              else
+                URL="https://pkgs.tailscale.com/unstable/tailscale_${VERSION}_amd64.tgz"
+              fi
+              curl $URL -o tailscale.tgz
+              tar -C ${HOME} -xzf tailscale.tgz
+              rm tailscale.tgz
+              TSPATH=${HOME}/tailscale_${VERSION}_amd64
+              mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
+            else
+              echo "Tailscale is already installed"
+            fi
+      - run:
+          name: "Run tailscale"
+          background: true
+          command: |
+            tailscaled --tun=userspace-networking --outbound-http-proxy-listen=<< parameters.tailscale-proxy-address >>:1054 --socks5-server=<< parameters.tailscale-proxy-address >>:1055 --socket=/tmp/tailscaled.sock 2>~/tailscaled.log
+      - run:
+          name: "Auth tailscale"
+          command: |
+            HOSTNAME="circleci-$(cat /etc/hostname)"
+            until tailscale --socket=/tmp/tailscaled.sock up --authkey ${<< parameters.tailscale-auth-key >>} --hostname=${HOSTNAME} --accept-routes
+            do
+              sleep 1
+            done
+            echo "export ALL_PROXY=socks5h://<< parameters.tailscale-proxy-address >>:1055/" >> $BASH_ENV
+            echo "export HTTP_PROXY=http://<< parameters.tailscale-proxy-address >>:1054/" >> $BASH_ENV
+            echo "export HTTPS_PROXY=http://<< parameters.tailscale-proxy-address >>:1054/" >> $BASH_ENV
+            echo "export http_proxy=http://<< parameters.tailscale-proxy-address >>:1054/" >> $BASH_ENV
+            echo "export https_proxy=http://<< parameters.tailscale-proxy-address >>:1054/" >> $BASH_ENV
       - run: scp target/web-axum coreyja@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
 
   bench:
