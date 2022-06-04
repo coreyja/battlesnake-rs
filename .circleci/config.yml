@@ -144,7 +144,7 @@ jobs:
               wget https://pkgs.tailscale.com/stable/tailscale_1.24.2_amd64.tgz
               tar -xzf tailscale_1.24.2_amd64.tgz
               rm tailscale_1.24.2_amd64.tgz
-              TSPATH=${HOME}/tailscale_1.24.2_amd64.tgz
+              TSPATH=tailscale_1.24.2_amd64
               mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
             else
               echo "Tailscale is already installed"
