@@ -168,10 +168,10 @@ jobs:
             echo "export http_proxy=http://localhost:1054/" >> $BASH_ENV
             echo "export https_proxy=http://localhost:1054/" >> $BASH_ENV
       - run:
-        name: Transfer Server Executable
-        command: |
-          tailscale --socket=/tmp/tailscaled.sock file cp target/release/web-axum terrarium:
-          tailscale --socket=/tmp/tailscaled.sock ssh terrarium "tailscale file get server"
+          name: Transfer Server Executable
+          command: |
+            tailscale --socket=/tmp/tailscaled.sock file cp target/release/web-axum terrarium:
+            tailscale --socket=/tmp/tailscaled.sock ssh terrarium "tailscale file get server"
 
   bench:
     docker:
