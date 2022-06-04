@@ -6,9 +6,9 @@ commands: # a reusable command with parameters
       - run:
           name: Install sccache
           command: |
-            curl https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz > sccache-v0.3.tar.qz
-            tar -xvf sccache-v0.3.tar.qz
-            chmod +x sccache
+            curl https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -o sccache.tgz
+            tar -xvf sccache.tqz
+            rm sccache.tqz
 
             # This configures Rust to use sccache.
             echo 'export "RUSTC_WRAPPER"="sccache"' >> $BASH_ENV
