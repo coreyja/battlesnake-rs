@@ -141,10 +141,10 @@ jobs:
           command: |
             if ! command -v tailscale --version >/dev/null 2>&1; then
               echo "Tailscale is not installed, installing..."
-              curl https://pkgs.tailscale.com/stable/tailscale_latest_amd64.tgz -o tailscale.tgz
-              tar -C ${HOME} -xzf tailscale.tgz
-              rm tailscale.tgz
-              TSPATH=${HOME}/tailscale_${VERSION}_amd64
+              wget https://pkgs.tailscale.com/stable/tailscale_1.24.2_amd64.tgz
+              tar -xzf tailscale_1.24.2_amd64.tgz
+              rm tailscale_1.24.2_amd64.tgz
+              TSPATH=${HOME}/tailscale_1.24.2_amd64.tgz
               mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
             else
               echo "Tailscale is already installed"
