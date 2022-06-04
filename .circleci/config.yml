@@ -170,8 +170,8 @@ jobs:
       - run:
           name: Transfer Server Executable
           command: |
-            tailscale --socket=/tmp/tailscaled.sock file cp target/release/web-axum terrarium:
-            tailscale --socket=/tmp/tailscaled.sock ssh terrarium "tailscale file get server"
+            tailscale --socket=/tmp/tailscaled.sock file cp target/release/web-axum terrarium: && echo 'File transferred'
+            tailscale --socket=/tmp/tailscaled.sock ssh terrarium "tailscale file get server" -o StrictHostKeyChecking=no && echo 'File Downloaded'
 
   bench:
     docker:
