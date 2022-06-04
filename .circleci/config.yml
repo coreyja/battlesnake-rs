@@ -11,15 +11,15 @@ commands: # a reusable command with parameters
     steps:
       - restore_cache:
           keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - steps: << parameters.do >>
 
       - save_cache:
-          key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: v3-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - /usr/local/cargo
-            - target/debug
+            - target
 jobs:
   lint-rust:
     docker:
@@ -139,10 +139,6 @@ jobs:
       - run:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
-
-      - restore_cache:
-          keys:
-            - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 
       - run: cd battlesnake-rs/
       # - run: cargo bench --bench devin -- --profile-time 60
