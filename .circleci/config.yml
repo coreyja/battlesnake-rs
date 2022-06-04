@@ -1,4 +1,7 @@
 version: 2.1
+orbs:
+  circleci-tailscale: threecomma/circleci-tailscale@2.2.0
+
 commands: # a reusable command with parameters
   with-cargo-cache:
     parameters:
@@ -87,6 +90,22 @@ jobs:
       - store_artifacts:
           path: target/release/web-rocket
           destination: web-rocket
+      - persist_to_workspace:
+          root: target
+          paths:
+            - target/release/web-axum
+            - target/release/web-rocket
+
+  deploy:
+    docker:
+      - image: rust:latest
+    resource_class: small
+    steps:
+      - add_ssh_keys
+      - attach_workspace:
+          at: target
+      - circleci-tailscale/connect
+      - run: scp target/web-axum coreyja@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
 
   bench:
     docker:
@@ -140,10 +159,16 @@ workflows:
     jobs:
       - test-rust
       - lint-rust
-      - build-release:
+      - deploy:
           requires:
             - test-rust
             - lint-rust
+            - build-release
+          filters:
+            branches:
+              only:
+                - 'main'
+      - build-release:
           filters:
             branches:
               only:
