@@ -158,7 +158,7 @@ jobs:
           name: "Auth tailscale"
           command: |
             HOSTNAME="circleci-$(cat /etc/hostname)"
-            until tailscale --socket=/tmp/tailscaled.sock up --authkey $TAILSCALE_AUTH_KEY --hostname=${HOSTNAME} --accept-routes
+            until tailscale --socket=/tmp/tailscaled.sock up --authkey $TAILSCALE_AUTH_KEY --hostname=${HOSTNAME} --accept-routes --accept-dns
             do
               sleep 1
             done
@@ -167,7 +167,11 @@ jobs:
             echo "export HTTPS_PROXY=http://localhost:1054/" >> $BASH_ENV
             echo "export http_proxy=http://localhost:1054/" >> $BASH_ENV
             echo "export https_proxy=http://localhost:1054/" >> $BASH_ENV
-      - run: scp target/web-axum coreyja@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
+      - run:
+        name: Transfer Server Executable
+        command: |
+          tailscale --socket=/tmp/tailscaled.sock file cp target/release/web-axum terrarium:
+          tailscale --socket=/tmp/tailscaled.sock ssh terrarium "tailscale file get server"
 
   bench:
     docker:
