@@ -93,8 +93,8 @@ jobs:
       - persist_to_workspace:
           root: target
           paths:
-            - target/release/web-axum
-            - target/release/web-rocket
+            - release/web-axum
+            - release/web-rocket
 
   deploy:
     docker:
