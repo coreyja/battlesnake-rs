@@ -33,7 +33,7 @@ commands: # a reusable command with parameters
           key: v1-sccache-cache-stable-{{ arch }}-{{ .Environment.CIRCLE_JOB }}-{{ epoch }}
           paths:
             - "~/.cache/sccache"
-  with-cargo-cache:
+  with-rust-setup:
     parameters:
       do:
         default: []
@@ -41,6 +41,10 @@ commands: # a reusable command with parameters
     steps:
       - setup-sccache
       - restore-sccache-cache
+
+      - run:
+          name: Set Cargo Parallel Jobs Setting
+          command: echo 'export "CARGO_BUILD_JOBS"="2"' >> $BASH_ENV
 
       - steps: << parameters.do >>
 
@@ -75,23 +79,23 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - with-cargo-cache:
+      - with-rust-setup:
           do:
             - run:
                 name: Build
                 command: cargo build --locked --all-targets --jobs 2
 
-      - run:
-          name: Run Tests
-          command: cargo test --locked
+            - run:
+                name: Run Tests
+                command: cargo test --locked
 
-      - run:
-          name: Build Docs
-          command: cargo doc --workspace
+            - run:
+                name: Build Docs
+                command: cargo doc --workspace
 
-      - run:
-          name: Clippy
-          command: rustup component add clippy && cargo clippy --workspace
+            - run:
+                name: Clippy
+                command: rustup component add clippy && cargo clippy --workspace
   build-release:
     docker:
       - image: rust:latest
@@ -103,7 +107,7 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - with-cargo-cache:
+      - with-rust-setup:
           do:
             - run:
                 name: Build
@@ -176,7 +180,7 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - with-cargo-cache:
+      - with-rust-setup:
           do:
             - run: cd battlesnake-rs/
             - restore_cache:
@@ -198,12 +202,14 @@ jobs:
           name: Print Rust Versions
           command: rustc --version; cargo --version; rustup --version
 
-      - run: cd battlesnake-rs/
-      # - run: cargo bench --bench devin -- --profile-time 60
-      - run: cargo bench --bench hobbs -- --profile-time 60
-      - run: cargo bench --bench mcts -- --profile-time 60
-      # - run: cargo bench --bench a-prime -- --profile-time 60
-      # - run: cargo bench --bench flood-fill -- --profile-time 60
+      - with-rust-setup:
+          do:
+            - run: cd battlesnake-rs/
+            # - run: cargo bench --bench devin -- --profile-time 60
+            - run: cargo bench --bench hobbs -- --profile-time 60
+            - run: cargo bench --bench mcts -- --profile-time 60
+            # - run: cargo bench --bench a-prime -- --profile-time 60
+            # - run: cargo bench --bench flood-fill -- --profile-time 60
       - store_artifacts:
           path: target/criterion
           destination: criterion
