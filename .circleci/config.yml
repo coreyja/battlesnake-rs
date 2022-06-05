@@ -111,19 +111,15 @@ jobs:
           do:
             - run:
                 name: Build
-                command: cargo build --locked --all-targets  --release --jobs 2
+                command: cargo build --locked --bin web-axum --release
 
       - store_artifacts:
           path: target/release/web-axum
           destination: web-axum
-      - store_artifacts:
-          path: target/release/web-rocket
-          destination: web-rocket
       - persist_to_workspace:
           root: target
           paths:
             - release/web-axum
-            - release/web-rocket
 
   deploy:
     docker:
