@@ -170,7 +170,7 @@ jobs:
       - run:
           name: Transfer Server Executable
           command: |
-            apt update && apt get install netcat -y
+            apt update && apt-get install netcat -y
             scp -o "ProxyCommand nc -x localhost:1055 %h %p" target/release/web-axum circle@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
             ssh -o "ProxyCommand nc -x localhost:1055 %h %p" circle@terrarium.coreyja.gmail.com.beta.tailscale.net "chmod +x ./server/web-axum"
 
