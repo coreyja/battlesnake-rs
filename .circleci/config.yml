@@ -164,7 +164,7 @@ jobs:
             echo "export http_proxy=http://localhost:1054/" >> $BASH_ENV
             echo "export https_proxy=http://localhost:1054/" >> $BASH_ENV
       - run: apt update && apt-get install netcat -y
-      - run: scp -o "ProxyCommand nc -x localhost:1055 %h %p" -o StrictHostKeyChecking=no target/release/web-axum circle@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
+      - run: scp -o "ProxyCommand nc -x localhost:1055 %h %p" -o StrictHostKeyChecking=no target/release/web-axum www@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum
       - run: ssh -o "ProxyCommand nc -x localhost:1055 %h %p" circle@terrarium.coreyja.gmail.com.beta.tailscale.net "sudo systemctl restart terrarium.coreyja.com.service"
 
   bench:
