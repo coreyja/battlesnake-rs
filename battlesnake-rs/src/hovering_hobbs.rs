@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::*;
 
 use battlesnake_game_types::types::*;
-use battlesnake_minimax::paranoid::MinimaxSnake;
+use battlesnake_minimax::paranoid::{MinimaxSnake, SnakeOptions};
 use decorum::N64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,69 +60,73 @@ impl BattlesnakeFactory for Factory {
 
         let name = "hovering-hobbs";
 
+        let options: SnakeOptions = SnakeOptions {
+            network_latency_padding: Duration::from_millis(20),
+        };
+
         if game_info.ruleset.name == "wrapped" {
             use battlesnake_game_types::compact_representation::wrapped::*;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::SmallExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Standard(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::MediumExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::LargestU8(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::LargeExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::ArcadeMaze(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Large(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Silly(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
+                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Large(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
             }
         } else {
             use battlesnake_game_types::compact_representation::standard::*;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::SmallExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Standard(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::MediumExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::LargestU8(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::LargeExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::ArcadeMaze(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Large(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
-                BestCellBoard::Silly(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
-                }
+                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Large(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
+                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::new_with_options(
+                    *game, game_info, turn, &score, name, options,
+                )),
             }
         }
     }
