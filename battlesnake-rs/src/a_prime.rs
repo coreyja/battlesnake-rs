@@ -10,7 +10,6 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 const NEIGHBOR_DISTANCE: i32 = 1;
-const HAZARD_PENALTY: i32 = 1;
 const HEURISTIC_MAX: i32 = 500;
 
 pub struct APrimeResult<T> {
@@ -21,6 +20,16 @@ pub struct APrimeResult<T> {
 
 pub struct APrimeOptions {
     pub food_penalty: i32,
+    pub hazard_penalty: i32,
+}
+
+impl Default for APrimeOptions {
+    fn default() -> Self {
+        APrimeOptions {
+            food_penalty: 1,
+            hazard_penalty: 1,
+        }
+    }
 }
 
 pub trait APrimeNextDirection: APrimeCalculable {
@@ -131,7 +140,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
         targets: &[Self::NativePositionType],
         options: Option<APrimeOptions>,
     ) -> Option<APrimeResult<Self::NativePositionType>> {
-        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let options = options.unwrap_or_default();
         let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
             FxHashMap::default();
 
@@ -160,7 +169,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
             }
 
             let neighbor_distance = if (*self).is_hazard(&coordinate) {
-                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+                options.hazard_penalty + NEIGHBOR_DISTANCE
             } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
@@ -203,7 +212,7 @@ impl<
         targets: &[Self::NativePositionType],
         options: Option<APrimeOptions>,
     ) -> Option<APrimeResult<Self::NativePositionType>> {
-        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let options = options.unwrap_or_default();
         let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
             FxHashMap::default();
 
@@ -232,7 +241,7 @@ impl<
             }
 
             let neighbor_distance = if self.is_hazard(&coordinate) {
-                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+                options.hazard_penalty + NEIGHBOR_DISTANCE
             } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
@@ -362,7 +371,7 @@ impl APrimeCalculable for Game {
         targets: &[Position],
         options: Option<APrimeOptions>,
     ) -> Option<APrimeResult<Position>> {
-        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let options = options.unwrap_or_default();
         let mut paths_from: FxHashMap<Position, Option<Position>> = FxHashMap::default();
 
         if targets.is_empty() {
@@ -390,7 +399,7 @@ impl APrimeCalculable for Game {
             }
 
             let neighbor_distance = if self.board.hazards.contains(&coordinate) {
-                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+                options.hazard_penalty + NEIGHBOR_DISTANCE
             } else if self.board.food.contains(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {
@@ -453,7 +462,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
             return None;
         }
 
-        let options = options.unwrap_or(APrimeOptions { food_penalty: 0 });
+        let options = options.unwrap_or_default();
         let mut paths_from: FxHashMap<Self::NativePositionType, Option<Self::NativePositionType>> =
             FxHashMap::default();
 
@@ -473,7 +482,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
             }
 
             let neighbor_distance = if self.is_hazard(&coordinate) {
-                HAZARD_PENALTY + NEIGHBOR_DISTANCE
+                options.hazard_penalty + NEIGHBOR_DISTANCE
             } else if self.is_food(&coordinate) {
                 NEIGHBOR_DISTANCE + options.food_penalty
             } else {

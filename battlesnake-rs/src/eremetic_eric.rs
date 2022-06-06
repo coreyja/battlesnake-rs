@@ -170,7 +170,10 @@ where
             .shortest_path_next_direction(
                 &you_head,
                 &[self.game.get_snake_body_vec(you_id).last().unwrap().clone()],
-                Some(APrimeOptions { food_penalty: 1 }),
+                Some(APrimeOptions {
+                    food_penalty: 1,
+                    ..Default::default()
+                }),
             )
             .unwrap();
 

@@ -1,7 +1,7 @@
 use battlesnake_game_types::types::*;
 use rand::thread_rng;
 
-use crate::a_prime::APrimeNextDirection;
+use crate::a_prime::{APrimeNextDirection, APrimeOptions};
 
 use super::*;
 
@@ -52,14 +52,28 @@ where
             .collect();
 
         let head = you_body.first().unwrap();
-        let dir = self.game.shortest_path_next_direction(head, &targets, None);
+        let dir = self.game.shortest_path_next_direction(
+            head,
+            &targets,
+            Some(APrimeOptions {
+                hazard_penalty: 100,
+                ..Default::default()
+            }),
+        );
 
         let dir = if let Some(s) = dir {
             s
         } else {
             let you_id = self.game.you_id();
             self.game
-                .shortest_path_next_direction(head, &[you_body.last().unwrap().clone()], None)
+                .shortest_path_next_direction(
+                    head,
+                    &[you_body.last().unwrap().clone()],
+                    Some(APrimeOptions {
+                        hazard_penalty: 100,
+                        ..Default::default()
+                    }),
+                )
                 .unwrap_or_else(|| {
                     let mut rng = thread_rng();
                     let next_move = self
