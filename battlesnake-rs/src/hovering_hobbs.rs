@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::a_prime::APrimeCalculable;
-use crate::flood_fill::spread_from_head::SpreadFromHead;
+use crate::flood_fill::spread_from_head_hazard_walls::SpreadFromHead;
 use crate::*;
 
 use battlesnake_game_types::types::*;
@@ -26,11 +26,11 @@ where
         + LengthGettableGame
         + FoodGettableGame,
 {
-    let square_counts = node.squares_per_snake_with_hazard_cost(5, 5);
+    let square_counts = node.squares_per_snake(5);
 
     let me = node.you_id();
     let my_space: f64 = square_counts[me.as_usize()] as f64;
-    let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
+    let total_space: f64 = square_counts.iter().sum::<u8>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
     if node.get_health_i64(me) < 40 {
