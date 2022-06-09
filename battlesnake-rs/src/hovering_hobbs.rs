@@ -204,7 +204,7 @@ impl BattlesnakeFactory for Factory {
         let name = "hovering-hobbs";
 
         let options: SnakeOptions = SnakeOptions {
-            network_latency_padding: Duration::from_millis(100),
+            network_latency_padding: Duration::from_millis(20),
         };
 
         if game.is_arcade_maze_map() {
