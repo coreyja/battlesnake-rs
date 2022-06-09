@@ -61,7 +61,7 @@ where
         + LengthGettableGame
         + FoodGettableGame,
 {
-    let square_counts = node.squares_per_snake_hazard_maze(10);
+    let square_counts = node.squares_per_snake_hazard_maze(8);
 
     let me = node.you_id();
     let my_space: f64 = square_counts[me.as_usize()] as f64;
@@ -96,11 +96,11 @@ macro_rules! build_from_best_cell_board {
         if game_info.ruleset.name == "wrapped" {
             use battlesnake_game_types::compact_representation::wrapped::*;
 
-            build_from_best_cell_board_inner!(game, game_info, turn, standard_score, name, options)
+            build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         } else {
             use battlesnake_game_types::compact_representation::standard::*;
 
-            build_from_best_cell_board_inner!(game, game_info, turn, standard_score, name, options)
+            build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         }
     }};
 }
