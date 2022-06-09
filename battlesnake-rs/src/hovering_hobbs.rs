@@ -79,7 +79,19 @@ where
         return Score::LowOnHealth(dist, my_ratio);
     }
 
-    Score::FloodFill(my_ratio)
+    let me_length = node.get_length_i64(me);
+    let max_opponent_length = node
+        .get_snake_ids()
+        .iter()
+        .filter(|&x| x != me)
+        .map(|&x| node.get_length_i64(&x))
+        .max()
+        .unwrap();
+    let length_diff = me_length - max_opponent_length;
+    let capped_diff = length_diff.min(3);
+    let length_diff_multipier: f64 = 0.05 * capped_diff as f64;
+
+    Score::FloodFill(my_ratio * length_diff_multipier)
 }
 
 pub struct Factory;
