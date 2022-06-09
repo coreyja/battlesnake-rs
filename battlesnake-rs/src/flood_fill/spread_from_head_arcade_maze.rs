@@ -12,14 +12,20 @@ use tinyvec::TinyVec;
 
 pub use super::spread_from_head::*;
 
-pub trait SpreadFromHeadHazardWalls<CellType> {
+pub trait SpreadFromHeadArcadeMaze<CellType> {
     type GridType;
 
     fn calculate(&self, number_of_cycles: usize) -> Self::GridType;
-    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4];
+    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; 4];
 }
 
-impl<BoardType, CellType> SpreadFromHeadHazardWalls<CellType> for BoardType
+// Board: 19 x 21
+// (3, 11) = 11 + 3*19 = 68
+// (9, 11) = 11 + 9*19 = 182
+// (15, 11) = 11 + 15*19 = 296
+const FOOD_SPAWN_LOCATION_INDEX: [usize; 3] = [68, 182, 296];
+
+impl<BoardType, CellType> SpreadFromHeadArcadeMaze<CellType> for BoardType
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame<NativePositionType = CellIndex<CellType>>
@@ -92,14 +98,22 @@ where
         grid
     }
 
-    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
-        let result = SpreadFromHeadHazardWalls::calculate(self, number_of_cycles);
-        let cell_sids = result.cells.iter().filter_map(|x| *x);
+    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; 4] {
+        let result = SpreadFromHeadArcadeMaze::calculate(self, number_of_cycles);
 
         let mut total_values = [0; 4];
 
-        for sid in cell_sids {
-            total_values[sid.as_usize()] += 1;
+        for (i, sid) in result
+            .cells
+            .iter()
+            .enumerate()
+            .filter_map(|(i, x)| x.map(|sid| (i, sid)))
+        {
+            if FOOD_SPAWN_LOCATION_INDEX.contains(&i) {
+                total_values[sid.as_usize()] += 10
+            } else {
+                total_values[sid.as_usize()] += 1
+            }
         }
 
         total_values
