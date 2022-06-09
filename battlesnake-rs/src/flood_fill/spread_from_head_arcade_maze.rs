@@ -110,7 +110,7 @@ where
             .filter_map(|(i, x)| x.map(|sid| (i, sid)))
         {
             if FOOD_SPAWN_LOCATION_INDEX.contains(&i) {
-                total_values[sid.as_usize()] += 10
+                total_values[sid.as_usize()] += 5
             } else {
                 total_values[sid.as_usize()] += 1
             }
