@@ -52,6 +52,7 @@ pub fn arcade_maze_score<BoardType, CellType>(node: &BoardType) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
+        + SpreadFromHead<CellType>
         + SpreadFromHeadArcadeMaze<CellType>
         + APrimeCalculable
         + HeadGettableGame
@@ -60,7 +61,7 @@ where
         + LengthGettableGame
         + FoodGettableGame,
 {
-    let square_counts = node.squares_per_snake_hazard_maze(5);
+    let square_counts = node.squares_per_snake_hazard_maze(10);
 
     let me = node.you_id();
     let my_space: f64 = square_counts[me.as_usize()] as f64;
