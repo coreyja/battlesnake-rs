@@ -9,6 +9,8 @@ use battlesnake_game_types::{
 use battlesnake_minimax::Instruments;
 use petgraph::{stable_graph::StableDiGraph, visit::EdgeRef};
 
+use self::expand_minimax::ExpandScore;
+
 struct GameManager;
 impl GameManager {
     /// Here we can start the infinite minimax thread
@@ -42,16 +44,10 @@ impl GameManager {
     }
 }
 
-#[derive(Default, PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Debug)]
-struct ExpandedScore {
-    turn: u32,
-    depth: u32,
-}
-
 #[derive(Debug)]
 struct Node<GameType> {
     game: GameType,
-    expanded: ExpandedScore,
+    expanded: Option<ExpandScore>,
 }
 
 type GameTreeIndexType = u32;
@@ -68,7 +64,7 @@ where
     id_map: HashMap<String, GameType::SnakeIDType>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum ExpandError {
     AlreadyExpanded,
     GameIsOver,
@@ -168,42 +164,85 @@ mod expand_minimax {
 
     use super::*;
 
-    fn expand_tree<
+    enum InSubTree {
+        True,
+        False { last_parent: Option<NodeIndex> },
+    }
+
+    fn in_subtree<GameType: std::fmt::Debug + SnakeIDGettableGame, const MAX_SNAKES: usize>(
+        graph: &GameTree<GameType, MAX_SNAKES>,
+        parent_index: NodeIndex,
+        potential_child_index: NodeIndex,
+    ) -> InSubTree {
+        let mut last = None;
+        let mut current = Some(potential_child_index);
+
+        while let Some(c) = current {
+            if c == parent_index {
+                return InSubTree::True;
+            }
+
+            let mut parents = graph
+                .graph
+                .edges_directed(c, petgraph::EdgeDirection::Incoming);
+
+            debug_assert!(
+              parents.clone().count() <= 1,
+              "There are more parents for this node than expected, thats strange as we should have a tree structure here",
+            );
+
+            last = current;
+            current = parents.next().map(|e| e.source());
+        }
+
+        InSubTree::False { last_parent: last }
+    }
+
+    fn expand_tree_iterative_deepened<
         GameType: SnakeIDGettableGame<SnakeIDType = SnakeId>
             + SimulableGame<Instruments, MAX_SNAKES>
             + VictorDeterminableGame,
         const MAX_SNAKES: usize,
     >(
         graph: &mut GameTree<GameType, MAX_SNAKES>,
-    ) -> Result<(), ExpandError> {
+    ) -> Result<!, RecurseError> {
         let mut current_depth = 1;
         let current = graph.current_root_and_turn.0;
 
-        while current_depth < 7 {
-            expand_tree_till(graph, current, 0, current_depth)?;
+        loop {
+            expand_tree_recursive(graph, current, 0, current_depth)?;
 
             current_depth += 1;
         }
-
-        Ok(())
     }
 
     type Depth = u32;
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    enum ExpandScore {
+    pub enum ExpandScore {
         Lose(Reverse<Depth>),
         Scored(Depth),
         Tie(Depth),
         Win(Depth),
     }
 
-    impl Default for ExpandScore {
-        fn default() -> Self {
-            ExpandScore::Scored(0)
+    impl ExpandScore {
+        const fn max() -> Self {
+            ExpandScore::Win(u32::MAX)
+        }
+
+        const fn min() -> Self {
+            ExpandScore::Lose(Reverse(u32::MAX))
         }
     }
 
-    fn expand_tree_till<
+    #[derive(Debug, PartialEq, Eq)]
+    enum RecurseError {
+        NotInSubtree { last_parent: Option<NodeIndex> },
+        NodeNotFound,
+        ExpandError(ExpandError),
+    }
+
+    fn expand_tree_recursive<
         GameType: SnakeIDGettableGame<SnakeIDType = SnakeId>
             + SimulableGame<Instruments, MAX_SNAKES>
             + VictorDeterminableGame,
@@ -213,11 +252,16 @@ mod expand_minimax {
         current: NodeIndex,
         depth: Depth,
         max_depth: Depth,
-    ) -> Result<ExpandScore, ExpandError> {
+    ) -> Result<ExpandScore, RecurseError> {
+        if let InSubTree::False { last_parent } =
+            in_subtree(graph, graph.current_root_and_turn.0, current)
+        {
+            return Err(RecurseError::NotInSubtree { last_parent });
+        }
         let current_node = graph
             .graph
             .node_weight(current)
-            .ok_or(ExpandError::NodeNotFound)?;
+            .ok_or(RecurseError::NodeNotFound)?;
 
         if depth == max_depth || current_node.game.is_over() {
             if current_node.game.is_over() {
@@ -238,31 +282,69 @@ mod expand_minimax {
         }
 
         if !current_node.game.is_over() && graph.graph.edges(current).next().is_none() {
-            graph.expand_node(current)?;
+            graph
+                .expand_node(current)
+                .map_err(RecurseError::ExpandError)?;
         }
 
-        let mut best_scores: [ExpandScore; 4] = Default::default();
+        let mut best_scores: [Option<ExpandScore>; 4] = Default::default();
         let mut walker = graph.graph.neighbors(current).detach();
         while let Some((edge, neighbor)) = walker.next(&graph.graph) {
             let weight = graph.graph[edge];
             let my_move = weight.own_move();
 
-            let recursed_score = expand_tree_till(graph, neighbor, depth + 1, max_depth)?;
+            let recursed_score: Option<ExpandScore> =
+                match expand_tree_recursive(graph, neighbor, depth + 1, max_depth) {
+                    // If we get an error that this wasn't in the subtree, we don't want to count
+                    // this edge in our search, so we mark it as Ok(None)
+                    Err(RecurseError::NotInSubtree { last_parent }) => {
+                        // TODO: Here we need to decide what to do with last parent. Our child was just not in the sub-tree.
+                        // In some cases we want to ignore the error, but in most we probably want to propagate it.
+                        //
+                        // When we do want to keep running? We want to do that if....
+                        // I think it is when last_parent == neighbor. Cause that means we _just_
+                        // were cut off, and want to keep looking at the rest of the options.
+                        // If the last_parent isn't where we are now, it _must_ be 'above' us in the
+                        // recurse tree so we just forward the error along.
+                        if last_parent == Some(neighbor) {
+                            Ok(None)
+                        } else {
+                            Err(RecurseError::NotInSubtree { last_parent })?
+                        }
+                    }
+                    Ok(score) => Ok(Some(score)),
+                    Err(x) => Err(x),
+                }?;
 
-            // This is the minimizing
-            best_scores[my_move.as_index()] = best_scores[my_move.as_index()].min(recursed_score);
+            if let Some(recursed_score) = recursed_score {
+                let new_score = if let Some(best_score) = best_scores[my_move.as_index()] {
+                    best_score.min(recursed_score)
+                } else {
+                    recursed_score
+                };
+                best_scores[my_move.as_index()] = Some(new_score);
+            }
         }
 
         // Here we can maximize
-        let best_score = best_scores.iter().max().unwrap();
+        let best_score = best_scores.iter().filter_map(|x| *x).max().unwrap();
 
-        Ok(*best_score)
+        let current_node = graph
+            .graph
+            .node_weight_mut(current)
+            .ok_or(RecurseError::NodeNotFound)?;
+        current_node.expanded = Some(best_score);
+
+        Ok(best_score)
     }
 
     #[cfg(test)]
     mod tests {
         use battlesnake_game_types::{
-            compact_representation::{dimensions::ArcadeMaze, WrappedCellBoard},
+            compact_representation::{
+                dimensions::{ArcadeMaze, Fixed},
+                StandardCellBoard, WrappedCellBoard,
+            },
             types::build_snake_id_map,
         };
 
@@ -283,7 +365,8 @@ mod expand_minimax {
 
             let expected_node_counts = [1, 2, 3, 4, 5, 6, 8, 10, 15, 30];
             for (current_depth, expected_node_count) in expected_node_counts.iter().enumerate() {
-                expand_tree_till(&mut game_tree, current_root, 0, current_depth as u32).unwrap();
+                expand_tree_recursive(&mut game_tree, current_root, 0, current_depth as u32)
+                    .unwrap();
 
                 assert_eq!(
                     game_tree.graph.node_count(),
@@ -292,6 +375,64 @@ mod expand_minimax {
                     current_depth
                 );
             }
+
+            assert_eq!(
+                game_tree
+                    .graph
+                    .node_weight(game_tree.current_root_and_turn.0)
+                    .unwrap()
+                    .expanded,
+                Some(ExpandScore::Scored(9)),
+            );
+        }
+
+        #[test]
+        fn test_cutting_off_tree_leaf() {
+            let fixture = include_str!("../fixtures/new_start.json");
+            let wire: Game = serde_json::from_str(fixture).unwrap();
+            let id_map = build_snake_id_map(&wire);
+            let game = StandardCellBoard::<u16, Fixed<11, 11>, { 11 * 11 }, 4>::convert_from_game(
+                wire, &id_map,
+            )
+            .unwrap();
+            let mut game_tree = GameTree::new(game, id_map, 0);
+            let current_root = game_tree.current_root_and_turn.0;
+
+            expand_tree_recursive(&mut game_tree, current_root, 0, 2).unwrap();
+            // Each snake has 3 possible moves on each turn, so 9 nodes then 81 nodes for 91 total
+            // (including the root node)
+            assert_eq!(game_tree.graph.node_count(), 91);
+
+            let about_to_be_cut_off = game_tree
+                .graph
+                .edges_directed(current_root, petgraph::EdgeDirection::Outgoing)
+                .find(|x| {
+                    x.source() == current_root
+                        && x.weight()
+                            == &Action::new([Some(Move::Up), Some(Move::Left), None, None])
+                })
+                .unwrap()
+                .target();
+
+            assert_eq!(game_tree.graph.neighbors(current_root).count(), 9);
+
+            // Remove all edges from the root node where I don't move right
+            game_tree.graph.retain_edges(|graph, edge_index| {
+                let edge_weight = graph[edge_index];
+                let source = graph.edge_endpoints(edge_index).unwrap().0;
+
+                source != current_root || edge_weight.own_move() == Move::Right
+            });
+
+            assert_eq!(game_tree.graph.neighbors(current_root).count(), 3);
+
+            let r = expand_tree_recursive(&mut game_tree, about_to_be_cut_off, 1, 3);
+            assert_eq!(
+                r,
+                Err(RecurseError::NotInSubtree {
+                    last_parent: Some(about_to_be_cut_off)
+                })
+            );
         }
     }
 }

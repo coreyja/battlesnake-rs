@@ -1,5 +1,5 @@
 #![deny(warnings)]
-#![feature(min_specialization)]
+#![feature(min_specialization, never_type)]
 
 #[macro_use]
 extern crate serde_derive;
