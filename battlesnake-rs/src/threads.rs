@@ -365,8 +365,10 @@ mod expand_minimax {
 
             let expected_node_counts = [1, 2, 3, 4, 5, 6, 8, 10, 15, 30];
             for (current_depth, expected_node_count) in expected_node_counts.iter().enumerate() {
-                expand_tree_recursive(&mut game_tree, current_root, 0, current_depth as u32)
-                    .unwrap();
+                let r =
+                    expand_tree_recursive(&mut game_tree, current_root, 0, current_depth as u32);
+
+                assert_eq!(r, Ok(ExpandScore::Scored(current_depth as u32)));
 
                 assert_eq!(
                     game_tree.graph.node_count(),
@@ -382,7 +384,7 @@ mod expand_minimax {
                     .node_weight(game_tree.current_root_and_turn.0)
                     .unwrap()
                     .expanded,
-                Some(ExpandScore::Scored(9)),
+                Some(ExpandScore::Scored(9))
             );
         }
 
