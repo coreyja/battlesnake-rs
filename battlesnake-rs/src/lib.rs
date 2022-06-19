@@ -27,6 +27,9 @@ pub mod mcts_snake;
 pub mod a_prime;
 pub mod flood_fill;
 
+// TODO: Rename this mod
+pub mod threads;
+
 #[derive(Serialize)]
 pub struct AboutMe {
     apiversion: String,

@@ -54,7 +54,7 @@ Eric is open for games on play.battlesnake.com, so feel free to start a Solo gam
 
 ### [Famished Frank](https://play.battlesnake.com/u/coreyja/famished-frank/)
 
-Frank is famished... He needs food! Once he's full he goes for the corners
+Frank is famished… He needs food! Once he's full he goes for the corners
 
 Successfully completed the [Occupy 4 Corners Challenge](https://play.battlesnake.com/g/ee518016-997d-4fdf-9354-a73105876174/)
 

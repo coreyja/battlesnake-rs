@@ -316,6 +316,10 @@ where
 
         assert!(node.get_health_i64(snake_id) > 0);
         let possible_moves = node
+            // TODO: I probably want to do two things here:
+            // 1. Make sure to not run moves that would cause the snake to die [hazard walls]
+            // 2. Might want to switch to using the game_types build first part of the move logic
+            //    cause that takes care of some of this already
             .possible_moves(&node.get_head_as_native_position(snake_id))
             .filter(|(_, pos)| !node.is_neck(snake_id, pos));
 
