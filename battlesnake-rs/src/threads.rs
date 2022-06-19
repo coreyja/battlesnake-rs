@@ -407,9 +407,7 @@ mod expand_minimax {
                 .graph
                 .edges_directed(current_root, petgraph::EdgeDirection::Outgoing)
                 .find(|x| {
-                    x.source() == current_root
-                        && x.weight()
-                            == &Action::new([Some(Move::Up), Some(Move::Left), None, None])
+                    x.weight() == &Action::new([Some(Move::Up), Some(Move::Left), None, None])
                 })
                 .unwrap()
                 .target();
@@ -426,13 +424,40 @@ mod expand_minimax {
 
             assert_eq!(game_tree.graph.neighbors(current_root).count(), 3);
 
-            let r = expand_tree_recursive(&mut game_tree, about_to_be_cut_off, 1, 3);
-            assert_eq!(
-                r,
-                Err(RecurseError::NotInSubtree {
-                    last_parent: Some(about_to_be_cut_off)
-                })
-            );
+            {
+                let r = expand_tree_recursive(&mut game_tree, about_to_be_cut_off, 1, 3);
+                assert_eq!(
+                    r,
+                    Err(RecurseError::NotInSubtree {
+                        last_parent: Some(about_to_be_cut_off)
+                    })
+                );
+            }
+
+            // Confirm that even though we've called expand a few times we aren't actually adding
+            // nodes
+            assert_eq!(game_tree.graph.node_count(), 91);
+
+            let mut walker = game_tree.graph.neighbors(about_to_be_cut_off).detach();
+            while let Some((_, n)) = walker.next(&game_tree.graph) {
+                let r = expand_tree_recursive(&mut game_tree, n, 2, 3);
+
+                assert_eq!(
+                    r,
+                    Err(RecurseError::NotInSubtree {
+                        last_parent: Some(about_to_be_cut_off)
+                    })
+                );
+            }
+
+            // Confirm that even though we've called expand a few times we aren't actually adding
+            // nodes
+            assert_eq!(game_tree.graph.node_count(), 91);
+
+            expand_tree_recursive(&mut game_tree, current_root, 0, 3).unwrap();
+
+            // I think I counted this out right but we'll see
+            assert_eq!(game_tree.graph.node_count(), 334);
         }
     }
 }
