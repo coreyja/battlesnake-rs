@@ -30,6 +30,7 @@ typed-arena = "2.0.1"
 atomic_float = "0.1.0"
 dotavious = "0.2.1"
 petgraph = { version = "0.6.2" }
+parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
