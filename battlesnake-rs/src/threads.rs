@@ -168,27 +168,6 @@ mod tree {
             InSubTree::False { last_parent: last }
         }
 
-        pub fn neighbors_for_each<
-            T: Fn(EdgeIndex, NodeIndex, Action<MAX_SNAKES>) -> Result<(), ErrorType>,
-            ErrorType,
-        >(
-            &self,
-            node_index: NodeIndex,
-            func: T,
-        ) -> Result<(), ErrorType> {
-            let mut walker = self.graph.read().neighbors(node_index).detach();
-            while let Some((edge, neighbor)) = {
-                let graph = self.graph.read();
-                walker.next(&graph)
-            } {
-                let weight = self.graph.read()[edge];
-
-                func(edge, neighbor, weight)?;
-            }
-
-            Ok(())
-        }
-
         pub fn neighbors_iter(
             &self,
             node_index: NodeIndex,
@@ -196,17 +175,35 @@ mod tree {
             let mut walker = self.graph.read().neighbors(node_index).detach();
 
             std::iter::from_fn(move || {
-                if let Some((edge, neighbor)) = {
-                    let graph = self.graph.read();
-                    walker.next(&graph)
-                } {
-                    let weight = self.graph.read()[edge];
+                let graph = self.graph.read();
+
+                if let Some((edge, neighbor)) = walker.next(&graph) {
+                    let weight = graph[edge];
 
                     Some((edge, neighbor, weight))
                 } else {
+                    dbg!("walker exhausted");
                     None
                 }
             })
+        }
+
+        #[cfg(test)]
+        pub fn read(
+            &self,
+        ) -> parking_lot::RwLockReadGuard<
+            StableDiGraph<Node<GameType>, Action<MAX_SNAKES>, GameTreeIndexType>,
+        > {
+            self.graph.read()
+        }
+
+        #[cfg(test)]
+        pub fn write(
+            &self,
+        ) -> parking_lot::RwLockWriteGuard<
+            StableDiGraph<Node<GameType>, Action<MAX_SNAKES>, GameTreeIndexType>,
+        > {
+            self.graph.write()
         }
     }
 
@@ -384,7 +381,7 @@ mod expand_minimax {
 
         let is_expanded = game_tree.is_expanded(current);
 
-        if !is_over && is_expanded {
+        if !is_over && !is_expanded {
             game_tree
                 .expand_node(current)
                 .map_err(RecurseError::ExpandError)?;
@@ -392,6 +389,7 @@ mod expand_minimax {
 
         let mut best_scores: [Option<ExpandScore>; 4] = Default::default();
         for (_, neighbor, weight) in game_tree.neighbors_iter(current) {
+            dbg!(neighbor, weight);
             let my_move = weight.own_move();
 
             let recursed_score: Option<ExpandScore> =
@@ -526,7 +524,6 @@ mod expand_minimax {
             assert_eq!(game_tree.node_count(), 91);
 
             let about_to_be_cut_off = game_tree
-                .graph
                 .read()
                 .edges_directed(current_root, petgraph::EdgeDirection::Outgoing)
                 .find(|x| {
@@ -535,17 +532,17 @@ mod expand_minimax {
                 .unwrap()
                 .target();
 
-            assert_eq!(game_tree.graph.read().neighbors(current_root).count(), 9);
+            assert_eq!(game_tree.read().neighbors(current_root).count(), 9);
 
             // Remove all edges from the root node where I don't move right
-            game_tree.graph.write().retain_edges(|graph, edge_index| {
+            game_tree.write().retain_edges(|graph, edge_index| {
                 let edge_weight = graph[edge_index];
                 let source = graph.edge_endpoints(edge_index).unwrap().0;
 
                 source != current_root || edge_weight.own_move() == Move::Right
             });
 
-            assert_eq!(game_tree.graph.read().neighbors(current_root).count(), 3);
+            assert_eq!(game_tree.read().neighbors(current_root).count(), 3);
 
             {
                 let r = expand_tree_recursive(&mut game_tree, about_to_be_cut_off, 1, 3);
@@ -561,12 +558,8 @@ mod expand_minimax {
             // nodes
             assert_eq!(game_tree.node_count(), 91);
 
-            let mut walker = game_tree
-                .graph
-                .read()
-                .neighbors(about_to_be_cut_off)
-                .detach();
-            while let Some((_, n)) = walker.next(&game_tree.graph.read()) {
+            let mut walker = game_tree.read().neighbors(about_to_be_cut_off).detach();
+            while let Some((_, n)) = walker.next(&game_tree.read()) {
                 let r = expand_tree_recursive(&game_tree, n, 2, 3);
 
                 assert_eq!(
