@@ -45,8 +45,8 @@ impl GameManager {
     }
 }
 
-#[derive(Debug)]
-struct Node<GameType> {
+#[derive(Debug, Clone, Copy)]
+pub struct Node<GameType: Copy> {
     game: GameType,
     expanded: Option<ExpandScore>,
 }
@@ -55,18 +55,229 @@ type GameTreeIndexType = u32;
 type NodeIndex = petgraph::graph::NodeIndex<GameTreeIndexType>;
 type EdgeIndex = petgraph::graph::EdgeIndex<GameTreeIndexType>;
 
-#[derive(Debug)]
-struct GameTree<GameType, const MAX_SNAKES: usize>
-where
-    GameType: SnakeIDGettableGame + std::fmt::Debug,
-{
-    graph: RwLock<StableDiGraph<Node<GameType>, Action<MAX_SNAKES>, GameTreeIndexType>>,
-    current_root_and_turn: (NodeIndex, usize),
-    id_map: HashMap<String, GameType::SnakeIDType>,
+mod tree {
+    use super::*;
+
+    #[derive(Debug)]
+    pub struct GameTree<GameType, const MAX_SNAKES: usize>
+    where
+        GameType: SnakeIDGettableGame + std::fmt::Debug + Copy,
+    {
+        graph: RwLock<StableDiGraph<Node<GameType>, Action<MAX_SNAKES>, GameTreeIndexType>>,
+        current_root_and_turn: (NodeIndex, usize),
+        id_map: HashMap<String, GameType::SnakeIDType>,
+    }
+
+    impl<GameType, const MAX_SNAKES: usize> GameTree<GameType, MAX_SNAKES>
+    where
+        GameType: SnakeIDGettableGame + std::fmt::Debug + Copy,
+    {
+        pub fn new(
+            root_game: GameType,
+            id_map: HashMap<String, GameType::SnakeIDType>,
+            turn: usize,
+        ) -> Self {
+            let mut graph = StableDiGraph::new();
+            let root = graph.add_node(Node {
+                game: root_game,
+                expanded: Default::default(),
+            });
+
+            Self {
+                graph: RwLock::new(graph),
+                current_root_and_turn: (root, turn),
+                id_map,
+            }
+        }
+
+        pub fn is_expanded(&self, node_index: NodeIndex) -> bool {
+            if let Some(weight) = self.node_weight(node_index) {
+                weight.expanded.is_some()
+            } else {
+                false
+            }
+        }
+
+        pub fn node_weight(&self, node_index: NodeIndex) -> Option<Node<GameType>> {
+            let graph = self.graph.read();
+
+            graph.node_weight(node_index).map(|node| *node)
+        }
+
+        pub fn node_game(&self, node_index: NodeIndex) -> Option<GameType> {
+            self.node_weight(node_index).map(|node| node.game)
+        }
+
+        pub fn current_root(&self) -> NodeIndex {
+            self.current_root_and_turn.0
+        }
+
+        pub fn current_turn(&self) -> usize {
+            self.current_root_and_turn.1
+        }
+
+        pub fn node_count(&self) -> usize {
+            let graph = self.graph.read();
+
+            graph.node_count()
+        }
+
+        pub fn set_expanded(&self, node_index: NodeIndex, expanded: ExpandScore) {
+            let mut graph = self.graph.write();
+            let node = graph.node_weight_mut(node_index).unwrap();
+            node.expanded = Some(expanded);
+        }
+
+        pub fn move_for_current_turn(&self) -> Result<Move, &'static str> {
+            let root_index = &self.current_root();
+
+            let graph = self.graph.read();
+            let best_edge = graph
+                .edges(*root_index)
+                .max_by_key(|edge| self.graph.read()[edge.target()].expanded)
+                .ok_or("Game is over")?;
+
+            Ok(best_edge.weight().own_move())
+        }
+
+        pub fn in_subtree(
+            &self,
+            parent_index: NodeIndex,
+            potential_child_index: NodeIndex,
+        ) -> InSubTree {
+            let mut last = None;
+            let mut current = Some(potential_child_index);
+            let graph = self.graph.read();
+
+            while let Some(c) = current {
+                if c == parent_index {
+                    return InSubTree::True;
+                }
+
+                let mut parents = graph.edges_directed(c, petgraph::EdgeDirection::Incoming);
+
+                debug_assert!(
+              parents.clone().count() <= 1,
+              "There are more parents for this node than expected, thats strange as we should have a tree structure here",
+            );
+
+                last = current;
+                current = parents.next().map(|e| e.source());
+            }
+
+            InSubTree::False { last_parent: last }
+        }
+
+        pub fn neighbors_for_each<
+            T: Fn(EdgeIndex, NodeIndex, Action<MAX_SNAKES>) -> Result<(), ErrorType>,
+            ErrorType,
+        >(
+            &self,
+            node_index: NodeIndex,
+            func: T,
+        ) -> Result<(), ErrorType> {
+            let mut walker = self.graph.read().neighbors(node_index).detach();
+            while let Some((edge, neighbor)) = {
+                let graph = self.graph.read();
+                walker.next(&graph)
+            } {
+                let weight = self.graph.read()[edge];
+
+                func(edge, neighbor, weight)?;
+            }
+
+            Ok(())
+        }
+
+        pub fn neighbors_iter(
+            &self,
+            node_index: NodeIndex,
+        ) -> impl Iterator<Item = (EdgeIndex, NodeIndex, Action<MAX_SNAKES>)> + '_ {
+            let mut walker = self.graph.read().neighbors(node_index).detach();
+
+            std::iter::from_fn(move || {
+                if let Some((edge, neighbor)) = {
+                    let graph = self.graph.read();
+                    walker.next(&graph)
+                } {
+                    let weight = self.graph.read()[edge];
+
+                    Some((edge, neighbor, weight))
+                } else {
+                    None
+                }
+            })
+        }
+    }
+
+    impl<
+            GameType: SnakeIDGettableGame + SimulableGame<Instruments, MAX_SNAKES> + Copy,
+            const MAX_SNAKES: usize,
+        > GameTree<GameType, MAX_SNAKES>
+    {
+        pub fn expand_node(
+            &self,
+            node_index: NodeIndex,
+        ) -> Result<Vec<(Action<MAX_SNAKES>, NodeIndex, EdgeIndex)>, ExpandError> {
+            if self.is_expanded(node_index) {
+                return Err(ExpandError::AlreadyExpanded);
+            }
+
+            let new_nodes = {
+                let node = self
+                    .node_weight(node_index)
+                    .ok_or(ExpandError::NodeNotFound)?;
+
+                let snake_ids = node.game.get_snake_ids();
+                // This collect is NOT needless. If we chain iterators we end up borrowing the graph for a
+                // mutable and immutable reference at the same time and failing to compile. By collecting
+                // to a vec in the middle we don't have lifetime issues
+                #[allow(clippy::needless_collect)]
+                let new_nodes: Vec<_> = node
+                    .game
+                    .simulate(&Instruments {}, snake_ids)
+                    .map(|(action, new_game)| {
+                        (
+                            action,
+                            Node {
+                                game: new_game,
+                                expanded: Default::default(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                new_nodes
+            };
+
+            let action_and_indexes: Vec<_> = new_nodes
+                .into_iter()
+                .map(|(action, node)| {
+                    let (edge_index, new_node_index) = {
+                        let mut graph = self.graph.write();
+                        let new_node_index = graph.add_node(node);
+                        let edge_index = graph.add_edge(node_index, new_node_index, action);
+
+                        (edge_index, new_node_index)
+                    };
+
+                    (action, new_node_index, edge_index)
+                })
+                .collect();
+
+            Ok(action_and_indexes)
+        }
+    }
+
+    pub enum InSubTree {
+        True,
+        False { last_parent: Option<NodeIndex> },
+    }
 }
+use tree::GameTree;
 
 #[derive(Debug, PartialEq, Eq)]
-enum ExpandError {
+pub enum ExpandError {
     AlreadyExpanded,
     GameIsOver,
     NodeNotFound,
@@ -76,149 +287,24 @@ enum AddScoreError {
     NodeNotFound,
 }
 
-impl<
-        GameType: SnakeIDGettableGame + SimulableGame<Instruments, MAX_SNAKES>,
-        const MAX_SNAKES: usize,
-    > GameTree<GameType, MAX_SNAKES>
-{
-    pub fn new(
-        root_game: GameType,
-        id_map: HashMap<String, GameType::SnakeIDType>,
-        turn: usize,
-    ) -> Self {
-        let mut graph = StableDiGraph::new();
-        let root = graph.add_node(Node {
-            game: root_game,
-            expanded: Default::default(),
-        });
-
-        Self {
-            graph: RwLock::new(graph),
-            current_root_and_turn: (root, turn),
-            id_map,
-        }
-    }
-
-    pub fn expand_node(
-        &self,
-        node_index: NodeIndex,
-    ) -> Result<Vec<(Action<MAX_SNAKES>, NodeIndex, EdgeIndex)>, ExpandError> {
-        {
-            let graph = self.graph.read();
-            if graph.edges(node_index).count() > 0 {
-                return Err(ExpandError::AlreadyExpanded);
-            }
-        }
-
-        let new_nodes = {
-            let graph = self.graph.read();
-            let node = graph
-                .node_weight(node_index)
-                .ok_or(ExpandError::NodeNotFound)?;
-
-            let snake_ids = node.game.get_snake_ids();
-            // This collect is NOT needless. If we chain iterators we end up borrowing the graph for a
-            // mutable and immutable reference at the same time and failing to compile. By collecting
-            // to a vec in the middle we don't have lifetime issues
-            #[allow(clippy::needless_collect)]
-            let new_nodes: Vec<_> = node
-                .game
-                .simulate(&Instruments {}, snake_ids)
-                .map(|(action, new_game)| {
-                    (
-                        action,
-                        Node {
-                            game: new_game,
-                            expanded: Default::default(),
-                        },
-                    )
-                })
-                .collect();
-
-            new_nodes
-        };
-
-        let action_and_indexes: Vec<_> = new_nodes
-            .into_iter()
-            .map(|(action, node)| {
-                let (edge_index, new_node_index) = {
-                    let mut graph = self.graph.write();
-                    let new_node_index = graph.add_node(node);
-                    let edge_index = graph.add_edge(node_index, new_node_index, action);
-
-                    (edge_index, new_node_index)
-                };
-
-                (action, new_node_index, edge_index)
-            })
-            .collect();
-
-        Ok(action_and_indexes)
-    }
-
-    pub fn move_for_current_turn(&self) -> Result<Move, &'static str> {
-        let (root_index, _turn) = &self.current_root_and_turn;
-
-        let graph = self.graph.read();
-        let best_edge = graph
-            .edges(*root_index)
-            .max_by_key(|edge| self.graph.read()[edge.target()].expanded)
-            .ok_or("Game is over")?;
-
-        Ok(best_edge.weight().own_move())
-    }
-}
-
 mod expand_minimax {
     use std::cmp::Reverse;
 
     use battlesnake_game_types::types::{SnakeId, VictorDeterminableGame};
 
-    use super::*;
-
-    enum InSubTree {
-        True,
-        False { last_parent: Option<NodeIndex> },
-    }
-
-    fn in_subtree<GameType: std::fmt::Debug + SnakeIDGettableGame, const MAX_SNAKES: usize>(
-        graph: &GameTree<GameType, MAX_SNAKES>,
-        parent_index: NodeIndex,
-        potential_child_index: NodeIndex,
-    ) -> InSubTree {
-        let mut last = None;
-        let mut current = Some(potential_child_index);
-
-        while let Some(c) = current {
-            if c == parent_index {
-                return InSubTree::True;
-            }
-
-            let graph = graph.graph.read();
-            let mut parents = graph.edges_directed(c, petgraph::EdgeDirection::Incoming);
-
-            debug_assert!(
-              parents.clone().count() <= 1,
-              "There are more parents for this node than expected, thats strange as we should have a tree structure here",
-            );
-
-            last = current;
-            current = parents.next().map(|e| e.source());
-        }
-
-        InSubTree::False { last_parent: last }
-    }
+    use super::{tree::InSubTree, *};
 
     fn expand_tree_iterative_deepened<
         GameType: SnakeIDGettableGame<SnakeIDType = SnakeId>
             + SimulableGame<Instruments, MAX_SNAKES>
-            + VictorDeterminableGame,
+            + VictorDeterminableGame
+            + Copy,
         const MAX_SNAKES: usize,
     >(
         graph: GameTree<GameType, MAX_SNAKES>,
     ) -> Result<!, RecurseError> {
         let mut current_depth = 1;
-        let current = graph.current_root_and_turn.0;
+        let current = graph.current_root();
 
         loop {
             expand_tree_recursive(&graph, current, 0, current_depth)?;
@@ -256,7 +342,8 @@ mod expand_minimax {
     fn expand_tree_recursive<
         GameType: SnakeIDGettableGame<SnakeIDType = SnakeId>
             + SimulableGame<Instruments, MAX_SNAKES>
-            + VictorDeterminableGame,
+            + VictorDeterminableGame
+            + Copy,
         const MAX_SNAKES: usize,
     >(
         game_tree: &GameTree<GameType, MAX_SNAKES>,
@@ -265,13 +352,12 @@ mod expand_minimax {
         max_depth: Depth,
     ) -> Result<ExpandScore, RecurseError> {
         if let InSubTree::False { last_parent } =
-            in_subtree(game_tree, game_tree.current_root_and_turn.0, current)
+            game_tree.in_subtree(game_tree.current_root(), current)
         {
             return Err(RecurseError::NotInSubtree { last_parent });
         }
         let (is_over, winner) = {
-            let graph = game_tree.graph.read();
-            let current_node = graph
+            let current_node = game_tree
                 .node_weight(current)
                 .ok_or(RecurseError::NodeNotFound)?;
 
@@ -296,10 +382,7 @@ mod expand_minimax {
             return Ok(ExpandScore::Scored(depth));
         }
 
-        let is_expanded = {
-            let graph = game_tree.graph.read();
-            graph.edges(current).next().is_none()
-        };
+        let is_expanded = game_tree.is_expanded(current);
 
         if !is_over && is_expanded {
             game_tree
@@ -308,12 +391,7 @@ mod expand_minimax {
         }
 
         let mut best_scores: [Option<ExpandScore>; 4] = Default::default();
-        let mut walker = game_tree.graph.read().neighbors(current).detach();
-        while let Some((edge, neighbor)) = {
-            let graph = game_tree.graph.read();
-            walker.next(&graph)
-        } {
-            let weight = game_tree.graph.read()[edge];
+        for (_, neighbor, weight) in game_tree.neighbors_iter(current) {
             let my_move = weight.own_move();
 
             let recursed_score: Option<ExpandScore> =
@@ -351,14 +429,7 @@ mod expand_minimax {
 
         // Here we can maximize
         let best_score = best_scores.iter().filter_map(|x| *x).max().unwrap();
-
-        {
-            let mut graph = game_tree.graph.write();
-            let current_node = graph
-                .node_weight_mut(current)
-                .ok_or(RecurseError::NodeNotFound)?;
-            current_node.expanded = Some(best_score);
-        }
+        game_tree.set_expanded(current, best_score);
 
         Ok(best_score)
     }
@@ -410,7 +481,7 @@ mod expand_minimax {
             .unwrap();
             let game_tree = GameTree::new(game, id_map, 0);
 
-            let current_root = game_tree.current_root_and_turn.0;
+            let current_root = game_tree.current_root();
 
             let expected_node_counts = [1, 2, 3, 4, 5, 6, 8, 10, 15, 30];
             for (current_depth, expected_node_count) in expected_node_counts.iter().enumerate() {
@@ -419,7 +490,7 @@ mod expand_minimax {
                 assert_eq!(r, Ok(ExpandScore::Scored(current_depth as u32)));
 
                 assert_eq!(
-                    game_tree.graph.read().node_count(),
+                    game_tree.node_count(),
                     *expected_node_count,
                     "Depth {}",
                     current_depth
@@ -428,9 +499,7 @@ mod expand_minimax {
 
             assert_eq!(
                 game_tree
-                    .graph
-                    .read()
-                    .node_weight(game_tree.current_root_and_turn.0)
+                    .node_weight(game_tree.current_root())
                     .unwrap()
                     .expanded,
                 Some(ExpandScore::Scored(9))
@@ -449,12 +518,12 @@ mod expand_minimax {
             )
             .unwrap();
             let mut game_tree = GameTree::new(game, id_map, 0);
-            let current_root = game_tree.current_root_and_turn.0;
+            let current_root = game_tree.current_root();
 
             expand_tree_recursive(&game_tree, current_root, 0, 2).unwrap();
             // Each snake has 3 possible moves on each turn, so 9 nodes then 81 nodes for 91 total
             // (including the root node)
-            assert_eq!(game_tree.graph.read().node_count(), 91);
+            assert_eq!(game_tree.node_count(), 91);
 
             let about_to_be_cut_off = game_tree
                 .graph
@@ -490,7 +559,7 @@ mod expand_minimax {
 
             // Confirm that even though we've called expand a few times we aren't actually adding
             // nodes
-            assert_eq!(game_tree.graph.read().node_count(), 91);
+            assert_eq!(game_tree.node_count(), 91);
 
             let mut walker = game_tree
                 .graph
@@ -510,12 +579,12 @@ mod expand_minimax {
 
             // Confirm that even though we've called expand a few times we aren't actually adding
             // nodes
-            assert_eq!(game_tree.graph.read().node_count(), 91);
+            assert_eq!(game_tree.node_count(), 91);
 
             expand_tree_recursive(&mut game_tree, current_root, 0, 3).unwrap();
 
             // I think I counted this out right but we'll see
-            assert_eq!(game_tree.graph.read().node_count(), 334);
+            assert_eq!(game_tree.node_count(), 334);
         }
     }
 }
