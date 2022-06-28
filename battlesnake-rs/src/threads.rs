@@ -314,8 +314,8 @@ mod expand_minimax {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub enum ExpandScore {
         Lose(Reverse<Depth>),
-        Scored(Depth),
         Tie(Depth),
+        Scored(Depth),
         Win(Depth),
     }
 
