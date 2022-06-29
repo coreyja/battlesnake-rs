@@ -140,13 +140,11 @@ async fn route_move(
 ) -> impl IntoResponse {
     let snake = factory.create_from_wire_game(game);
 
-    let root = span!(tracing::Level::INFO, "make_move");
     let output = spawn_blocking_with_tracing(move || {
         snake
             .make_move()
             .expect("TODO: We need to work on our error handling")
     })
-    .instrument(root)
     .await
     .unwrap();
 

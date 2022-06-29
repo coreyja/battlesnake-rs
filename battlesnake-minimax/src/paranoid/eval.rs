@@ -233,15 +233,20 @@ where
 
         let copy = self.clone();
 
-        let (scored, explored) = info_span!(
+        info_span!(
           "deepened_minmax_with_exploration",
           snake_name = self.name,
           game_id = %&self.game_info.id,
           turn = self.turn,
           ruleset_name = %self.game_info.ruleset.name,
           ruleset_version = %self.game_info.ruleset.version,
+          chosen_score = tracing::field::Empty,
+          chosen_direction = tracing::field::Empty,
+          all_moves = tracing::field::Empty,
+
         )
-        .in_scope(|| copy.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids));
+        .in_scope(|| {
+          let (scored, explored) = copy.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids);
 
         match (scored, explored) {
             (Some((scored_depth, scored_return)), Some((explored_depth, explored_return))) => {
@@ -289,7 +294,7 @@ where
 
                 Move::Right
             }
-        }
+        }})
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -463,13 +468,8 @@ where
         self,
         players: Vec<T::SnakeIDType>,
     ) -> MinMaxReturn<T, ScoreType> {
-        let inner_span = info_span!(
-            "deepened_minmax_inner",
-            chosen_score = tracing::field::Empty,
-            chosen_direction = tracing::field::Empty,
-            all_moves = tracing::field::Empty,
-            depth = tracing::field::Empty,
-        );
+        let current_span = tracing::Span::current();
+
         let max_duration = self.max_duration();
         let node = &self.game;
 
@@ -480,21 +480,13 @@ where
         let (to_main_thread, from_worker_thread) = mpsc::channel();
         let (suspend_worker, worker_halt_reciever) = mpsc::channel();
 
-        let cloned_inner = inner_span.clone();
         thread::spawn(move || {
             let you_id = threads_you_id;
             let mut current_depth = players.len();
             let mut current_return = None;
 
             loop {
-                let next = info_span!(
-                    parent: &cloned_inner,
-                    "single_depth",
-                    depth = current_depth,
-                    score = tracing::field::Empty,
-                    direction = tracing::field::Empty
-                )
-                .in_scope(|| {
+                let next = {
                     let result = self.minimax(
                         Cow::Borrowed(&self.game),
                         &players,
@@ -517,7 +509,7 @@ where
                     }
 
                     result
-                });
+                };
 
                 let next = match next {
                     Ok(x) => x,
@@ -573,16 +565,16 @@ where
         let _ = suspend_worker.send(());
 
         if let Some((depth, result)) = &current {
-            inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
-            inner_span.record(
+            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            current_span.record(
                 "chosen_direction",
                 &format!("{:?}", result.your_best_move(&you_id)).as_str(),
             );
-            inner_span.record(
+            current_span.record(
                 "all_moves",
                 &format!("{:?}", result.chosen_route()).as_str(),
             );
-            inner_span.record("depth", &depth);
+            current_span.record("depth", &depth);
         }
 
         current
@@ -626,7 +618,6 @@ where
             let (to_manager_thread, from_scored_thread) = mpsc::channel();
             let (suspend_scorer, scorer_halt_reciever) = mpsc::channel();
 
-            let scorer_cloned_inner = inner_span.clone();
             let threads_you_id = you_id.clone();
             thread::spawn(move || {
                 let you_id = threads_you_id;
@@ -634,14 +625,7 @@ where
                 let mut current_return = None;
 
                 loop {
-                    let next = info_span!(
-                        parent: &scorer_cloned_inner,
-                        "scored_single_depth",
-                        depth = current_depth,
-                        score = tracing::field::Empty,
-                        direction = tracing::field::Empty
-                    )
-                    .in_scope(|| {
+                    let next = {
                         let result = self.minimax(
                             Cow::Borrowed(&self.game),
                             &players,
@@ -664,7 +648,7 @@ where
                         }
 
                         result
-                    });
+                    };
 
                     let next = match next {
                         Ok(x) => x,
@@ -714,7 +698,6 @@ where
                 "explorer",
             );
 
-            let scorer_cloned_inner = inner_span.clone();
             thread::spawn(move || {
                 let mut current_depth = explorer_players.len();
                 let mut current_return = None;
@@ -722,14 +705,7 @@ where
                 let you_id = explorer_game.you_id();
 
                 loop {
-                    let next = info_span!(
-                        parent: &scorer_cloned_inner,
-                        "explored_single_depth",
-                        depth = current_depth,
-                        score = tracing::field::Empty,
-                        direction = tracing::field::Empty
-                    )
-                    .in_scope(|| {
+                    let next = {
                         let result = explorer_snake.minimax(
                             Cow::Borrowed(&explorer_game),
                             &explorer_players,
@@ -752,7 +728,7 @@ where
                         }
 
                         result
-                    });
+                    };
 
                     let next = match next {
                         Ok(x) => x,
