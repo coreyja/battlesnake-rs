@@ -594,13 +594,8 @@ where
         Option<(usize, MinMaxReturn<T, ScoreType>)>,
         Option<(usize, MinMaxReturn<T, ()>)>,
     ) {
-        let inner_span = info_span!(
-            "deepened_minmax_inner",
-            chosen_score = tracing::field::Empty,
-            chosen_direction = tracing::field::Empty,
-            all_moves = tracing::field::Empty,
-            depth = tracing::field::Empty,
-        );
+        let current_span = tracing::Span::current();
+
         let max_duration = self.max_duration();
         let node = &self.game;
 
@@ -800,16 +795,16 @@ where
         let _ = suspend_explorer.send(());
 
         if let Some((depth, result)) = &current {
-            inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
-            inner_span.record(
+            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            current_span.record(
                 "chosen_direction",
                 &format!("{:?}", result.your_best_move(&you_id)).as_str(),
             );
-            inner_span.record(
+            current_span.record(
                 "all_moves",
                 &format!("{:?}", result.chosen_route()).as_str(),
             );
-            inner_span.record("depth", &depth);
+            current_span.record("depth", &depth);
         }
 
         (current, current_explorer)
