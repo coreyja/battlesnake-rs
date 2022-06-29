@@ -59,9 +59,17 @@ where
     /// WARNING: If the given snake_id does NOT correspond to 'you' this method may not return the correct
     /// results, as it leans into sorting specific for your snake
     ///
-    /// TODO: Fix this API. We only need the you_id to be able to find our move. Since we generate
-    /// the return values, can we lean on it always being the first one? [Is that even true today?]
+    /// TODO: Fix this API. We only need the you_id to be able to find our move.
     pub fn your_best_move(&self, you_id: &GameType::SnakeIDType) -> Option<Move> {
+        self.first_options_for_snake(you_id)
+            .and_then(|options| options.first().map(|x| x.0))
+    }
+
+    /// Return the first set of move options for the given snake_id
+    pub fn first_options_for_snake(
+        &self,
+        sid: &GameType::SnakeIDType,
+    ) -> Option<&Vec<(Move, Self)>> {
         match self {
             MinMaxReturn::Leaf { .. } => None,
             MinMaxReturn::Node {
@@ -69,13 +77,28 @@ where
                 options,
                 ..
             } => {
-                let chosen = options.first()?;
-                if moving_snake_id == you_id {
-                    Some(chosen.0)
+                if moving_snake_id == sid {
+                    Some(options)
                 } else {
-                    chosen.1.your_best_move(you_id)
+                    let chosen = options.first()?;
+                    chosen.1.first_options_for_snake(sid)
                 }
             }
+        }
+    }
+
+    /// Check if the move you want to pick is certain death or not
+    pub fn your_move_is_death(&self, you_id: &GameType::SnakeIDType, potential_move: Move) -> bool {
+        if let Some(options) = self.first_options_for_snake(you_id) {
+            matches!(
+                options
+                    .iter()
+                    .find(|(move_, _)| *move_ == potential_move)
+                    .map(|(_, r)| r.score()),
+                Some(WrappedScore::Lose(_)) | None,
+            )
+        } else {
+            false
         }
     }
 

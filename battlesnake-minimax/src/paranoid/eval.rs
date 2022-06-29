@@ -16,7 +16,7 @@ use battlesnake_game_types::{
 };
 use derivative::Derivative;
 use itertools::Itertools;
-use tracing::{info, info_span};
+use tracing::{info, info_span, warn};
 
 use crate::Instruments;
 
@@ -233,17 +233,63 @@ where
 
         let copy = self.clone();
 
-        let best_option = info_span!(
-          "deepened_minmax",
+        let (scored, explored) = info_span!(
+          "deepened_minmax_with_exploration",
           snake_name = self.name,
           game_id = %&self.game_info.id,
           turn = self.turn,
           ruleset_name = %self.game_info.ruleset.name,
           ruleset_version = %self.game_info.ruleset.version,
         )
-        .in_scope(|| copy.deepened_minimax_until_timelimit(sorted_ids));
+        .in_scope(|| copy.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids));
 
-        best_option.your_best_move(my_id).unwrap()
+        match (scored, explored) {
+            (Some((scored_depth, scored_return)), Some((explored_depth, explored_return))) => {
+                info!(scored_depth, explored_depth, "finished make_move",);
+
+                let scored_options = scored_return.first_options_for_snake(my_id).unwrap();
+
+                // True in this map means the move is safe
+                let move_safety_map =
+                    Move::all().map(|m| !explored_return.your_move_is_death(my_id, m));
+
+                if move_safety_map.iter().all(|safe| !safe) {
+                    warn!("No safe moves found, choosing the best move anyways");
+
+                    return scored_options.first().unwrap().0;
+                }
+
+                for (m, _) in scored_options {
+                    if move_safety_map[m.as_index()] {
+                        return *m;
+                    }
+                }
+
+                warn!("There are safe moves, but none of the scores moves matched any safe moves. This is weird and is probably a bug. We are going right");
+                Move::Right
+            }
+            (None, Some((explored_depth, explored_return))) => {
+                info!(scored_depth = 0, explored_depth, "finished make_move",);
+
+                let explored_options = explored_return.first_options_for_snake(my_id).unwrap();
+                explored_options.first().unwrap().0
+            }
+            (Some((scored_depth, scored_return)), None) => {
+                info!(scored_depth, explored_depth = 0, "finished make_move",);
+
+                let scored_options = scored_return.first_options_for_snake(my_id).unwrap();
+                scored_options.first().unwrap().0
+            }
+            (None, None) => {
+                warn!(
+                    scored_depth = 0,
+                    explored_depth = 0,
+                    "We couldn't get a single depth for either the scoring or exploring thread",
+                );
+
+                Move::Right
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -372,7 +418,7 @@ where
             } else {
                 beta = std::cmp::min(beta, value);
             }
-            if beta < alpha {
+            if beta <= alpha {
                 break;
             }
         }
@@ -551,7 +597,10 @@ where
     pub fn deepened_minimax_until_timelimit_with_exploration_thread(
         self,
         players: Vec<T::SnakeIDType>,
-    ) -> MinMaxReturn<T, ScoreType> {
+    ) -> (
+        Option<(usize, MinMaxReturn<T, ScoreType>)>,
+        Option<(usize, MinMaxReturn<T, ()>)>,
+    ) {
         let inner_span = info_span!(
             "deepened_minmax_inner",
             chosen_score = tracing::field::Empty,
@@ -564,7 +613,11 @@ where
 
         let started_at = Instant::now();
         let you_id = node.you_id().clone();
-        let threads_you_id = you_id.clone();
+
+        let explorer_game = self.game.clone();
+        let explorer_game_info = self.game_info.clone();
+        let explorer_players = players.clone();
+        let turn = self.turn;
 
         // Setup and spawn the scoring thread
         // This one uses the 'real' scoring function
@@ -574,6 +627,7 @@ where
             let (suspend_scorer, scorer_halt_reciever) = mpsc::channel();
 
             let scorer_cloned_inner = inner_span.clone();
+            let threads_you_id = you_id.clone();
             thread::spawn(move || {
                 let you_id = threads_you_id;
                 let mut current_depth = players.len();
@@ -582,7 +636,7 @@ where
                 loop {
                     let next = info_span!(
                         parent: &scorer_cloned_inner,
-                        "single_depth",
+                        "scored_single_depth",
                         depth = current_depth,
                         score = tracing::field::Empty,
                         direction = tracing::field::Empty
@@ -646,7 +700,96 @@ where
             (from_scored_thread, suspend_scorer)
         };
 
+        // Setup and spawn the explorer thread
+        // This uses an empty scoring function to try and find and avoid traps
+        let (from_explorer_thread, suspend_explorer) = {
+            let (to_manager_thread, from_explorer_thread) = mpsc::channel();
+            let (suspend_explorer, explorer_halt_reciever) = mpsc::channel();
+
+            let explorer_snake = MinimaxSnake::new(
+                explorer_game.clone(),
+                explorer_game_info,
+                turn,
+                &|_| {},
+                "explorer",
+            );
+
+            let scorer_cloned_inner = inner_span.clone();
+            thread::spawn(move || {
+                let mut current_depth = explorer_players.len();
+                let mut current_return = None;
+                let explorer_game = explorer_game;
+                let you_id = explorer_game.you_id();
+
+                loop {
+                    let next = info_span!(
+                        parent: &scorer_cloned_inner,
+                        "explored_single_depth",
+                        depth = current_depth,
+                        score = tracing::field::Empty,
+                        direction = tracing::field::Empty
+                    )
+                    .in_scope(|| {
+                        let result = explorer_snake.minimax(
+                            Cow::Borrowed(&explorer_game),
+                            &explorer_players,
+                            0,
+                            WrappedScore::<()>::worst_possible_score(),
+                            WrappedScore::<()>::best_possible_score(),
+                            current_depth,
+                            current_return,
+                            vec![],
+                            Some(&explorer_halt_reciever),
+                        );
+
+                        if let Ok(ref result) = result {
+                            let current_span = tracing::Span::current();
+                            current_span.record("score", &format!("{:?}", result.score()).as_str());
+                            current_span.record(
+                                "direction",
+                                &format!("{:?}", result.your_best_move(you_id)).as_str(),
+                            );
+                        }
+
+                        result
+                    });
+
+                    let next = match next {
+                        Ok(x) => x,
+                        Err(AbortedEarly) => break,
+                    };
+
+                    let current_score = next.score();
+                    let terminal_depth = current_score.terminal_depth();
+
+                    let action = match terminal_depth {
+                        Some(terminal_depth) => {
+                            if current_depth >= terminal_depth.try_into().unwrap() {
+                                FromWorkerAction::Stop
+                            } else {
+                                FromWorkerAction::KeepGoing
+                            }
+                        }
+                        None => FromWorkerAction::KeepGoing,
+                    };
+
+                    let send_result = to_manager_thread.send((action, current_depth, next.clone()));
+
+                    if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
+                        return;
+                    }
+
+                    current_return = Some(next);
+
+                    current_depth += explorer_players.len();
+                }
+            });
+
+            (from_explorer_thread, suspend_explorer)
+        };
+
         let mut current = None;
+        let mut current_explorer = None;
 
         while started_at.elapsed() < max_duration {
             if let Ok((action, depth, result)) = from_scored_thread.try_recv() {
@@ -661,12 +804,23 @@ where
                     }
                 }
             }
+
+            if let Ok((action, depth, result)) = from_explorer_thread.try_recv() {
+                // println!("{}", self.game.evaluate_moves(&result.all_moves()));
+                current_explorer = Some((depth, result));
+
+                if let FromWorkerAction::Stop = action {
+                    info!(depth, "This game is over, no need to keep going");
+                    break;
+                }
+            }
         }
 
-        // We send a signal to the worker thread to stop
+        // We send a signal to the worker threads to stop
         // We can't kill the thread so we use this to help the
         // worker know when to stop
         let _ = suspend_scorer.send(());
+        let _ = suspend_explorer.send(());
 
         if let Some((depth, result)) = &current {
             inner_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
@@ -681,9 +835,7 @@ where
             inner_span.record("depth", &depth);
         }
 
-        current
-            .map(|(_depth, result)| result)
-            .expect("We weren't able to do even a single layer of minmax")
+        (current, current_explorer)
     }
 
     /// This runs the minimax algorithm to the specified number of turns, returning an struct that
