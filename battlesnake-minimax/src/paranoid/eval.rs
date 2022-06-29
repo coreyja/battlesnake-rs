@@ -586,6 +586,7 @@ where
     /// thread for the scored minimax, but we also start one with an empty scoring function to
     /// serve as an exploration thread. Ideally this thread will be able to get to a deeper depth
     /// than the scoring thread
+    #[allow(clippy::type_complexity)]
     pub fn deepened_minimax_until_timelimit_with_exploration_thread(
         self,
         players: Vec<T::SnakeIDType>,
