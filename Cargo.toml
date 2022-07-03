@@ -6,4 +6,5 @@ members = [
     "web-lambda",
     "web-rocket",
     "web-axum",
+    "sherlock",
 ]
