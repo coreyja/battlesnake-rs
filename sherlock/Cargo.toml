@@ -12,4 +12,5 @@ ureq = { version = "2.4.0", features = ["json"] }
 # battlesnake-game-types = "0.11.1"
 # battlesnake-game-types = { git = "https://github.com/penelopezone/battlesnake-game-types.git", branch = "main" }
 battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "1ec9b3d" }
+clap = { version = "3.2.8", features = ["derive"] }
 # battlesnake-game-types = { path = "../../battlesnake-game-types" }

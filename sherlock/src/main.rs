@@ -136,9 +136,26 @@ fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game, &'
     })
 }
 
+use clap::Parser;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Game ID to debug
+    #[clap(short, long, value_parser)]
+    game_id: String,
+
+    /// Number of times to greet
+    #[clap(short, long, value_parser)]
+    you_name: String,
+}
+
 fn main() -> Result<(), ureq::Error> {
+    let args = Args::parse();
+
     let body: Value =
-        ureq::get("https://engine.battlesnake.com/games/bee9e1d4-9a95-4516-be42-61fcc7482430")
+        ureq::get(format!("https://engine.battlesnake.com/games/{}", args.game_id).as_str())
             .set("Example-Header", "header value")
             .call()?
             .into_json()?;
@@ -147,7 +164,7 @@ fn main() -> Result<(), ureq::Error> {
 
     println!("Ending Turn {}", &last_frame["Turn"]);
 
-    dbg!(frame_to_game(last_frame, &body["Game"], "Ziggy Snakedust").unwrap());
+    dbg!(frame_to_game(last_frame, &body["Game"], &args.you_name).unwrap());
 
     Ok(())
 }
