@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use serde_json::Value;
 
@@ -6,7 +8,7 @@ use battlesnake_game_types::{
         dimensions::{ArcadeMaze, Custom, Dimensions, Square},
         CellIndex, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
     },
-    types::build_snake_id_map,
+    types::{build_snake_id_map, Move, SnakeId},
     wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
 };
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
@@ -212,10 +214,8 @@ fn main() -> Result<(), ureq::Error> {
     println!("Ending Turn {}", &last_frame["Turn"]);
 
     loop {
-        // dbg!(current_turn);
-
         let current_frame = get_frame_for_turn(&args.game_id, current_turn)?;
-        let mut wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name).unwrap();
+        let wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name).unwrap();
 
         if !wire_game.is_wrapped() {
             unimplemented!("Only implementing for wrapped games, RIGHT NOW");
@@ -233,30 +233,67 @@ fn main() -> Result<(), ureq::Error> {
 
         let score = *result.score();
 
-        if score.terminal_depth().is_some() {
+        if matches!(score, WrappedScore::Lose(_)) {
             println!("At turn {}, there were no safe options", current_turn);
-        } else {
+        } else if matches!(score, WrappedScore::Win(_)) {
+            println!("At turn {}, you could have won!", current_turn);
             if let MinMaxReturn::Node { options, .. } = &result {
-                let safe_moves = options
+                let winning_moves = options
                     .iter()
-                    .filter(|(_, r)| matches!(r.score(), WrappedScore::Scored(_)))
+                    .filter(|(_, r)| matches!(r.score(), WrappedScore::Win(_)))
                     .map(|(m, _)| *m)
                     .collect_vec();
 
                 println!(
-                    "At turn {}, the safe options were {:?}",
-                    current_turn, safe_moves
+                    "At turn {}, the safe winning moves were {:?}",
+                    current_turn, winning_moves
                 );
-            } else {
-                panic!("We shouldn't ever have a leaf here")
+                let all_snake_path = result.chosen_route();
+                let sids = all_snake_path
+                    .iter()
+                    .map(|(sid, _)| sid)
+                    .unique()
+                    .collect_vec();
+                let mut paths_per_snake: HashMap<SnakeId, Vec<Move>> = HashMap::new();
+                for &sid in &sids {
+                    let path = all_snake_path
+                        .iter()
+                        .filter(|(s, _)| s == sid)
+                        .map(|(_, p)| p)
+                        .cloned()
+                        .collect_vec();
+                    paths_per_snake.insert(*sid, path);
+                }
+                println!(
+                    "At turn {current_turn}, a winning path takes {} turn lookahead:",
+                    all_snake_path.len() / sids.len()
+                );
+                for (sid, path) in paths_per_snake {
+                    println!("{sid:?}: {}", path.iter().join(", "));
+                }
             }
             break;
+        } else if let MinMaxReturn::Node { options, .. } = &result {
+            let safe_moves = options
+                .iter()
+                .filter(|(_, r)| matches!(r.score(), WrappedScore::Scored(_)))
+                .map(|(m, _)| *m)
+                .collect_vec();
+
+            println!(
+                "At turn {}, the safe options were {:?}",
+                current_turn, safe_moves
+            );
+            if safe_moves.len() != 1 {
+                println!("Turn {} is the decision point", current_turn);
+                break;
+            }
+        } else {
+            panic!("We shouldn't ever have a leaf here")
         }
 
         current_turn -= 1;
     }
-
-    dbg!(current_turn);
 
     Ok(())
 }
