@@ -1,9 +1,15 @@
-use std::error::Error;
-
-use battlesnake_game_types::wire_representation::{
-    BattleSnake, Board, Game, NestedGame, Position, Ruleset,
-};
+use itertools::Itertools;
 use serde_json::Value;
+
+use battlesnake_game_types::{
+    compact_representation::{
+        dimensions::{ArcadeMaze, Custom, Dimensions, Square},
+        CellIndex, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
+    },
+    types::build_snake_id_map,
+    wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
+};
+use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 
 fn frame_to_nested_game(game: &Value) -> Result<NestedGame, &'static str> {
     let id = game["ID"].as_str().ok_or("Missing Game ID")?.to_string();
@@ -19,10 +25,31 @@ fn frame_to_nested_game(game: &Value) -> Result<NestedGame, &'static str> {
         .to_string();
     let ruleset_version = "No version in frames".to_string();
 
+    let settings = Settings {
+        food_spawn_chance: game["Ruleset"]["foodSpawnChance"]
+            .as_str()
+            .ok_or("Missing Food Spawn Chance")?
+            .parse()
+            .map_err(|_| "Too big for an i32")?,
+        minimum_food: game["Ruleset"]["minimumFood"]
+            .as_str()
+            .ok_or("Missing minimumFood")?
+            .parse()
+            .map_err(|_| "Too big for an i32")?,
+        hazard_damage_per_turn: game["Ruleset"]["damagePerTurn"]
+            .as_str()
+            .ok_or("Missing damagePerTurn")?
+            .parse()
+            .map_err(|_| "Too big for an i32")?,
+        hazard_map: None,
+        hazard_map_author: None,
+        royale: None,
+    };
+
     let ruleset = Ruleset {
         name: ruleset_name,
         version: ruleset_version,
-        settings: None,
+        settings: Some(settings),
     };
 
     Ok(NestedGame {
@@ -39,14 +66,14 @@ fn value_to_position_vec(value: &Value) -> Result<Vec<Position>, &'static str> {
         .as_array()
         .ok_or("Not an array")?
         .iter()
-        .map(|pos_arr| {
-            let x = pos_arr["X"]
+        .map(|pos| {
+            let x = pos["X"]
                 .as_i64()
                 .ok_or("X is not an integer")?
                 .try_into()
                 .map_err(|_| "Too big for an i32")?;
 
-            let y = pos_arr["Y"]
+            let y = pos["Y"]
                 .as_i64()
                 .ok_or("Y is not an integer")?
                 .try_into()
@@ -98,6 +125,7 @@ fn frame_to_board(frame: &Value, game: &Value) -> Result<Board, &'static str> {
         .as_array()
         .ok_or("Missing Snakes")?
         .iter()
+        .filter(|snake_json| snake_json["Death"].is_null())
         .map(value_to_snake)
         .collect::<Result<Vec<BattleSnake>, &'static str>>()?;
 
@@ -149,6 +177,24 @@ struct Args {
     /// Number of times to greet
     #[clap(short, long, value_parser)]
     you_name: String,
+
+    /// Number of turns past the last frame to check
+    #[clap(short, long, value_parser, default_value_t = 50)]
+    turns_after_lose: i32,
+}
+
+fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
+    let body: Value = ureq::get(
+        format!(
+            "https://engine.battlesnake.com/games/{}/frames?offset={}&limit=1",
+            game_id, turn
+        )
+        .as_str(),
+    )
+    .call()?
+    .into_json()?;
+
+    Ok(body["Frames"][0].clone())
 }
 
 fn main() -> Result<(), ureq::Error> {
@@ -156,15 +202,61 @@ fn main() -> Result<(), ureq::Error> {
 
     let body: Value =
         ureq::get(format!("https://engine.battlesnake.com/games/{}", args.game_id).as_str())
-            .set("Example-Header", "header value")
             .call()?
             .into_json()?;
 
     let last_frame = &body["LastFrame"];
+    let last_turn = last_frame["Turn"].as_i64().expect("Missing Turn") as i32;
+    let mut current_turn = last_turn - 1;
 
     println!("Ending Turn {}", &last_frame["Turn"]);
 
-    dbg!(frame_to_game(last_frame, &body["Game"], &args.you_name).unwrap());
+    loop {
+        // dbg!(current_turn);
+
+        let current_frame = get_frame_for_turn(&args.game_id, current_turn)?;
+        let mut wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name).unwrap();
+
+        if !wire_game.is_wrapped() {
+            unimplemented!("Only implementing for wrapped games, RIGHT NOW");
+        }
+
+        let snake_ids = build_snake_id_map(&wire_game);
+        let game_info = wire_game.game.clone();
+        let game: WrappedCellBoard<u16, ArcadeMaze, { 19 * 21 }, 8> =
+            wire_game.as_wrapped_cell_board(&snake_ids).unwrap();
+
+        let explorer_snake = MinimaxSnake::new(game, game_info, current_turn, &|_| {}, "explorer");
+
+        let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
+        let result = explorer_snake.deepend_minimax_to_turn(max_turns);
+
+        let score = *result.score();
+
+        if score.terminal_depth().is_some() {
+            println!("At turn {}, there were no safe options", current_turn);
+        } else {
+            if let MinMaxReturn::Node { options, .. } = &result {
+                let safe_moves = options
+                    .iter()
+                    .filter(|(_, r)| matches!(r.score(), WrappedScore::Scored(_)))
+                    .map(|(m, _)| *m)
+                    .collect_vec();
+
+                println!(
+                    "At turn {}, the safe options were {:?}",
+                    current_turn, safe_moves
+                );
+            } else {
+                panic!("We shouldn't ever have a leaf here")
+            }
+            break;
+        }
+
+        current_turn -= 1;
+    }
+
+    dbg!(current_turn);
 
     Ok(())
 }

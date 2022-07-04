@@ -870,6 +870,14 @@ where
                 .unwrap(),
             );
 
+            if let Some(current_return) = &current_return {
+                if let Some(terminal_depth) = current_return.score().terminal_depth() {
+                    if current_depth >= terminal_depth.try_into().unwrap() {
+                        break;
+                    }
+                }
+            }
+
             current_depth += players.len();
         }
 
