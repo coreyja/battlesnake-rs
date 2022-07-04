@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use battlesnake_game_types::{
+use types::{
     compact_representation::{
         dimensions::Dimensions, CellNum, StandardCellBoard4Snakes11x11, WrappedCellBoard,
     },

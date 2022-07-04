@@ -6,7 +6,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use battlesnake_game_types::{
+use derivative::Derivative;
+use itertools::Itertools;
+use tracing::{info, info_span, warn};
+use types::{
     types::{
         HeadGettableGame, HealthGettableGame, Move, NeckQueryableGame, NeighborDeterminableGame,
         PositionGettableGame, SimulableGame, SimulatorInstruments, SnakeIDGettableGame,
@@ -14,9 +17,6 @@ use battlesnake_game_types::{
     },
     wire_representation::NestedGame,
 };
-use derivative::Derivative;
-use itertools::Itertools;
-use tracing::{info, info_span, warn};
 
 use crate::Instruments;
 
@@ -112,7 +112,7 @@ where
     /// ```rust
     /// use std::time::Duration;
     /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    /// use types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
     /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");
@@ -166,7 +166,7 @@ where
     /// ```rust
     /// use std::time::Duration;
     /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    /// use types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
     /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");

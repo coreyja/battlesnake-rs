@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+  "types",
     "battlesnake-rs",
     "battlesnake-minimax",
     "web-lambda",

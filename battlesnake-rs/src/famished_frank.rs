@@ -1,5 +1,5 @@
-use battlesnake_game_types::types::*;
 use rand::thread_rng;
+use types::types::*;
 
 use crate::a_prime::{APrimeNextDirection, APrimeOptions};
 

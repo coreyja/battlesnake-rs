@@ -8,14 +8,14 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
-use battlesnake_game_types::{
-    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
-};
 use decorum::N64;
 use dotavious::{Dot, Edge, GraphBuilder};
 use rand::prelude::ThreadRng;
 use tracing::info;
 use typed_arena::Arena;
+use types::{
+    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
+};
 
 use super::*;
 

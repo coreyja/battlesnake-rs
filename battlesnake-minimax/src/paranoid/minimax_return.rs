@@ -1,6 +1,6 @@
-use battlesnake_game_types::types::{Move, SnakeIDGettableGame};
 use std::fmt::Debug;
 use text_trees::StringTreeNode;
+use types::types::{Move, SnakeIDGettableGame};
 
 use super::WrappedScore;
 

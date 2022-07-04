@@ -1,7 +1,5 @@
-use battlesnake_game_types::types::{
-    RandomReasonableMovesGame, SnakeIDGettableGame, YouDeterminableGame,
-};
 use rand::thread_rng;
+use types::types::{RandomReasonableMovesGame, SnakeIDGettableGame, YouDeterminableGame};
 
 use super::*;
 

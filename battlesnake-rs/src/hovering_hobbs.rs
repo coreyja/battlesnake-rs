@@ -5,9 +5,9 @@ use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
-use battlesnake_game_types::types::*;
 use battlesnake_minimax::paranoid::{MinimaxSnake, SnakeOptions};
 use decorum::N64;
+use types::types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Score {
@@ -106,11 +106,11 @@ macro_rules! build_from_best_cell_board {
         let options = $options;
 
         if game_info.ruleset.name == "wrapped" {
-            use battlesnake_game_types::compact_representation::wrapped::*;
+            use types::compact_representation::wrapped::*;
 
             build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         } else {
-            use battlesnake_game_types::compact_representation::standard::*;
+            use types::compact_representation::standard::*;
 
             build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         }

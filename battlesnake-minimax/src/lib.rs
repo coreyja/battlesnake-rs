@@ -17,7 +17,7 @@
 //! ```rust
 //! use std::time::Duration;
 //! use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-//! use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+//! use battlesnake_minimax::types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
 //!
 //! // This fixture data matches what we expect to come from the Battlesnake Game Server
 //! let game_state_from_server = include_str!("../../battlesnake-rs/fixtures/start_of_game.json");
@@ -60,7 +60,7 @@
 //! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect());
 //! ```
 
-pub use battlesnake_game_types;
+pub use types;
 
 pub mod paranoid;
 
@@ -82,12 +82,12 @@ pub struct Instruments {}
 
 #[cfg(test)]
 mod tests {
-    use battlesnake_game_types::{
+    use itertools::Itertools;
+    use types::{
         compact_representation::{dimensions::Custom, WrappedCellBoard},
         types::{build_snake_id_map, SimulableGame, SnakeIDGettableGame, SnakeId},
         wire_representation::Game,
     };
-    use itertools::Itertools;
 
     use crate::{
         paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions, WrappedScore},

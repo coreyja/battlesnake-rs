@@ -1,7 +1,7 @@
 use std::{collections::HashSet, convert::TryInto};
 
-use battlesnake_game_types::types::*;
 use itertools::Itertools;
+use types::types::*;
 
 use crate::a_prime::{dist_between_new, APrimeCalculable, APrimeNextDirection, APrimeOptions};
 

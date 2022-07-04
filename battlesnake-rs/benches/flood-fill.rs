@@ -1,5 +1,7 @@
-use battlesnake_game_types::wire_representation::Game;
-use battlesnake_game_types::{types::*, wire_representation::Ruleset};
+use types::{
+    types::*,
+    wire_representation::{Game, Ruleset},
+};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
@@ -14,7 +16,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(
+            game, &id_map,
+        )
+        .unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
@@ -27,10 +32,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let mut game: Game = serde_json::from_str(game_json).unwrap();
-        game.game.ruleset = Ruleset { name: "wrapped".to_string(), version: "1.0".to_string(), settings: None };
+        game.game.ruleset = Ruleset {
+            name: "wrapped".to_string(),
+            version: "1.0".to_string(),
+            settings: None,
+        };
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
+            game, &id_map,
+        )
+        .unwrap();
 
         b.iter(|| {
             let game = black_box(&game);
@@ -43,10 +55,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let game_json = include_str!("../fixtures/a-prime-food-maze.json");
         let mut game: Game = serde_json::from_str(game_json).unwrap();
-        game.game.ruleset = Ruleset { name: "wrapped".to_string(), version: "1.0".to_string(), settings: None };
+        game.game.ruleset = Ruleset {
+            name: "wrapped".to_string(),
+            version: "1.0".to_string(),
+            settings: None,
+        };
 
         let id_map = build_snake_id_map(&game);
-        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let game = types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
+            game, &id_map,
+        )
+        .unwrap();
 
         b.iter(|| {
             let game = black_box(&game);

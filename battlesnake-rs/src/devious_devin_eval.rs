@@ -2,7 +2,7 @@ use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use crate::*;
 use battlesnake_minimax::paranoid::MinimaxSnake;
 
-use battlesnake_game_types::types::*;
+use types::types::*;
 
 pub struct Factory;
 
@@ -98,7 +98,7 @@ impl Factory {
         let name = "devious-devin";
 
         if game_info.ruleset.name == "wrapped" {
-            use battlesnake_game_types::compact_representation::wrapped::*;
+            use types::compact_representation::wrapped::*;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
                 BestCellBoard::Tiny(game) => {
@@ -130,7 +130,7 @@ impl Factory {
                 }
             }
         } else {
-            use battlesnake_game_types::compact_representation::standard::*;
+            use types::compact_representation::standard::*;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
                 BestCellBoard::Tiny(game) => {

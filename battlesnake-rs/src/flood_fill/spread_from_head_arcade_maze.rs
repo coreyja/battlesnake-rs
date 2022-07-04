@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 
-use battlesnake_game_types::{
+use tinyvec::TinyVec;
+use types::{
     compact_representation::{CellIndex, CellNum},
     types::{
         HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
@@ -8,7 +9,6 @@ use battlesnake_game_types::{
         SnakeId,
     },
 };
-use tinyvec::TinyVec;
 
 pub use super::spread_from_head::*;
 
