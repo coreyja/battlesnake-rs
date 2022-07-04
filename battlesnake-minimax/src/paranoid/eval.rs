@@ -400,7 +400,6 @@ where
                 }
             }
 
-            // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
             new_pending_moves.push((snake_id.clone(), dir));
             let next_move_return = self.minimax(
@@ -415,7 +414,6 @@ where
                 worker_halt_reciever,
             )?;
             let value = *next_move_return.score();
-            // node.reverse_move(last_move);
             options.push((dir, next_move_return));
 
             if is_maximizing {
@@ -423,9 +421,9 @@ where
             } else {
                 beta = std::cmp::min(beta, value);
             }
-            if beta <= alpha {
-                break;
-            }
+            // if beta < alpha {
+            //     break;
+            // }
         }
 
         options.sort_by_cached_key(|(_, value)| *value.score());
