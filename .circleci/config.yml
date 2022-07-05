@@ -87,7 +87,7 @@ jobs:
           do:
             - run:
                 name: Build
-                command: cargo build --locked --all-targets --jobs 2
+                command: cargo build --locked --all-targets --jobs 8
 
             - run:
                 name: Run Tests
