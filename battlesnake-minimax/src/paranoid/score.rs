@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{cmp::Reverse, fmt::Debug};
 
 use types::types::{VictorDeterminableGame, YouDeterminableGame};
 
@@ -17,8 +17,10 @@ where
     /// We order this based on the score provided by the score function
     Scored(ScoreType),
     /// We won, the depth is recorded because we prefer winning sooner
-    Win(i64),
+    Win(Reverse<i64>),
 }
+
+const LOWEST_DEPTH: i64 = std::i64::MIN;
 
 impl<ScoreType> WrappedScore<ScoreType>
 where
@@ -29,7 +31,7 @@ where
     /// This is a Win with the depth set as the maximum i64 such that no WrappedScore can be higher
     /// than this given the Ord
     pub fn best_possible_score() -> Self {
-        WrappedScore::Win(std::i64::MAX)
+        WrappedScore::Win(Reverse(LOWEST_DEPTH))
     }
 
     /// Returns the worst possible score
@@ -37,13 +39,13 @@ where
     /// This is a Lost with the depth set as the minimum i64 such that no WrappedScore can be higher
     /// than this given the Ord
     pub fn worst_possible_score() -> Self {
-        WrappedScore::Lose(std::i64::MIN)
+        WrappedScore::Lose(LOWEST_DEPTH)
     }
 
     /// Returns the depth from this score IFF the score is a terminal node. Otherwise returns None
     pub fn terminal_depth(&self) -> Option<i64> {
         match &self {
-            Self::Win(d) => Some(-d),
+            Self::Win(Reverse(d)) => Some(*d),
             Self::Tie(d) | Self::Lose(d) => Some(*d),
             _ => None,
         }
@@ -86,7 +88,7 @@ where
             let score = match node.get_winner() {
                 Some(s) => {
                     if s == *you_id {
-                        WrappedScore::Win(-(depth as i64))
+                        WrappedScore::Win(Reverse(depth as i64))
                     } else {
                         WrappedScore::Lose(depth as i64)
                     }

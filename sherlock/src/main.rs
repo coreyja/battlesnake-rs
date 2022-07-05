@@ -3,15 +3,12 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use serde_json::Value;
 
-use battlesnake_game_types::{
-    compact_representation::{
-        dimensions::{ArcadeMaze, Custom, Dimensions, Square},
-        CellIndex, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
-    },
+use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
+use types::{
+    compact_representation::{dimensions::ArcadeMaze, WrappedCellBoard},
     types::{build_snake_id_map, Move, SnakeId},
     wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
 };
-use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 
 fn frame_to_nested_game(game: &Value) -> Result<NestedGame, &'static str> {
     let id = game["ID"].as_str().ok_or("Missing Game ID")?.to_string();
@@ -214,6 +211,10 @@ fn main() -> Result<(), ureq::Error> {
     println!("Ending Turn {}", &last_frame["Turn"]);
 
     loop {
+        // if current_turn == 855 || current_turn == 854 {
+        //     current_turn -= 1;
+        //     continue;
+        // }
         let current_frame = get_frame_for_turn(&args.game_id, current_turn)?;
         let wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name).unwrap();
 
@@ -229,7 +230,7 @@ fn main() -> Result<(), ureq::Error> {
         let explorer_snake = MinimaxSnake::new(game, game_info, current_turn, &|_| {}, "explorer");
 
         let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
-        let result = explorer_snake.deepend_minimax_to_turn(max_turns);
+        let result = explorer_snake.single_minimax(max_turns);
 
         let score = *result.score();
 
@@ -245,7 +246,7 @@ fn main() -> Result<(), ureq::Error> {
                     .collect_vec();
 
                 println!(
-                    "At turn {}, the safe winning moves were {:?}",
+                    "At turn {}, the winning moves were {:?}",
                     current_turn, winning_moves
                 );
                 let all_snake_path = result.chosen_route();

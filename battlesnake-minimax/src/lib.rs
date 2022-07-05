@@ -85,7 +85,7 @@ mod tests {
     use itertools::Itertools;
     use types::{
         compact_representation::{dimensions::Custom, WrappedCellBoard},
-        types::{build_snake_id_map, SimulableGame, SnakeIDGettableGame, SnakeId},
+        types::{build_snake_id_map, Move, SimulableGame, SnakeIDGettableGame},
         wire_representation::Game,
     };
 
@@ -95,8 +95,8 @@ mod tests {
     };
 
     #[test]
-    fn it_finds_that_this_move_is_a_lose() {
-        let fixture = include_str!("../../fixtures/arcade_maze_should_lose.json");
+    fn it_finds_that_this_move_is_a_win() {
+        let fixture = include_str!("../../fixtures/arcade_maze_should_win.json");
         let wire_game: Game = serde_json::from_str(fixture).unwrap();
         let snake_ids = build_snake_id_map(&wire_game);
         let game_info = wire_game.game.clone();
@@ -107,79 +107,30 @@ mod tests {
 
         let explorer = MinimaxSnake::new_with_options(
             game,
-            game_info,
+            game_info.clone(),
             0,
             &|_| (),
             "explorer",
             SnakeOptions::default(),
         );
 
-        let result = explorer.deepend_minimax_to_turn(100);
+        let result = explorer.deepend_minimax_to_turn(50);
 
         let mut next_moves = game.simulate(&Instruments {}, game.get_snake_ids());
-        let _chosen_next = next_moves
-            .find(|(_action, _)| {
-                // &Action {
-                //     moves: [Some(Move::Up), Some(Move::Left), None, None],
-                // } == action.moves
-                // action[0] == Move::Up
-                false
+        let chosen_next = next_moves
+            .find(|(action, _)| {
+                (*action).into_inner() == [Some(Move::Down), Some(Move::Left), None, None]
             })
             .unwrap();
 
-        let mut current = &result;
-        while let MinMaxReturn::Node {
-            options,
-            moving_snake_id,
-            ..
-        } = current
-        {
-            let chosen_move = options.first().unwrap().0;
-            let all_option_scores = options.iter().map(|(_, r)| r.score()).collect_vec();
-            println!(
-                "Moving Snake {moving_snake_id:?} move: {chosen_move} score: {:?} options: {all_option_scores:?}",
-                current.score()
-            );
-            if *moving_snake_id != SnakeId(0) {
-                assert!(
-                    all_option_scores
-                        .iter()
-                        .all(|s| matches!(s, WrappedScore::Win(_))),
-                    "It's not our move but we might not have picked the worst score for us"
-                );
-            }
-            current = &options.first().unwrap().1;
-        }
+        let next_explorer = MinimaxSnake::new(chosen_next.1, game_info, 0, &|_| (), "explorer");
+        let next_result = next_explorer.deepend_minimax_to_turn(100);
+        let next_score = next_result.score();
 
         assert!(
-            matches!(result.score(), WrappedScore::Lose(_)),
-            "This game should be a lose but was {:?}",
-            result.score()
+            matches!(next_score, WrappedScore::Win(_)),
+            "The move after the move we are looking at should be a lose, its score is {next_score:?}"
         );
-    }
-
-    #[test]
-    #[ignore]
-    fn it_finds_that_this_move_is_a_lose_next() {
-        let fixture = include_str!("../../fixtures/arcade_maze_should_lose_next_turn.json");
-        let wire_game: Game = serde_json::from_str(fixture).unwrap();
-        let snake_ids = build_snake_id_map(&wire_game);
-        let game_info = wire_game.game.clone();
-
-        let game: WrappedCellBoard<u16, Custom, { 19 * 21 }, 4> = wire_game
-            .as_wrapped_cell_board(&snake_ids)
-            .expect("Fixture data should be a valid game");
-
-        let explorer = MinimaxSnake::new_with_options(
-            game,
-            game_info,
-            0,
-            &|_| (),
-            "explorer",
-            SnakeOptions::default(),
-        );
-
-        let result = explorer.deepend_minimax_to_turn(100);
 
         let mut current = &result;
         while let MinMaxReturn::Node {
@@ -189,27 +140,18 @@ mod tests {
         } = current
         {
             let chosen_move = options.first().unwrap().0;
-            let all_option_scores = options.iter().map(|(_, r)| r.score()).collect_vec();
+            let all_option_scores = options.iter().map(|(m, r)| (m, r.score())).collect_vec();
             println!(
                 "Moving Snake {moving_snake_id:?} move: {chosen_move} score: {:?} options: {all_option_scores:?}",
                 current.score()
             );
-            if *moving_snake_id != SnakeId(0) {
-                let all_options_are_win = all_option_scores
-                    .iter()
-                    .all(|s| matches!(s, WrappedScore::Win(_)));
-                if all_options_are_win {
-                    println!("All options are win");
-                }
-            }
             current = &options.first().unwrap().1;
         }
 
         assert!(
-            matches!(result.score(), WrappedScore::Lose(_)),
+            matches!(result.score(), WrappedScore::Win(_)),
             "This game should be a lose but was {:?}",
             result.score()
         );
-        assert_eq!(1, 2)
     }
 }

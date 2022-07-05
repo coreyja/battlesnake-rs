@@ -417,13 +417,18 @@ where
             options.push((dir, next_move_return));
 
             if is_maximizing {
+                if value >= beta {
+                    break;
+                }
+
                 alpha = std::cmp::max(alpha, value);
             } else {
+                if value <= alpha {
+                    break;
+                }
+
                 beta = std::cmp::min(beta, value);
             }
-            // if beta < alpha {
-            //     break;
-            // }
         }
 
         options.sort_by_cached_key(|(_, value)| *value.score());

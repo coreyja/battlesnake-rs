@@ -1,4 +1,5 @@
-use std::fmt::Debug;
+use dotavious::{attributes::NodeAttributes, EdgeBuilder, GraphBuilder, NodeBuilder};
+use std::{fmt::Debug, sync::atomic::AtomicUsize};
 use text_trees::StringTreeNode;
 use types::types::{Move, SnakeIDGettableGame};
 
@@ -120,6 +121,84 @@ where
                 } else {
                     vec![]
                 }
+            }
+        }
+    }
+
+    /// To dot graph to view elsewhere
+    pub fn to_dot_graph(&self, you_id: &GameType::SnakeIDType) -> dotavious::Dot {
+        let mut builder = GraphBuilder::new_named_directed("example");
+        self.to_dot_graph_recursive(&mut builder, you_id);
+        builder.add_attribute(
+            dotavious::attributes::AttributeType::Graph,
+            "overlap",
+            "scale".into(),
+        );
+        builder.add_attribute(
+            dotavious::attributes::AttributeType::Graph,
+            "splines",
+            "ortho".into(),
+        );
+        let graph = builder.build().unwrap();
+
+        dotavious::Dot { graph }
+    }
+
+    fn to_dot_graph_recursive(
+        &self,
+        builder: &mut GraphBuilder,
+        you_id: &GameType::SnakeIDType,
+    ) -> String {
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+
+        match self {
+            MinMaxReturn::Leaf { score, .. } => {
+                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let me_id = format!("{id}");
+                let me_label = format!("{:?}", score);
+                let node = NodeBuilder::new(&*me_id)
+                    .add_attribute("label", me_label.into())
+                    .add_attribute("style", "filled".into())
+                    .add_attribute("fillcolor", "lightgreen".into())
+                    .build()
+                    .unwrap();
+                builder.add_node(node);
+
+                me_id
+            }
+            MinMaxReturn::Node {
+                moving_snake_id,
+                options,
+                score,
+                ..
+            } => {
+                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let me_id = format!("{id}");
+                let me_label = format!("{:?}", score);
+                let color = if moving_snake_id == you_id {
+                    "lightblue"
+                } else {
+                    "lightcoral"
+                };
+                let node = NodeBuilder::new(&*me_id)
+                    .add_attribute("label", me_label.into())
+                    .add_attribute("style", "filled".into())
+                    .add_attribute("fillcolor", color.into())
+                    .build()
+                    .unwrap();
+                builder.add_node(node);
+                for (m, result) in options {
+                    let next_node_id = result.to_dot_graph_recursive(builder, you_id);
+
+                    let edge = EdgeBuilder::new(&*me_id, &*next_node_id)
+                        .add_attribute("xlabel", format!("{moving_snake_id:?} {m}").into())
+                        .add_attribute("color", color.into())
+                        .build()
+                        .unwrap();
+                    builder.add_edge(edge);
+                }
+
+                me_id
             }
         }
     }
