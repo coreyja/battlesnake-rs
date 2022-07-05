@@ -11,7 +11,7 @@
 //! `paranoid` variant, which can be found in the [paranoid] module
 //! For more information check out my [Minimax Blog Post](https://coreyja.com/BattlesnakeMinimax/Minimax%20in%20Battlesnake/)
 //!
-//! We lean on the [battlesnake_game_types] crate for the game logic, and in particular for the
+//! We lean on the [types] crate for the game logic, and in particular for the
 //! simulate logic, which is used to generate the next board states.
 //!
 //! ```rust
