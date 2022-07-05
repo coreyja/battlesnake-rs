@@ -1,6 +1,6 @@
 use battlesnake_rs::{MinimaxSnake, StandardCellBoard4Snakes11x11};
 
-use battlesnake_game_types::{
+use types::{
     compact_representation::WrappedCellBoard4Snakes11x11,
     types::build_snake_id_map,
     wire_representation::{Game, Ruleset},

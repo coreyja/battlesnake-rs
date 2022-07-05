@@ -8,9 +8,9 @@ use std::fmt::Debug;
 
 use anyhow::Result;
 
-pub use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
-pub use battlesnake_game_types::types::*;
-pub use battlesnake_game_types::wire_representation::Game;
+pub use types::{
+    compact_representation::StandardCellBoard4Snakes11x11, types::*, wire_representation::Game,
+};
 
 pub mod amphibious_arthur;
 pub mod bombastic_bob;
@@ -50,7 +50,7 @@ impl Default for AboutMe {
     }
 }
 
-use battlesnake_game_types::{
+use types::{
     types::{PositionGettableGame, SnakeIDGettableGame, YouDeterminableGame},
     wire_representation::Position,
 };

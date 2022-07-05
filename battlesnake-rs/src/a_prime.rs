@@ -1,9 +1,11 @@
-use battlesnake_game_types::compact_representation::dimensions::Dimensions;
-use battlesnake_game_types::compact_representation::{
-    CellNum, StandardCellBoard, StandardCellBoard4Snakes11x11, WrappedCellBoard,
+use types::{
+    compact_representation::{
+        dimensions::Dimensions, CellNum, StandardCellBoard, StandardCellBoard4Snakes11x11,
+        WrappedCellBoard,
+    },
+    types::*,
+    wire_representation::{Game, Position},
 };
-use battlesnake_game_types::types::*;
-use battlesnake_game_types::wire_representation::{Game, Position};
 
 use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
@@ -200,7 +202,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
 }
 
 impl<
-        T: battlesnake_game_types::compact_representation::CellNum,
+        T: types::compact_representation::CellNum,
         D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
@@ -301,7 +303,7 @@ pub trait HueristicAble: PositionGettableGame {
 }
 
 impl<
-        T: battlesnake_game_types::compact_representation::CellNum,
+        T: types::compact_representation::CellNum,
         D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
@@ -331,7 +333,7 @@ impl<
 }
 
 impl<
-        T: battlesnake_game_types::compact_representation::CellNum,
+        T: types::compact_representation::CellNum,
         D: Dimensions,
         const BOARD_SIZE: usize,
         const MAX_SNAKES: usize,
@@ -442,7 +444,7 @@ pub trait ClosestFoodCalculable: PositionGettableGame {
 impl<T: APrimeCalculable + FoodGettableGame> ClosestFoodCalculable for T {
     default fn dist_to_closest_food(
         &self,
-        start: &<Self as battlesnake_game_types::types::PositionGettableGame>::NativePositionType,
+        start: &<Self as types::types::PositionGettableGame>::NativePositionType,
         options: std::option::Option<APrimeOptions>,
     ) -> std::option::Option<i32> {
         self.shortest_distance(start, &self.get_all_food_as_native_positions(), options)
@@ -515,7 +517,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use battlesnake_game_types::compact_representation::{
+    use types::compact_representation::{
         CellIndex, StandardCellBoard4Snakes11x11 as CellBoard4Snakes11x11,
     };
 
@@ -560,7 +562,7 @@ mod tests {
     // fn test_basic_a_prime() {
     //     let json = b"{\"game\":{\"id\":\"\",\"ruleset\":{\"name\":\"royale\",\"version\":\"v1.0.17\"},\"timeout\":500},\"turn\":60,\"board\":{\"height\":11,\"width\":11,\"snakes\":[{\"id\":\"\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}],\"food\":[],\"hazards\":[]},\"you\":{\"id\":\"\",\"name\":\"\",\"latency\":\"100\",\"health\":86,\"body\":[{\"x\":10,\"y\":4}],\"head\":{\"x\":10,\"y\":4},\"length\":1,\"shout\":\"\"}}";
     //     let game: Game = serde_json::from_slice(json).unwrap();
-    //     let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+    //     let id_map = types::types::build_snake_id_map(&game);
 
     //     assert_eq!(
     //         game.shortest_distance(
@@ -576,7 +578,7 @@ mod tests {
     //     );
 
     //     let compact: CellBoard4Snakes11x11 =
-    //         battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+    //         types::compact_representation::CellBoard::convert_from_game(
     //             game, &id_map,
     //         )
     //         .unwrap();
@@ -599,7 +601,7 @@ mod tests {
     // fn test_real_example() {
     //     let board_json = r#"{"game":{"id":"","ruleset":{"name":"royale","version":"v1.0.17"},"timeout":500},"turn":60,"board": {"height":11,"width":11,"food":[],"hazards":[],"snakes":[{"id":"","name":"","health":93,"body":[{"x":7,"y":10},{"x":6,"y":10},{"x":5,"y":10},{"x":4,"y":10}],"latency":84,"head":{"x":7,"y":10},"length":4,"shout":"","squad":""},{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}]},"you":{"id":"","name":"","health":99,"body":[{"x":5,"y":4},{"x":5,"y":5},{"x":4,"y":5},{"x":3,"y":5},{"x":2,"y":5}],"latency":327,"head":{"x":5,"y":4},"length":4,"shout":"","squad":""}}"#;
     //     let game: Game = serde_json::from_str(board_json).unwrap();
-    //     let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+    //     let id_map = types::types::build_snake_id_map(&game);
 
     //     assert_eq!(
     //         game.shortest_distance(&Position { x: 5, y: 4 }, &[Position { x: 7, y: 10 },], None),
@@ -607,7 +609,7 @@ mod tests {
     //     );
 
     //     let compact: CellBoard4Snakes11x11 =
-    //         battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+    //         types::compact_representation::CellBoard::convert_from_game(
     //             game, &id_map,
     //         )
     //         .unwrap();
@@ -638,7 +640,7 @@ mod tests {
     //     );
 
     //     let compact: CellBoard4Snakes11x11 =
-    //         battlesnake_game_types::compact_representation::CellBoard::convert_from_game(
+    //         types::compact_representation::CellBoard::convert_from_game(
     //             game, &id_map,
     //         )
     //         .unwrap();

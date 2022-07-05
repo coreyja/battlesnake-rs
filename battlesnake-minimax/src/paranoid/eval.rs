@@ -6,7 +6,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use battlesnake_game_types::{
+use derivative::Derivative;
+use itertools::Itertools;
+use tracing::{info, info_span, warn};
+use types::{
     types::{
         HeadGettableGame, HealthGettableGame, Move, NeckQueryableGame, NeighborDeterminableGame,
         PositionGettableGame, SimulableGame, SimulatorInstruments, SnakeIDGettableGame,
@@ -14,9 +17,6 @@ use battlesnake_game_types::{
     },
     wire_representation::NestedGame,
 };
-use derivative::Derivative;
-use itertools::Itertools;
-use tracing::{info, info_span, warn};
 
 use crate::Instruments;
 
@@ -112,7 +112,7 @@ where
     /// ```rust
     /// use std::time::Duration;
     /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    /// use types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
     /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");
@@ -166,7 +166,7 @@ where
     /// ```rust
     /// use std::time::Duration;
     /// use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-    /// use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+    /// use types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
     ///
     /// // This fixture data matches what we expect to come from the Battlesnake Game Server
     /// let game_state_from_server = include_str!("../../../battlesnake-rs/fixtures/start_of_game.json");
@@ -400,7 +400,6 @@ where
                 }
             }
 
-            // let last_move = node.move_to(&coor, &snake_id);
             let mut new_pending_moves = pending_moves.clone();
             new_pending_moves.push((snake_id.clone(), dir));
             let next_move_return = self.minimax(
@@ -415,16 +414,20 @@ where
                 worker_halt_reciever,
             )?;
             let value = *next_move_return.score();
-            // node.reverse_move(last_move);
             options.push((dir, next_move_return));
 
             if is_maximizing {
+                if value >= beta {
+                    break;
+                }
+
                 alpha = std::cmp::max(alpha, value);
             } else {
+                if value <= alpha {
+                    break;
+                }
+
                 beta = std::cmp::min(beta, value);
-            }
-            if beta <= alpha {
-                break;
             }
         }
 
@@ -869,6 +872,14 @@ where
                 )
                 .unwrap(),
             );
+
+            if let Some(current_return) = &current_return {
+                if let Some(terminal_depth) = current_return.score().terminal_depth() {
+                    if current_depth >= terminal_depth.try_into().unwrap() {
+                        break;
+                    }
+                }
+            }
 
             current_depth += players.len();
         }

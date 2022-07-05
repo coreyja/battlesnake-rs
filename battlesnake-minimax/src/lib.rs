@@ -11,13 +11,13 @@
 //! `paranoid` variant, which can be found in the [paranoid] module
 //! For more information check out my [Minimax Blog Post](https://coreyja.com/BattlesnakeMinimax/Minimax%20in%20Battlesnake/)
 //!
-//! We lean on the [battlesnake_game_types] crate for the game logic, and in particular for the
+//! We lean on the [types] crate for the game logic, and in particular for the
 //! simulate logic, which is used to generate the next board states.
 //!
 //! ```rust
 //! use std::time::Duration;
 //! use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions};
-//! use battlesnake_game_types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
+//! use battlesnake_minimax::types::{types::build_snake_id_map, compact_representation::StandardCellBoard4Snakes11x11, wire_representation::Game};
 //!
 //! // This fixture data matches what we expect to come from the Battlesnake Game Server
 //! let game_state_from_server = include_str!("../../battlesnake-rs/fixtures/start_of_game.json");
@@ -60,7 +60,7 @@
 //! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect());
 //! ```
 
-pub use battlesnake_game_types;
+pub use types;
 
 pub mod paranoid;
 
@@ -81,4 +81,77 @@ pub struct MoveOutput {
 pub struct Instruments {}
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use itertools::Itertools;
+    use types::{
+        compact_representation::{dimensions::Custom, WrappedCellBoard},
+        types::{build_snake_id_map, Move, SimulableGame, SnakeIDGettableGame},
+        wire_representation::Game,
+    };
+
+    use crate::{
+        paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions, WrappedScore},
+        Instruments,
+    };
+
+    #[test]
+    fn it_finds_that_this_move_is_a_win() {
+        let fixture = include_str!("../../fixtures/arcade_maze_should_win.json");
+        let wire_game: Game = serde_json::from_str(fixture).unwrap();
+        let snake_ids = build_snake_id_map(&wire_game);
+        let game_info = wire_game.game.clone();
+
+        let game: WrappedCellBoard<u16, Custom, { 19 * 21 }, 4> = wire_game
+            .as_wrapped_cell_board(&snake_ids)
+            .expect("Fixture data should be a valid game");
+
+        let explorer = MinimaxSnake::new_with_options(
+            game,
+            game_info.clone(),
+            0,
+            &|_| (),
+            "explorer",
+            SnakeOptions::default(),
+        );
+
+        let result = explorer.deepend_minimax_to_turn(50);
+
+        let mut next_moves = game.simulate(&Instruments {}, game.get_snake_ids());
+        let chosen_next = next_moves
+            .find(|(action, _)| {
+                (*action).into_inner() == [Some(Move::Down), Some(Move::Left), None, None]
+            })
+            .unwrap();
+
+        let next_explorer = MinimaxSnake::new(chosen_next.1, game_info, 0, &|_| (), "explorer");
+        let next_result = next_explorer.deepend_minimax_to_turn(100);
+        let next_score = next_result.score();
+
+        assert!(
+            matches!(next_score, WrappedScore::Win(_)),
+            "The move after the move we are looking at should be a win, its score is {next_score:?}"
+        );
+
+        let mut current = &result;
+        while let MinMaxReturn::Node {
+            options,
+            moving_snake_id,
+            ..
+        } = current
+        {
+            let chosen_move = options.first().unwrap().0;
+            let all_option_scores = options.iter().map(|(m, r)| (m, r.score())).collect_vec();
+            println!(
+                "Moving Snake {moving_snake_id:?} move: {chosen_move} score: {:?} options: {all_option_scores:?}",
+                current.score()
+            );
+            current = &options.first().unwrap().1;
+        }
+
+        assert!(
+            matches!(result.score(), WrappedScore::Win(_)),
+            "This game should be a win but was {:?}",
+            result.score()
+        );
+    }
+}

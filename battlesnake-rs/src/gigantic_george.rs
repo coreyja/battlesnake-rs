@@ -1,6 +1,6 @@
 use std::{collections::HashSet, convert::TryInto};
 
-use battlesnake_game_types::types::*;
+use types::types::*;
 
 use crate::eremetic_eric::EremeticEric;
 
@@ -69,8 +69,8 @@ where
         + HeadGettableGame
         + SnakeBodyGettableGame
         + SnakeTailPushableGame
-        + battlesnake_game_types::types::FoodGettableGame
-        + battlesnake_game_types::types::HealthGettableGame
+        + types::types::FoodGettableGame
+        + types::types::HealthGettableGame
         + a_prime::APrimeNextDirection
         + TurnDeterminableGame
         + std::clone::Clone,

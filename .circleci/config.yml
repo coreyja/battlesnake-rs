@@ -71,7 +71,7 @@ jobs:
 
       - run:
           name: Clippy
-          command: rustup component add clippy && cargo clippy --workspace
+          command: rustup component add clippy && cargo clippy --workspace --no-deps
   test-rust:
     docker:
       - image: rust:latest

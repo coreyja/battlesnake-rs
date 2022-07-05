@@ -1,15 +1,15 @@
 use std::cmp::Reverse;
 use std::ops::Deref;
 
-use battlesnake_game_types::compact_representation::*;
-use battlesnake_game_types::types::{
-    HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-    PositionGettableGame, SizeDeterminableGame, SnakeBodyGettableGame, SnakeIDGettableGame,
-    SnakeId,
-};
-
-use battlesnake_game_types::compact_representation::CellNum;
 use tinyvec::TinyVec;
+use types::{
+    compact_representation::{CellNum, *},
+    types::{
+        HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
+        PositionGettableGame, SizeDeterminableGame, SnakeBodyGettableGame, SnakeIDGettableGame,
+        SnakeId,
+    },
+};
 
 pub struct Grid<BoardType>
 where
