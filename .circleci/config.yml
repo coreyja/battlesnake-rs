@@ -44,7 +44,7 @@ commands: # a reusable command with parameters
 
       - run:
           name: Set Cargo Parallel Jobs Setting
-          command: echo 'export "CARGO_BUILD_JOBS"="2"' >> $BASH_ENV
+          command: echo 'export "CARGO_BUILD_JOBS"="8"' >> $BASH_ENV
 
       - steps: << parameters.do >>
 
@@ -87,7 +87,7 @@ jobs:
           do:
             - run:
                 name: Build
-                command: cargo build --locked --all-targets --jobs 8
+                command: cargo build --locked --all-targets
 
             - run:
                 name: Run Tests
