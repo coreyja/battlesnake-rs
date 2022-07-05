@@ -53,7 +53,7 @@ jobs:
   lint-rust:
     docker:
       - image: rust:latest
-    resource_class: x-large
+    resource_class: xlarge
     steps:
       - checkout
 
@@ -75,7 +75,7 @@ jobs:
   test-rust:
     docker:
       - image: rust:latest
-    resource_class: x-large
+    resource_class: xlarge
     steps:
       - checkout
 
@@ -99,7 +99,7 @@ jobs:
   build-release:
     docker:
       - image: rust:latest
-    resource_class: x-large
+    resource_class: xlarge
     steps:
       - checkout
 
@@ -171,7 +171,7 @@ jobs:
   bench:
     docker:
       - image: rust:latest
-    resource_class: x-large
+    resource_class: xlarge
     steps:
       - checkout
 
@@ -193,7 +193,7 @@ jobs:
   profile:
     docker:
       - image: rust:latest
-    resource_class: x-large
+    resource_class: xlarge
     steps:
       - checkout
 
