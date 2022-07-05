@@ -285,10 +285,8 @@ fn main() -> Result<(), ureq::Error> {
                 "At turn {}, the safe options were {:?}",
                 current_turn, safe_moves
             );
-            if safe_moves.len() != 1 {
-                println!("Turn {} is the decision point", current_turn);
-                break;
-            }
+            println!("Turn {} is the decision point", current_turn);
+            break;
         } else {
             panic!("We shouldn't ever have a leaf here")
         }
