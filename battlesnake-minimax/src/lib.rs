@@ -129,7 +129,7 @@ mod tests {
 
         assert!(
             matches!(next_score, WrappedScore::Win(_)),
-            "The move after the move we are looking at should be a lose, its score is {next_score:?}"
+            "The move after the move we are looking at should be a win, its score is {next_score:?}"
         );
 
         let mut current = &result;
@@ -150,7 +150,7 @@ mod tests {
 
         assert!(
             matches!(result.score(), WrappedScore::Win(_)),
-            "This game should be a lose but was {:?}",
+            "This game should be a win but was {:?}",
             result.score()
         );
     }
