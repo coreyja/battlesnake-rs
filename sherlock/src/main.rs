@@ -267,7 +267,7 @@ fn main() -> Result<(), ureq::Error> {
             MinimaxSnake::from_fn(game, game_info, current_turn, &score_fn, "explorer");
 
         let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
-        let result = explorer_snake.single_minimax(max_turns);
+        let result = explorer_snake.deepend_minimax_to_turn(max_turns);
 
         let score = *result.score();
 
