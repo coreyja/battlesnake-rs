@@ -22,18 +22,26 @@ use crate::Instruments;
 
 use super::{MinMaxReturn, Scorable, WrappedScore};
 
+pub trait ScoreTrait {
+    type ScoreType;
+    type GameType;
+
+    fn score(&self, game: &Self::GameType) -> Self::ScoreType;
+}
+
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 /// This is the struct that wraps a game board and a scoring function and can be used to run
 /// minimax
 ///
 /// It also outputs traces using the [tracing] crate.
-pub struct MinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
+pub struct MinimaxSnake<T: 'static, ScoreFn: ScoreTrait, const N_SNAKES: usize> {
     game: T,
     game_info: NestedGame,
     turn: i32,
     #[derivative(Debug = "ignore")]
-    score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+    score_function: ScoreFn,
+    // score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
     name: &'static str,
     options: SnakeOptions,
 }
@@ -74,14 +82,15 @@ impl Default for SnakeOptions {
 /// out of the current context
 pub struct AbortedEarly;
 
-impl<GameType, ScoreType, const N_SNAKES: usize> Scorable<GameType, ScoreType>
-    for MinimaxSnake<GameType, ScoreType, N_SNAKES>
+impl<GameType, ScoreType, ScoreFn, const N_SNAKES: usize> Scorable<GameType, ScoreType>
+    for MinimaxSnake<GameType, ScoreFn, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
     GameType: YouDeterminableGame + VictorDeterminableGame,
+    ScoreFn: ScoreTrait<ScoreType = ScoreType, GameType = GameType>,
 {
     fn score(&self, node: &GameType) -> ScoreType {
-        (self.score_function)(node)
+        self.score_function.score(node)
     }
 }
 
@@ -89,7 +98,17 @@ impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _duration: Duration) {}
 }
 
-impl<T, ScoreType, const N_SNAKES: usize> MinimaxSnake<T, ScoreType, N_SNAKES>
+impl<T, ScoreType> ScoreTrait for &'static (dyn Fn(&T) -> ScoreType + Sync + Send) {
+    type ScoreType = ScoreType;
+    type GameType = T;
+
+    fn score(&self, game: &T) -> Self::ScoreType {
+        (self)(game)
+    }
+}
+
+impl<T, ScoreType, const N_SNAKES: usize>
+    MinimaxSnake<T, &'static (dyn Fn(&T) -> ScoreType + Sync + Send), N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
