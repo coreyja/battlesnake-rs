@@ -20,14 +20,7 @@ use types::{
 
 use crate::Instruments;
 
-use super::{MinMaxReturn, Scorable, WrappedScore};
-
-pub trait ScoreTrait {
-    type ScoreType;
-    type GameType;
-
-    fn score(&self, game: &Self::GameType) -> Self::ScoreType;
-}
+use super::{MinMaxReturn, Scorable, WrappedScorable, WrappedScore};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -35,13 +28,12 @@ pub trait ScoreTrait {
 /// minimax
 ///
 /// It also outputs traces using the [tracing] crate.
-pub struct MinimaxSnake<T: 'static, ScoreFn: ScoreTrait, const N_SNAKES: usize> {
+pub struct MinimaxSnake<T: 'static, ScoreFn: Scorable, const N_SNAKES: usize> {
     game: T,
     game_info: NestedGame,
     turn: i32,
     #[derivative(Debug = "ignore")]
     score_function: ScoreFn,
-    // score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
     name: &'static str,
     options: SnakeOptions,
 }
@@ -82,12 +74,12 @@ impl Default for SnakeOptions {
 /// out of the current context
 pub struct AbortedEarly;
 
-impl<GameType, ScoreType, ScoreFn, const N_SNAKES: usize> Scorable<GameType, ScoreType>
+impl<GameType, ScoreType, ScoreFn, const N_SNAKES: usize> WrappedScorable<GameType, ScoreType>
     for MinimaxSnake<GameType, ScoreFn, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
     GameType: YouDeterminableGame + VictorDeterminableGame,
-    ScoreFn: ScoreTrait<ScoreType = ScoreType, GameType = GameType>,
+    ScoreFn: Scorable<ScoreType = ScoreType, GameType = GameType>,
 {
     fn score(&self, node: &GameType) -> ScoreType {
         self.score_function.score(node)
@@ -98,7 +90,7 @@ impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _duration: Duration) {}
 }
 
-impl<T, ScoreType> ScoreTrait for &'static (dyn Fn(&T) -> ScoreType + Sync + Send) {
+impl<T, ScoreType> Scorable for &'static (dyn Fn(&T) -> ScoreType + Sync + Send) {
     type ScoreType = ScoreType;
     type GameType = T;
 
@@ -152,7 +144,7 @@ where
     /// // states are better than others
     /// fn score_function(board: &StandardCellBoard4Snakes11x11) -> i32 { 4 }
     ///
-    /// let minimax_snake = MinimaxSnake::new(
+    /// let minimax_snake = MinimaxSnake::from_fn(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -160,7 +152,7 @@ where
     ///    "minimax_snake",
     /// );
     /// ```
-    pub fn new(
+    pub fn from_fn(
         game: T,
         game_info: NestedGame,
         turn: i32,
@@ -213,7 +205,7 @@ where
     ///   ..Default::default()
     /// };
     ///
-    /// let minimax_snake = MinimaxSnake::new_with_options(
+    /// let minimax_snake = MinimaxSnake::from_fn_with_options(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -222,7 +214,7 @@ where
     ///    snake_options,
     /// );
     /// ```
-    pub fn new_with_options(
+    pub fn from_fn_with_options(
         game: T,
         game_info: NestedGame,
         turn: i32,
@@ -239,7 +231,27 @@ where
             options,
         }
     }
+}
 
+impl<T, ScoreType, ScoreFn, const N_SNAKES: usize> MinimaxSnake<T, ScoreFn, N_SNAKES>
+where
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + NeighborDeterminableGame
+        + NeckQueryableGame
+        + SimulableGame<Instruments, N_SNAKES>
+        + Clone
+        + Sync
+        + Send
+        + Sized,
+    T::SnakeIDType: Clone + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy + 'static,
+    ScoreFn: Scorable<ScoreType = ScoreType, GameType = T> + Send + 'static + Copy,
+{
     /// Pick the next move to make
     ///
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
@@ -708,7 +720,7 @@ where
             let (to_manager_thread, from_explorer_thread) = mpsc::channel();
             let (suspend_explorer, explorer_halt_reciever) = mpsc::channel();
 
-            let explorer_snake = MinimaxSnake::new(
+            let explorer_snake = MinimaxSnake::from_fn(
                 explorer_game.clone(),
                 explorer_game_info,
                 turn,

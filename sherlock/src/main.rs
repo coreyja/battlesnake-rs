@@ -261,7 +261,8 @@ fn main() -> Result<(), ureq::Error> {
         let game: WrappedCellBoard<u16, ArcadeMaze, { 19 * 21 }, 8> =
             wire_game.as_wrapped_cell_board(&snake_ids).unwrap();
 
-        let explorer_snake = MinimaxSnake::new(game, game_info, current_turn, &|_| {}, "explorer");
+        let explorer_snake =
+            MinimaxSnake::from_fn(game, game_info, current_turn, &|_| {}, "explorer");
 
         let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
         let result = explorer_snake.single_minimax(max_turns);

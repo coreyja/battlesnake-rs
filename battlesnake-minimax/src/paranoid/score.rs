@@ -52,12 +52,24 @@ where
     }
 }
 
+/// This trait is what we will hold in our Minimax Snake that we will call each time we need to
+/// score a board state
+pub trait Scorable {
+    /// The type of the score that is returned for each call
+    type ScoreType;
+    /// The game type that is passed into the score function
+    type GameType;
+
+    /// Transform the given board state into a score
+    fn score(&self, game: &Self::GameType) -> Self::ScoreType;
+}
+
 /// Provides an implementation for `wrapped_score` if the implementer implements the `score`
 /// function.
 ///
 /// `wrapped_score` takes into account if the node is an end_state, and depth based ordering so
 /// that the underlying scoring functions don't need to worry about this
-pub trait Scorable<GameType, ScoreType>
+pub trait WrappedScorable<GameType, ScoreType>
 where
     ScoreType: PartialOrd + Ord + Copy + Debug,
     GameType: YouDeterminableGame + VictorDeterminableGame,
