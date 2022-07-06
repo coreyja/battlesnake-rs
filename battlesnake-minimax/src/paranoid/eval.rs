@@ -220,13 +220,45 @@ where
             options,
         }
     }
-
+    ///
     /// Pick the next move to make
     ///
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
     /// [MinimaxSnake::deepened_minimax_until_timelimit()]
     pub fn make_move(&self) -> Move {
+        let my_id = self.game.you_id();
+        let mut sorted_ids = self.game.get_snake_ids();
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+
+        let copy = self.clone();
+
+        info_span!(
+          "deepened_minmax_with_exploration",
+          snake_name = self.name,
+          game_id = %&self.game_info.id,
+          turn = self.turn,
+          ruleset_name = %self.game_info.ruleset.name,
+          ruleset_version = %self.game_info.ruleset.version,
+          chosen_score = tracing::field::Empty,
+          chosen_direction = tracing::field::Empty,
+          all_moves = tracing::field::Empty,
+
+        )
+        .in_scope(|| {
+            let scored = copy.deepened_minimax_until_timelimit(sorted_ids);
+
+            let scored_options = scored.first_options_for_snake(my_id).unwrap();
+            scored_options.first().unwrap().0
+        })
+    }
+
+    /// Pick the next move to make
+    ///
+    /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
+    /// return the chosen move. For more information on the inner working see the docs for
+    /// [MinimaxSnake::deepened_minimax_until_timelimit()]
+    pub fn make_move2(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
