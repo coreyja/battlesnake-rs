@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use itertools::Itertools;
 use serde_json::Value;
@@ -6,7 +6,7 @@ use serde_json::Value;
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 use types::{
     compact_representation::{dimensions::ArcadeMaze, WrappedCellBoard},
-    types::{build_snake_id_map, Move, SnakeId},
+    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId},
     wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
 };
 
@@ -196,6 +196,40 @@ fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
     Ok(body["Frames"][0].clone())
 }
 
+fn print_moves<
+    GameType: SnakeIDGettableGame<SnakeIDType = SnakeId> + Debug + Clone,
+    ScoreType: Copy + Ord + Debug,
+>(
+    result: &MinMaxReturn<GameType, ScoreType>,
+    current_turn: i32,
+    m: Move,
+) {
+    let all_snake_path = result.chosen_route();
+    let sids = all_snake_path
+        .iter()
+        .map(|(sid, _)| sid)
+        .unique()
+        .collect_vec();
+    let mut paths_per_snake: HashMap<SnakeId, Vec<Move>> = HashMap::new();
+    for &sid in &sids {
+        let path = all_snake_path
+            .iter()
+            .filter(|(s, _)| s == sid)
+            .map(|(_, p)| p)
+            .cloned()
+            .collect_vec();
+        paths_per_snake.insert(*sid, path);
+    }
+    println!(
+        "At turn {current_turn}, the {m} path takes {} turn lookahead:",
+        all_snake_path.len() / sids.len()
+    );
+    for (sid, path) in paths_per_snake {
+        println!("{sid:?}: {}", path.iter().join(", "));
+    }
+    println!()
+}
+
 fn main() -> Result<(), ureq::Error> {
     let args = Args::parse();
 
@@ -249,43 +283,26 @@ fn main() -> Result<(), ureq::Error> {
                     "At turn {}, the winning moves were {:?}",
                     current_turn, winning_moves
                 );
-                let all_snake_path = result.chosen_route();
-                let sids = all_snake_path
-                    .iter()
-                    .map(|(sid, _)| sid)
-                    .unique()
-                    .collect_vec();
-                let mut paths_per_snake: HashMap<SnakeId, Vec<Move>> = HashMap::new();
-                for &sid in &sids {
-                    let path = all_snake_path
-                        .iter()
-                        .filter(|(s, _)| s == sid)
-                        .map(|(_, p)| p)
-                        .cloned()
-                        .collect_vec();
-                    paths_per_snake.insert(*sid, path);
-                }
-                println!(
-                    "At turn {current_turn}, a winning path takes {} turn lookahead:",
-                    all_snake_path.len() / sids.len()
-                );
-                for (sid, path) in paths_per_snake {
-                    println!("{sid:?}: {}", path.iter().join(", "));
-                }
+                print_moves(&result, current_turn, winning_moves[0]);
             }
             break;
         } else if let MinMaxReturn::Node { options, .. } = &result {
-            let safe_moves = options
+            let safe_options = options
                 .iter()
                 .filter(|(_, r)| matches!(r.score(), WrappedScore::Scored(_)))
-                .map(|(m, _)| *m)
                 .collect_vec();
+            let safe_moves = safe_options.iter().map(|(m, _)| *m).collect_vec();
 
             println!(
                 "At turn {}, the safe options were {:?}",
                 current_turn, safe_moves
             );
             println!("Turn {} is the decision point", current_turn);
+
+            for (m, result) in safe_options {
+                print_moves(result, current_turn, *m);
+            }
+
             break;
         } else {
             panic!("We shouldn't ever have a leaf here")
