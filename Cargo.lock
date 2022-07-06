@@ -2376,6 +2376,7 @@ version = "0.1.0"
 dependencies = [
  "battlesnake-minimax",
  "clap 3.2.8",
+ "dashmap",
  "itertools 0.10.3",
  "serde_json",
  "types",

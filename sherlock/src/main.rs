@@ -244,6 +244,8 @@ fn main() -> Result<(), ureq::Error> {
 
     println!("Ending Turn {}", &last_frame["Turn"]);
 
+    fn score_fn(_: &WrappedCellBoard<u16, ArcadeMaze, { 19 * 21 }, 8>) {}
+
     loop {
         // if current_turn == 855 || current_turn == 854 {
         //     current_turn -= 1;
@@ -262,7 +264,7 @@ fn main() -> Result<(), ureq::Error> {
             wire_game.as_wrapped_cell_board(&snake_ids).unwrap();
 
         let explorer_snake =
-            MinimaxSnake::from_fn(game, game_info, current_turn, &|_| {}, "explorer");
+            MinimaxSnake::from_fn(game, game_info, current_turn, &score_fn, "explorer");
 
         let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
         let result = explorer_snake.single_minimax(max_turns);

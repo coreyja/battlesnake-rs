@@ -252,6 +252,24 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy + 'static,
     ScoreFn: Scorable<ScoreType = ScoreType, GameType = T> + Send + 'static + Copy,
 {
+    /// Construct a new `MinimaxSnake` providing an optional set of [SnakeOptions]
+    pub fn new_with_options(
+        game: T,
+        game_info: NestedGame,
+        turn: i32,
+        score_function: ScoreFn,
+        name: &'static str,
+        options: SnakeOptions,
+    ) -> Self {
+        Self {
+            game,
+            game_info,
+            turn,
+            score_function,
+            name,
+            options,
+        }
+    }
     /// Pick the next move to make
     ///
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and

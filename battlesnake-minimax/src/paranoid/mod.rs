@@ -59,6 +59,9 @@
 mod score;
 pub use score::{Scorable, WrappedScorable, WrappedScore};
 
+mod cached_score;
+pub use cached_score::CachedScore;
+
 mod minimax_return;
 pub use minimax_return::MinMaxReturn;
 

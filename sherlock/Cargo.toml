@@ -14,3 +14,4 @@ types = { path = "../types" }
 
 battlesnake-minimax = { path = "../battlesnake-minimax" }
 itertools = "0.10.3"
+dashmap = "5.3.4"
