@@ -27,6 +27,17 @@ pub enum MinMaxReturn<
         /// The chosen score
         /// This should always match the score of the first element in [MinimaxReturn.options]
         score: WrappedScore<ScoreType>,
+
+        /// Did this node see an Alpha-Beta Cutoff
+        alpha_beta_cutoff: bool,
+
+        /// Depth in the tree
+        depth: i64,
+
+        /// Alpha value when node is done
+        alpha: WrappedScore<ScoreType>,
+        /// Beta value when node is done
+        beta: WrappedScore<ScoreType>,
     },
     /// Represents a leaf node in the game tree
     /// This happens when we reach a terminal state (win/lose/tie)
@@ -170,11 +181,22 @@ where
                 moving_snake_id,
                 options,
                 score,
+                alpha_beta_cutoff,
+                depth,
+                alpha,
+                beta,
                 ..
             } => {
                 let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let me_id = format!("{id}");
-                let me_label = format!("{:?}", score);
+                let me_label = format!(
+                    "{depth}\n{score:?}\n{alpha_beta_cutoff}\nAlpha: {alpha:?}\nBeta: {beta:?}",
+                    depth = depth,
+                    score = score,
+                    alpha_beta_cutoff = alpha_beta_cutoff,
+                    alpha = alpha,
+                    beta = beta,
+                );
                 let color = if moving_snake_id == you_id {
                     "lightblue"
                 } else {

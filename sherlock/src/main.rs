@@ -6,7 +6,7 @@ use serde_json::Value;
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 use types::{
     compact_representation::{dimensions::ArcadeMaze, WrappedCellBoard},
-    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId},
+    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
     wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
 };
 
@@ -261,6 +261,8 @@ fn main() -> Result<(), ureq::Error> {
         let game: WrappedCellBoard<u16, ArcadeMaze, { 19 * 21 }, 8> =
             wire_game.as_wrapped_cell_board(&snake_ids).unwrap();
 
+        let you_id = game.you_id();
+
         let explorer_snake = MinimaxSnake::new(game, game_info, current_turn, &|_| {}, "explorer");
 
         let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
@@ -268,7 +270,7 @@ fn main() -> Result<(), ureq::Error> {
 
         let score = *result.score();
 
-        if matches!(score, WrappedScore::Lose(_)) {
+        if matches!(score, WrappedScore::Lose(_) | WrappedScore::Tie(_)) {
             println!("At turn {}, there were no safe options", current_turn);
         } else if matches!(score, WrappedScore::Win(_)) {
             println!("At turn {}, you could have won!", current_turn);
@@ -286,7 +288,13 @@ fn main() -> Result<(), ureq::Error> {
                 print_moves(&result, current_turn, winning_moves[0]);
             }
             break;
-        } else if let MinMaxReturn::Node { options, .. } = &result {
+        } else if let MinMaxReturn::Node {
+            options,
+            moving_snake_id,
+            ..
+        } = &result
+        {
+            assert!(moving_snake_id == you_id);
             let safe_options = options
                 .iter()
                 .filter(|(_, r)| matches!(r.score(), WrappedScore::Scored(_)))
@@ -299,9 +307,21 @@ fn main() -> Result<(), ureq::Error> {
             );
             println!("Turn {} is the decision point", current_turn);
 
-            for (m, result) in safe_options {
-                print_moves(result, current_turn, *m);
+            for m in safe_moves {
+                print_moves(&result, current_turn, m);
             }
+
+            // let mut file = File::create("tmp.dot").unwrap();
+            // file.write_all(format!("{}", result.to_dot_graph(you_id)).as_bytes())
+            //     .unwrap();
+
+            // Command::new("dot")
+            //     .arg("-Tsvg")
+            //     .arg("-O")
+            //     .arg("tmp.dot")
+            //     .output()
+            //     .unwrap();
+            // Command::new("open").arg("tmp.dot.svg").output().unwrap();
 
             break;
         } else {

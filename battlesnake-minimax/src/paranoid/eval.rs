@@ -425,6 +425,8 @@ where
             possible_moves.map(|m| (m, None)).collect()
         };
 
+        let mut alpha_beta_cutoff = false;
+
         for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
             if let Some(worker_halt_reciever) = worker_halt_reciever {
                 if worker_halt_reciever.try_recv().is_ok() {
@@ -449,13 +451,15 @@ where
             options.push((dir, next_move_return));
 
             if is_maximizing {
-                if value >= beta {
+                if value > beta {
+                    alpha_beta_cutoff = true;
                     break;
                 }
 
                 alpha = std::cmp::max(alpha, value);
             } else {
-                if value <= alpha {
+                if value < alpha {
+                    alpha_beta_cutoff = true;
                     break;
                 }
 
@@ -475,6 +479,10 @@ where
             is_maximizing,
             moving_snake_id: snake_id.clone(),
             score: chosen_score,
+            alpha_beta_cutoff,
+            depth: new_depth,
+            alpha,
+            beta,
         })
     }
 
