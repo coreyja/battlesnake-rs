@@ -26,7 +26,7 @@ async fn main() -> Result<(), Error> {
     lambda_runtime::run(handler(move |request: Request, context: Context| {
         let path = request.uri().path();
         let path_parts: Vec<&str> = path.split('/').filter(|x| x != &"").collect();
-        let snake_name = path_parts.get(0).cloned();
+        let snake_name = path_parts.first().cloned();
         let factory = factories
             .iter()
             .find(|s| snake_name == Some(&s.name()))

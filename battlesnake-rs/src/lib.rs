@@ -220,7 +220,7 @@ impl SnakeTailPushableGame for Game {
 }
 
 pub use battlesnake_minimax::paranoid::MinimaxSnake;
-use battlesnake_minimax::Instruments;
+use battlesnake_minimax::{paranoid::Scorable, Instruments};
 
 use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
@@ -229,7 +229,8 @@ use crate::{
     jump_flooding_snake::JumpFloodingSnakeFactory, mcts_snake::MctsSnakeFactory,
 };
 
-impl<T, ScoreType, const N_SNAKES: usize> BattlesnakeAI for MinimaxSnake<T, ScoreType, N_SNAKES>
+impl<T, ScoreType, ScoreableType, const N_SNAKES: usize> BattlesnakeAI
+    for MinimaxSnake<T, ScoreType, ScoreableType, N_SNAKES>
 where
     T: SnakeIDGettableGame
         + YouDeterminableGame
@@ -248,9 +249,10 @@ where
         + Send,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
+    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Copy,
 {
     fn make_move(&self) -> Result<MoveOutput> {
-        let m: Move = Self::make_move(self);
+        let m: Move = self.choose_move();
 
         Ok(MoveOutput {
             r#move: format!("{}", m),

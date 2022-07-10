@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     fmt::Debug,
+    marker::PhantomData,
     sync::mpsc,
     thread,
     time::{Duration, Instant},
@@ -20,7 +21,7 @@ use types::{
 
 use crate::Instruments;
 
-use super::{MinMaxReturn, WrappedScorable, WrappedScore};
+use super::{score::Scorable, MinMaxReturn, WrappedScorable, WrappedScore};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -28,14 +29,18 @@ use super::{MinMaxReturn, WrappedScorable, WrappedScore};
 /// minimax
 ///
 /// It also outputs traces using the [tracing] crate.
-pub struct MinimaxSnake<T: 'static, ScoreType: 'static, const N_SNAKES: usize> {
-    game: T,
+pub struct MinimaxSnake<GameType: 'static, ScoreType: 'static, ScorableType, const N_SNAKES: usize>
+where
+    ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync,
+{
+    game: GameType,
     game_info: NestedGame,
     turn: i32,
     #[derivative(Debug = "ignore")]
-    score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+    score_function: ScorableType,
     name: &'static str,
     options: SnakeOptions,
+    _phantom: PhantomData<ScoreType>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,14 +79,15 @@ impl Default for SnakeOptions {
 /// out of the current context
 pub struct AbortedEarly;
 
-impl<GameType, ScoreType, const N_SNAKES: usize> WrappedScorable<GameType, ScoreType>
-    for MinimaxSnake<GameType, ScoreType, N_SNAKES>
+impl<GameType, ScoreType, ScorableType, const N_SNAKES: usize> WrappedScorable<GameType, ScoreType>
+    for MinimaxSnake<GameType, ScoreType, ScorableType, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
     GameType: YouDeterminableGame + VictorDeterminableGame,
+    ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync,
 {
     fn score(&self, node: &GameType) -> ScoreType {
-        (self.score_function)(node)
+        self.score_function.score(node)
     }
 }
 
@@ -89,9 +95,15 @@ impl SimulatorInstruments for Instruments {
     fn observe_simulation(&self, _duration: Duration) {}
 }
 
-impl<T, ScoreType, const N_SNAKES: usize> MinimaxSnake<T, ScoreType, N_SNAKES>
+impl<GameType, ScoreType, const N_SNAKES: usize>
+    MinimaxSnake<
+        GameType,
+        ScoreType,
+        &'static (dyn Fn(&GameType) -> ScoreType + Send + Sync),
+        N_SNAKES,
+    >
 where
-    T: SnakeIDGettableGame
+    GameType: SnakeIDGettableGame
         + YouDeterminableGame
         + PositionGettableGame
         + HealthGettableGame
@@ -104,7 +116,7 @@ where
         + Sync
         + Send
         + Sized,
-    T::SnakeIDType: Clone + Send + Sync,
+    GameType::SnakeIDType: Clone + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
 {
     /// Construct a new `MinimaxSnake`
@@ -142,10 +154,10 @@ where
     /// );
     /// ```
     pub fn new(
-        game: T,
+        game: GameType,
         game_info: NestedGame,
         turn: i32,
-        score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+        score_function: &'static (dyn Fn(&GameType) -> ScoreType + Send + Sync),
         name: &'static str,
     ) -> Self {
         Self {
@@ -155,6 +167,7 @@ where
             score_function,
             name,
             options: Default::default(),
+            _phantom: Default::default(),
         }
     }
 
@@ -204,10 +217,10 @@ where
     /// );
     /// ```
     pub fn new_with_options(
-        game: T,
+        game: GameType,
         game_info: NestedGame,
         turn: i32,
-        score_function: &'static (dyn Fn(&T) -> ScoreType + Sync + Send),
+        score_function: &'static (dyn Fn(&GameType) -> ScoreType + Send + Sync),
         name: &'static str,
         options: SnakeOptions,
     ) -> Self {
@@ -218,15 +231,37 @@ where
             score_function,
             name,
             options,
+            _phantom: Default::default(),
         }
     }
+}
+impl<GameType, ScoreType, ScorableType, const N_SNAKES: usize>
+    MinimaxSnake<GameType, ScoreType, ScorableType, N_SNAKES>
+where
+    GameType: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + HeadGettableGame
+        + NeighborDeterminableGame
+        + NeckQueryableGame
+        + SimulableGame<Instruments, N_SNAKES>
+        + Clone
+        + Sync
+        + Send
+        + Sized,
+    GameType::SnakeIDType: Clone + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
+    ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync + Copy,
+{
     ///
     /// Pick the next move to make
     ///
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
     /// [MinimaxSnake::deepened_minimax_until_timelimit()]
-    pub fn make_move(&self) -> Move {
+    pub fn choose_move(&self) -> Move {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
@@ -332,16 +367,16 @@ where
     #[allow(clippy::too_many_arguments)]
     fn minimax(
         &self,
-        node: Cow<T>,
-        players: &[T::SnakeIDType],
+        node: Cow<GameType>,
+        players: &[GameType::SnakeIDType],
         depth: usize,
         alpha: WrappedScore<ScoreType>,
         beta: WrappedScore<ScoreType>,
         max_depth: usize,
-        previous_return: Option<MinMaxReturn<T, ScoreType>>,
-        mut pending_moves: Vec<(T::SnakeIDType, Move)>,
+        previous_return: Option<MinMaxReturn<GameType, ScoreType>>,
+        mut pending_moves: Vec<(GameType::SnakeIDType, Move)>,
         worker_halt_reciever: Option<&mpsc::Receiver<()>>,
-    ) -> Result<MinMaxReturn<T, ScoreType>, AbortedEarly> {
+    ) -> Result<MinMaxReturn<GameType, ScoreType>, AbortedEarly> {
         let mut alpha = alpha;
         let mut beta = beta;
 
@@ -379,7 +414,7 @@ where
 
         let snake_id = &players[depth % players.len()];
 
-        let mut options: Vec<(Move, MinMaxReturn<T, ScoreType>)> = vec![];
+        let mut options: Vec<(Move, MinMaxReturn<GameType, ScoreType>)> = vec![];
 
         let is_maximizing = snake_id == node.you_id();
 
@@ -404,8 +439,8 @@ where
 
         #[allow(clippy::type_complexity)]
         let possible_zipped: Vec<(
-            (Move, T::NativePositionType),
-            Option<MinMaxReturn<T, ScoreType>>,
+            (Move, GameType::NativePositionType),
+            Option<MinMaxReturn<GameType, ScoreType>>,
         )> = if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
             let mut v: Vec<_> = possible_moves
                 .map(|m| {
@@ -509,8 +544,8 @@ where
     /// telling it to stop, so as not to waste CPU cycles
     pub fn deepened_minimax_until_timelimit(
         self,
-        players: Vec<T::SnakeIDType>,
-    ) -> MinMaxReturn<T, ScoreType> {
+        players: Vec<GameType::SnakeIDType>,
+    ) -> MinMaxReturn<GameType, ScoreType> {
         let current_span = tracing::Span::current();
 
         let max_duration = self.max_duration();
@@ -632,10 +667,10 @@ where
     #[allow(clippy::type_complexity)]
     pub fn deepened_minimax_until_timelimit_with_exploration_thread(
         self,
-        players: Vec<T::SnakeIDType>,
+        players: Vec<GameType::SnakeIDType>,
     ) -> (
-        Option<(usize, MinMaxReturn<T, ScoreType>)>,
-        Option<(usize, MinMaxReturn<T, ()>)>,
+        Option<(usize, MinMaxReturn<GameType, ScoreType>)>,
+        Option<(usize, MinMaxReturn<GameType, ()>)>,
     ) {
         let current_span = tracing::Span::current();
 
@@ -860,7 +895,7 @@ where
     /// score of all its children nodes.
     ///
     /// This can/is also be used as a benchmark entry point
-    pub fn single_minimax(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+    pub fn single_minimax(&self, max_turns: usize) -> MinMaxReturn<GameType, ScoreType> {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
@@ -887,7 +922,7 @@ where
     /// move from the previous turn first. This allows the Alpha-Beta pruning to be more efficient
     /// for the second round. We keep repeating this process with deeper depths until we hit the
     /// specified
-    pub fn deepend_minimax_to_turn(&self, max_turns: usize) -> MinMaxReturn<T, ScoreType> {
+    pub fn deepend_minimax_to_turn(&self, max_turns: usize) -> MinMaxReturn<GameType, ScoreType> {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });

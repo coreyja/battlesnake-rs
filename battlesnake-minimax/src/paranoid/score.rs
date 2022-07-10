@@ -52,6 +52,22 @@ where
     }
 }
 
+/// This trait is used to control something that can return a score from a game board
+///
+/// We use this trait to be able to layer in different scoring approaches, such as caching
+pub trait Scorable<GameType, ScoreType> {
+    /// Convert the given GameType into a ScoreType
+    fn score(&self, game: &GameType) -> ScoreType;
+}
+
+impl<GameType, ScoreType, FnLike: Fn(&GameType) -> ScoreType> Scorable<GameType, ScoreType>
+    for FnLike
+{
+    fn score(&self, game: &GameType) -> ScoreType {
+        (self)(game)
+    }
+}
+
 /// Provides an implementation for `wrapped_score` if the implementer implements the `score`
 /// function.
 ///
