@@ -20,7 +20,7 @@ use types::{
 
 use crate::Instruments;
 
-use super::{MinMaxReturn, Scorable, WrappedScore};
+use super::{MinMaxReturn, WrappedScorable, WrappedScore};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -74,7 +74,7 @@ impl Default for SnakeOptions {
 /// out of the current context
 pub struct AbortedEarly;
 
-impl<GameType, ScoreType, const N_SNAKES: usize> Scorable<GameType, ScoreType>
+impl<GameType, ScoreType, const N_SNAKES: usize> WrappedScorable<GameType, ScoreType>
     for MinimaxSnake<GameType, ScoreType, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,

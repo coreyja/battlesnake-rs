@@ -57,7 +57,7 @@
 //! ```
 
 mod score;
-pub use score::{Scorable, WrappedScore};
+pub use score::{WrappedScorable, WrappedScore};
 
 mod minimax_return;
 pub use minimax_return::MinMaxReturn;

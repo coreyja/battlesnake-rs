@@ -57,7 +57,7 @@ where
 ///
 /// `wrapped_score` takes into account if the node is an end_state, and depth based ordering so
 /// that the underlying scoring functions don't need to worry about this
-pub trait Scorable<GameType, ScoreType>
+pub trait WrappedScorable<GameType, ScoreType>
 where
     ScoreType: PartialOrd + Ord + Copy + Debug,
     GameType: YouDeterminableGame + VictorDeterminableGame,
