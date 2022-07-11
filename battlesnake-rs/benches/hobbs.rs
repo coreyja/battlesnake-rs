@@ -53,6 +53,30 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             snake.deepend_minimax_to_turn(3)
         });
     });
+
+    g.bench_function("Hobbs Arcade Maze Duel End Game", |b| {
+        let game_json = include_str!("../fixtures/start_of_game.json");
+
+        b.iter(|| {
+            let mut game: Game = serde_json::from_str(game_json).unwrap();
+            game.game.ruleset = Ruleset {
+                name: "wrapped".to_string(),
+                version: "1.0".to_string(),
+                settings: None,
+            };
+            let game_info = game.game.clone();
+            let turn = game.turn;
+            let id_map = build_snake_id_map(&game);
+
+            let name = "hovering-hobbs";
+
+            let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+            let snake = MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+
+            snake.deepend_minimax_to_turn(3)
+        });
+    });
 }
 
 criterion_group! {
