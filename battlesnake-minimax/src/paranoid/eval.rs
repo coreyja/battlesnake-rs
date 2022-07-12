@@ -243,10 +243,13 @@ where
           chosen_score = tracing::field::Empty,
           chosen_direction = tracing::field::Empty,
           all_moves = tracing::field::Empty,
-
+          depth = tracing::field::Empty,
         )
         .in_scope(|| {
-            let scored = copy.deepened_minimax_until_timelimit(sorted_ids);
+            let (depth, scored) = copy.deepened_minimax_until_timelimit(sorted_ids);
+
+            let current_span = tracing::Span::current();
+            current_span.record("scored_depth", &depth);
 
             let scored_options = scored.first_options_for_snake(my_id).unwrap();
             scored_options.first().unwrap().0
@@ -510,7 +513,7 @@ where
     pub fn deepened_minimax_until_timelimit(
         self,
         players: Vec<T::SnakeIDType>,
-    ) -> MinMaxReturn<T, ScoreType> {
+    ) -> (usize, MinMaxReturn<T, ScoreType>) {
         let current_span = tracing::Span::current();
 
         let max_duration = self.max_duration();
@@ -620,9 +623,7 @@ where
             current_span.record("depth", &depth);
         }
 
-        current
-            .map(|(_depth, result)| result)
-            .expect("We weren't able to do even a single layer of minmax")
+        current.expect("We weren't able to do even a single layer of minmax")
     }
 
     /// This differs from the `deepened_minimax_until_timelimit` in that not only do we start a

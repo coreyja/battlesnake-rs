@@ -53,7 +53,7 @@
 //! // Now we can use the minimax snake to generate the next move!
 //! // Here we use the function [MinimaxSnake::deepened_minimax_until_timelimit] to run the minimax
 //! // algorithm until the time limit specified in the give game
-//! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect());
+//! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect()).1;
 //! ```
 
 mod score;
