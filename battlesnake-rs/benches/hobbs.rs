@@ -55,7 +55,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     g.bench_function("Hobbs Arcade Maze Duel End Game", |b| {
-        let game_json = include_str!("../fixtures/start_of_game.json");
+        let game_json = include_str!("../../fixtures/arcade_maze_end_game_duels.json");
 
         b.iter(|| {
             let mut game: Game = serde_json::from_str(game_json).unwrap();
