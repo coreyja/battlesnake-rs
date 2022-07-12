@@ -39,8 +39,8 @@ commands: # a reusable command with parameters
         default: []
         type: steps
     steps:
-      - setup-sccache
-      - restore-sccache-cache
+      # - setup-sccache
+      # - restore-sccache-cache
 
       - run:
           name: Set Cargo Parallel Jobs Setting
@@ -48,7 +48,7 @@ commands: # a reusable command with parameters
 
       - steps: << parameters.do >>
 
-      - save-sccache-cache
+      # - save-sccache-cache
 jobs:
   lint-rust:
     docker:
