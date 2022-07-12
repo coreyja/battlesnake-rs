@@ -234,7 +234,7 @@ where
         let copy = self.clone();
 
         info_span!(
-          "deepened_minmax_with_exploration",
+          "deepened_minmax",
           snake_name = self.name,
           game_id = %&self.game_info.id,
           turn = self.turn,
