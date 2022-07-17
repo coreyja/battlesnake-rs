@@ -178,8 +178,12 @@ struct Args {
     you_name: String,
 
     /// Number of turns past the last frame to check
-    #[clap(short, long, value_parser, default_value_t = 50)]
+    #[clap(short, long, value_parser, default_value_t = 20)]
     turns_after_lose: i32,
+
+    /// Turn to start looking back from. Uses the last turn of the game if not specified
+    #[clap(short, long, value_parser)]
+    search_starting_turn: Option<i32>,
 }
 
 fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
@@ -240,15 +244,30 @@ fn main() -> Result<(), ureq::Error> {
 
     let last_frame = &body["LastFrame"];
     let last_turn = last_frame["Turn"].as_i64().expect("Missing Turn") as i32;
-    let mut current_turn = last_turn - 1;
-
-    println!("Ending Turn {}", &last_frame["Turn"]);
+    let mut current_turn = args.search_starting_turn.unwrap_or(last_turn - 1);
 
     loop {
-        // if current_turn == 855 || current_turn == 854 {
-        //     current_turn -= 1;
-        //     continue;
-        // }
+        let current_frame = get_frame_for_turn(&args.game_id, current_turn)?;
+        let wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name);
+
+        if wire_game.is_ok() {
+            break;
+        }
+        println!("You were not alive at turn {current_turn} moving backwards");
+
+        current_turn -= 1;
+
+        if current_turn < 0 {
+            panic!("Something is wrong we made it past the end of the game");
+        }
+    }
+
+    let last_living_turn = current_turn;
+
+    println!("Ending Turn {}", &last_frame["Turn"]);
+    println!("Last Living Turn {last_living_turn}");
+
+    loop {
         let current_frame = get_frame_for_turn(&args.game_id, current_turn)?;
         let wire_game = frame_to_game(&current_frame, &body["Game"], &args.you_name).unwrap();
 
@@ -265,7 +284,7 @@ fn main() -> Result<(), ureq::Error> {
 
         let explorer_snake = MinimaxSnake::new(game, game_info, current_turn, &|_| {}, "explorer");
 
-        let max_turns = (last_turn - current_turn + args.turns_after_lose) as usize;
+        let max_turns = (last_living_turn + 1 - current_turn + args.turns_after_lose) as usize;
         let result = explorer_snake.deepend_minimax_to_turn(max_turns);
 
         let score = *result.score();
