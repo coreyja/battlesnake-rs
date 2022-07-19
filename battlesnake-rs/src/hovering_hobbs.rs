@@ -1,11 +1,14 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::SpreadFromHead;
 use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
-use battlesnake_minimax::paranoid::{MinimaxSnake, SnakeOptions};
+use battlesnake_minimax::{
+    dashmap::DashMap,
+    paranoid::{CachedScore, MinimaxSnake, SnakeOptions},
+};
 use decorum::N64;
 use types::types::*;
 
@@ -128,75 +131,75 @@ macro_rules! build_from_best_cell_board_inner {
             let options = $options;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::Large(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::Large(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
-                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::from_fn_with_options(
+                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
-                    &$score_function,
+                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
                     name,
                     options,
                 )),
@@ -221,8 +224,23 @@ impl BattlesnakeFactory for Factory {
         };
 
         if game.is_arcade_maze_map() {
+            // let id_map = build_snake_id_map(&game);
+            // let compact = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+            // Box::new(MinimaxSnake::new(
+            //     compact,
+            //     game_info,
+            //     turn,
+            //     cached_score,
+            //     name,
+            //     options,
+            // ))
+
             build_from_best_cell_board!(game, game_info, turn, arcade_maze_score, name, options)
         } else {
+            let cache: DashMap<StandardCellBoard4Snakes11x11, Score> = DashMap::new();
+            let cache = Arc::new(cache);
+            let _cached_score = CachedScore::new(&standard_score, cache);
+
             build_from_best_cell_board!(game, game_info, turn, standard_score, name, options)
         }
     }

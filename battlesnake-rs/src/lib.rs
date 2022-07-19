@@ -249,7 +249,7 @@ where
         + Send,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Copy,
+    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync,
 {
     fn make_move(&self) -> Result<MoveOutput> {
         let m: Move = self.choose_move();
