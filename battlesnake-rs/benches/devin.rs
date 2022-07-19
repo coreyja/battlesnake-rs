@@ -1,3 +1,4 @@
+use battlesnake_minimax::paranoid::Scorable;
 use types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::build_snake_id_map,
     wire_representation::Game,
@@ -10,7 +11,14 @@ use battlesnake_rs::{
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
 
-fn create_snake(game: Game) -> MinimaxSnake<StandardCellBoard4Snakes11x11, ScoreEndState, 4> {
+fn create_snake(
+    game: Game,
+) -> MinimaxSnake<
+    StandardCellBoard4Snakes11x11,
+    ScoreEndState,
+    impl Scorable<StandardCellBoard4Snakes11x11, ScoreEndState>,
+    4,
+> {
     let game_info = game.game.clone();
     let turn = game.turn;
     let id_map = build_snake_id_map(&game);
