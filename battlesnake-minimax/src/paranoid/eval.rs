@@ -288,8 +288,6 @@ where
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        let copy = self.clone();
-
         info_span!(
           "deepened_minmax",
           snake_name = self.name,
@@ -303,7 +301,7 @@ where
           depth = tracing::field::Empty,
         )
         .in_scope(|| {
-            let (depth, scored) = copy.deepened_minimax_until_timelimit(sorted_ids);
+            let (depth, scored) = self.deepened_minimax_until_timelimit(sorted_ids);
 
             let current_span = tracing::Span::current();
             current_span.record("scored_depth", &depth);
@@ -323,8 +321,6 @@ where
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        let copy = self.clone();
-
         info_span!(
           "deepened_minmax_with_exploration",
           snake_name = self.name,
@@ -338,7 +334,7 @@ where
 
         )
         .in_scope(move || {
-          let (scored, explored) = copy.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids);
+          let (scored, explored) = self.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids);
 
         match (scored, explored) {
             (Some((scored_depth, scored_return)), Some((explored_depth, explored_return))) => {
@@ -583,7 +579,6 @@ where
         let (to_main_thread, from_worker_thread) = mpsc::channel();
         let (suspend_worker, worker_halt_reciever) = mpsc::channel();
 
-        let copy = self.clone();
         thread::scope(|s| {
             s.spawn(move || {
                 let you_id = threads_you_id;
@@ -592,7 +587,7 @@ where
 
                 loop {
                     let next = {
-                        let result = copy.minimax(
+                        let result = self.minimax(
                             Cow::Borrowed(&self.game),
                             &players,
                             0,
