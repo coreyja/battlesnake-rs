@@ -182,9 +182,6 @@ jobs:
       - with-rust-setup:
           do:
             - run: cd battlesnake-rs/
-            - restore_cache:
-                keys:
-                  - v2-criterion-baseline
             - run: cargo bench
             - store_artifacts:
                 path: target/criterion
