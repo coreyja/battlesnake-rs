@@ -33,7 +33,7 @@ pub struct MinimaxSnake<GameType, ScoreType, ScorableType, const N_SNAKES: usize
 where
     GameType: 'static,
     ScoreType: 'static,
-    ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + 'static,
+    ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + 'static + Clone,
 {
     game: GameType,
     game_info: NestedGame,
@@ -86,7 +86,7 @@ impl<GameType, ScoreType, ScorableType, const N_SNAKES: usize> WrappedScorable<G
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
     GameType: YouDeterminableGame + VictorDeterminableGame,
-    ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync,
+    ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync + Clone,
 {
     fn score(&self, node: &GameType) -> ScoreType {
         self.score_function.score(node)
@@ -255,7 +255,7 @@ where
         + Sized,
     GameType::SnakeIDType: Clone + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-    ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync,
+    ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + Clone,
 {
     /// Construct a new `MinimaxSnake`
     pub fn new(
@@ -301,7 +301,7 @@ where
           depth = tracing::field::Empty,
         )
         .in_scope(|| {
-            let (depth, scored) = self.deepened_minimax_until_timelimit(sorted_ids);
+            let (depth, scored) = self.clone().deepened_minimax_until_timelimit(sorted_ids);
 
             let current_span = tracing::Span::current();
             current_span.record("scored_depth", &depth);
@@ -334,7 +334,7 @@ where
 
         )
         .in_scope(move || {
-          let (scored, explored) = self.deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids);
+          let (scored, explored) = self.clone().deepened_minimax_until_timelimit_with_exploration_thread(sorted_ids);
 
         match (scored, explored) {
             (Some((scored_depth, scored_return)), Some((explored_depth, explored_return))) => {
@@ -564,7 +564,7 @@ where
     /// When we return from the main/timing thread we also send a signal the the 'worker' thread
     /// telling it to stop, so as not to waste CPU cycles
     pub fn deepened_minimax_until_timelimit(
-        &self,
+        self,
         players: Vec<GameType::SnakeIDType>,
     ) -> (usize, MinMaxReturn<GameType, ScoreType>) {
         let current_span = tracing::Span::current();
@@ -579,15 +579,149 @@ where
         let (to_main_thread, from_worker_thread) = mpsc::channel();
         let (suspend_worker, worker_halt_reciever) = mpsc::channel();
 
-        thread::scope(|s| {
-            s.spawn(move || {
+        thread::spawn(move || {
+            let you_id = threads_you_id;
+            let mut current_depth = players.len();
+            let mut current_return = None;
+            let copy = self.clone();
+
+            loop {
+                let next = {
+                    let result = copy.minimax(
+                        Cow::Borrowed(&self.game),
+                        &players,
+                        0,
+                        WrappedScore::<ScoreType>::worst_possible_score(),
+                        WrappedScore::<ScoreType>::best_possible_score(),
+                        current_depth,
+                        current_return,
+                        vec![],
+                        Some(&worker_halt_reciever),
+                    );
+
+                    if let Ok(ref result) = result {
+                        let current_span = tracing::Span::current();
+                        current_span.record("score", &format!("{:?}", result.score()).as_str());
+                        current_span.record(
+                            "direction",
+                            &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+                        );
+                    }
+
+                    result
+                };
+
+                let next = match next {
+                    Ok(x) => x,
+                    Err(AbortedEarly) => break,
+                };
+
+                let current_score = next.score();
+                let terminal_depth = current_score.terminal_depth();
+
+                let action = match terminal_depth {
+                    Some(terminal_depth) => {
+                        if current_depth >= terminal_depth.try_into().unwrap() {
+                            FromWorkerAction::Stop
+                        } else {
+                            FromWorkerAction::KeepGoing
+                        }
+                    }
+                    None => FromWorkerAction::KeepGoing,
+                };
+
+                let send_result = to_main_thread.send((action, current_depth, next.clone()));
+
+                if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
+                    return;
+                }
+
+                current_return = Some(next);
+
+                current_depth += players.len();
+            }
+        });
+
+        let mut current = None;
+
+        while started_at.elapsed() < max_duration {
+            if let Ok((action, depth, result)) = from_worker_thread.try_recv() {
+                // println!("{}", self.game.evaluate_moves(&result.all_moves()));
+                current = Some((depth, result));
+
+                match action {
+                    FromWorkerAction::KeepGoing => {}
+                    FromWorkerAction::Stop => {
+                        info!(depth, "This game is over, no need to keep going");
+                        break;
+                    }
+                }
+            }
+        }
+
+        // We send a signal to the worker thread to stop
+        // We can't kill the thread so we use this to help the
+        // worker know when to stop
+        let _ = suspend_worker.send(());
+
+        if let Some((depth, result)) = &current {
+            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            current_span.record(
+                "chosen_direction",
+                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+            );
+            current_span.record(
+                "all_moves",
+                &format!("{:?}", result.chosen_route()).as_str(),
+            );
+            current_span.record("depth", &depth);
+        }
+
+        current.expect("We weren't able to do even a single layer of minmax")
+    }
+
+    /// This differs from the `deepened_minimax_until_timelimit` in that not only do we start a
+    /// thread for the scored minimax, but we also start one with an empty scoring function to
+    /// serve as an exploration thread. Ideally this thread will be able to get to a deeper depth
+    /// than the scoring thread
+    #[allow(clippy::type_complexity)]
+    pub fn deepened_minimax_until_timelimit_with_exploration_thread(
+        self,
+        players: Vec<GameType::SnakeIDType>,
+    ) -> (
+        Option<(usize, MinMaxReturn<GameType, ScoreType>)>,
+        Option<(usize, MinMaxReturn<GameType, ()>)>,
+    ) {
+        let current_span = tracing::Span::current();
+
+        let max_duration = self.max_duration();
+        let node = &self.game;
+
+        let started_at = Instant::now();
+        let you_id = node.you_id().clone();
+
+        let explorer_game = self.game.clone();
+        let explorer_game_info = self.game_info.clone();
+        let explorer_players = players.clone();
+        let turn = self.turn;
+
+        // Setup and spawn the scoring thread
+        // This one uses the 'real' scoring function
+        // to pick the best move.
+        let (from_scored_thread, suspend_scorer) = {
+            let (to_manager_thread, from_scored_thread) = mpsc::channel();
+            let (suspend_scorer, scorer_halt_reciever) = mpsc::channel();
+
+            let threads_you_id = you_id.clone();
+            let copy = self.clone();
+            thread::spawn(move || {
                 let you_id = threads_you_id;
                 let mut current_depth = players.len();
                 let mut current_return = None;
 
                 loop {
                     let next = {
-                        let result = self.minimax(
+                        let result = copy.minimax(
                             Cow::Borrowed(&self.game),
                             &players,
                             0,
@@ -596,7 +730,7 @@ where
                             current_depth,
                             current_return,
                             vec![],
-                            Some(&worker_halt_reciever),
+                            Some(&scorer_halt_reciever),
                         );
 
                         if let Ok(ref result) = result {
@@ -630,7 +764,7 @@ where
                         None => FromWorkerAction::KeepGoing,
                     };
 
-                    let send_result = to_main_thread.send((action, current_depth, next.clone()));
+                    let send_result = to_manager_thread.send((action, current_depth, next.clone()));
 
                     if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
                         return;
@@ -642,277 +776,137 @@ where
                 }
             });
 
-            let mut current = None;
+            (from_scored_thread, suspend_scorer)
+        };
 
-            while started_at.elapsed() < max_duration {
-                if let Ok((action, depth, result)) = from_worker_thread.try_recv() {
-                    // println!("{}", self.game.evaluate_moves(&result.all_moves()));
-                    current = Some((depth, result));
+        // Setup and spawn the explorer thread
+        // This uses an empty scoring function to try and find and avoid traps
+        let (from_explorer_thread, suspend_explorer) = {
+            let (to_manager_thread, from_explorer_thread) = mpsc::channel();
+            let (suspend_explorer, explorer_halt_reciever) = mpsc::channel();
 
-                    match action {
-                        FromWorkerAction::KeepGoing => {}
-                        FromWorkerAction::Stop => {
-                            info!(depth, "This game is over, no need to keep going");
-                            break;
-                        }
-                    }
-                }
-            }
+            let explorer_snake = MinimaxSnake::from_fn(
+                explorer_game.clone(),
+                explorer_game_info,
+                turn,
+                &|_| {},
+                "explorer",
+            );
 
-            // We send a signal to the worker thread to stop
-            // We can't kill the thread so we use this to help the
-            // worker know when to stop
-            let _ = suspend_worker.send(());
+            thread::spawn(move || {
+                let mut current_depth = explorer_players.len();
+                let mut current_return = None;
+                let explorer_game = explorer_game;
+                let you_id = explorer_game.you_id();
 
-            if let Some((depth, result)) = &current {
-                current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
-                current_span.record(
-                    "chosen_direction",
-                    &format!("{:?}", result.your_best_move(&you_id)).as_str(),
-                );
-                current_span.record(
-                    "all_moves",
-                    &format!("{:?}", result.chosen_route()).as_str(),
-                );
-                current_span.record("depth", &depth);
-            }
+                loop {
+                    let next = {
+                        let result = explorer_snake.minimax(
+                            Cow::Borrowed(&explorer_game),
+                            &explorer_players,
+                            0,
+                            WrappedScore::<()>::worst_possible_score(),
+                            WrappedScore::<()>::best_possible_score(),
+                            current_depth,
+                            current_return,
+                            vec![],
+                            Some(&explorer_halt_reciever),
+                        );
 
-            current.expect("We weren't able to do even a single layer of minmax")
-        })
-    }
-
-    /// This differs from the `deepened_minimax_until_timelimit` in that not only do we start a
-    /// thread for the scored minimax, but we also start one with an empty scoring function to
-    /// serve as an exploration thread. Ideally this thread will be able to get to a deeper depth
-    /// than the scoring thread
-    #[allow(clippy::type_complexity)]
-    pub fn deepened_minimax_until_timelimit_with_exploration_thread(
-        &self,
-        players: Vec<GameType::SnakeIDType>,
-    ) -> (
-        Option<(usize, MinMaxReturn<GameType, ScoreType>)>,
-        Option<(usize, MinMaxReturn<GameType, ()>)>,
-    ) {
-        let current_span = tracing::Span::current();
-
-        let max_duration = self.max_duration();
-        let node = &self.game;
-
-        let started_at = Instant::now();
-        let you_id = node.you_id().clone();
-
-        let explorer_game = self.game.clone();
-        let explorer_game_info = self.game_info.clone();
-        let explorer_players = players.clone();
-        let turn = self.turn;
-
-        thread::scope(|s| {
-            // Setup and spawn the scoring thread
-            // This one uses the 'real' scoring function
-            // to pick the best move.
-            let (from_scored_thread, suspend_scorer) = {
-                let (to_manager_thread, from_scored_thread) = mpsc::channel();
-                let (suspend_scorer, scorer_halt_reciever) = mpsc::channel();
-
-                let threads_you_id = you_id.clone();
-                s.spawn(move || {
-                    let you_id = threads_you_id;
-                    let mut current_depth = players.len();
-                    let mut current_return = None;
-
-                    loop {
-                        let next = {
-                            let result = self.minimax(
-                                Cow::Borrowed(&self.game),
-                                &players,
-                                0,
-                                WrappedScore::<ScoreType>::worst_possible_score(),
-                                WrappedScore::<ScoreType>::best_possible_score(),
-                                current_depth,
-                                current_return,
-                                vec![],
-                                Some(&scorer_halt_reciever),
+                        if let Ok(ref result) = result {
+                            let current_span = tracing::Span::current();
+                            current_span.record("score", &format!("{:?}", result.score()).as_str());
+                            current_span.record(
+                                "direction",
+                                &format!("{:?}", result.your_best_move(you_id)).as_str(),
                             );
-
-                            if let Ok(ref result) = result {
-                                let current_span = tracing::Span::current();
-                                current_span
-                                    .record("score", &format!("{:?}", result.score()).as_str());
-                                current_span.record(
-                                    "direction",
-                                    &format!("{:?}", result.your_best_move(&you_id)).as_str(),
-                                );
-                            }
-
-                            result
-                        };
-
-                        let next = match next {
-                            Ok(x) => x,
-                            Err(AbortedEarly) => break,
-                        };
-
-                        let current_score = next.score();
-                        let terminal_depth = current_score.terminal_depth();
-
-                        let action = match terminal_depth {
-                            Some(terminal_depth) => {
-                                if current_depth >= terminal_depth.try_into().unwrap() {
-                                    FromWorkerAction::Stop
-                                } else {
-                                    FromWorkerAction::KeepGoing
-                                }
-                            }
-                            None => FromWorkerAction::KeepGoing,
-                        };
-
-                        let send_result =
-                            to_manager_thread.send((action, current_depth, next.clone()));
-
-                        if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
-                            return;
                         }
 
-                        current_return = Some(next);
+                        result
+                    };
 
-                        current_depth += players.len();
-                    }
-                });
+                    let next = match next {
+                        Ok(x) => x,
+                        Err(AbortedEarly) => break,
+                    };
 
-                (from_scored_thread, suspend_scorer)
-            };
+                    let current_score = next.score();
+                    let terminal_depth = current_score.terminal_depth();
 
-            // Setup and spawn the explorer thread
-            // This uses an empty scoring function to try and find and avoid traps
-            let (from_explorer_thread, suspend_explorer) = {
-                let (to_manager_thread, from_explorer_thread) = mpsc::channel();
-                let (suspend_explorer, explorer_halt_reciever) = mpsc::channel();
-
-                let explorer_snake = MinimaxSnake::from_fn(
-                    explorer_game.clone(),
-                    explorer_game_info,
-                    turn,
-                    &|_| {},
-                    "explorer",
-                );
-
-                s.spawn(move || {
-                    let mut current_depth = explorer_players.len();
-                    let mut current_return = None;
-                    let explorer_game = explorer_game;
-                    let you_id = explorer_game.you_id();
-
-                    loop {
-                        let next = {
-                            let result = explorer_snake.minimax(
-                                Cow::Borrowed(&explorer_game),
-                                &explorer_players,
-                                0,
-                                WrappedScore::<()>::worst_possible_score(),
-                                WrappedScore::<()>::best_possible_score(),
-                                current_depth,
-                                current_return,
-                                vec![],
-                                Some(&explorer_halt_reciever),
-                            );
-
-                            if let Ok(ref result) = result {
-                                let current_span = tracing::Span::current();
-                                current_span
-                                    .record("score", &format!("{:?}", result.score()).as_str());
-                                current_span.record(
-                                    "direction",
-                                    &format!("{:?}", result.your_best_move(you_id)).as_str(),
-                                );
+                    let action = match terminal_depth {
+                        Some(terminal_depth) => {
+                            if current_depth >= terminal_depth.try_into().unwrap() {
+                                FromWorkerAction::Stop
+                            } else {
+                                FromWorkerAction::KeepGoing
                             }
-
-                            result
-                        };
-
-                        let next = match next {
-                            Ok(x) => x,
-                            Err(AbortedEarly) => break,
-                        };
-
-                        let current_score = next.score();
-                        let terminal_depth = current_score.terminal_depth();
-
-                        let action = match terminal_depth {
-                            Some(terminal_depth) => {
-                                if current_depth >= terminal_depth.try_into().unwrap() {
-                                    FromWorkerAction::Stop
-                                } else {
-                                    FromWorkerAction::KeepGoing
-                                }
-                            }
-                            None => FromWorkerAction::KeepGoing,
-                        };
-
-                        let send_result =
-                            to_manager_thread.send((action, current_depth, next.clone()));
-
-                        if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
-                            return;
                         }
+                        None => FromWorkerAction::KeepGoing,
+                    };
 
-                        current_return = Some(next);
+                    let send_result = to_manager_thread.send((action, current_depth, next.clone()));
 
-                        current_depth += explorer_players.len();
+                    if send_result.is_err() || matches!(action, FromWorkerAction::Stop) {
+                        return;
                     }
-                });
 
-                (from_explorer_thread, suspend_explorer)
-            };
+                    current_return = Some(next);
 
-            let mut current = None;
-            let mut current_explorer = None;
-
-            while started_at.elapsed() < max_duration {
-                if let Ok((action, depth, result)) = from_scored_thread.try_recv() {
-                    // println!("{}", self.game.evaluate_moves(&result.all_moves()));
-                    current = Some((depth, result));
-
-                    match action {
-                        FromWorkerAction::KeepGoing => {}
-                        FromWorkerAction::Stop => {
-                            info!(depth, "This game is over, no need to keep going");
-                            break;
-                        }
-                    }
+                    current_depth += explorer_players.len();
                 }
+            });
 
-                if let Ok((action, depth, result)) = from_explorer_thread.try_recv() {
-                    // println!("{}", self.game.evaluate_moves(&result.all_moves()));
-                    current_explorer = Some((depth, result));
+            (from_explorer_thread, suspend_explorer)
+        };
 
-                    if let FromWorkerAction::Stop = action {
+        let mut current = None;
+        let mut current_explorer = None;
+
+        while started_at.elapsed() < max_duration {
+            if let Ok((action, depth, result)) = from_scored_thread.try_recv() {
+                // println!("{}", self.game.evaluate_moves(&result.all_moves()));
+                current = Some((depth, result));
+
+                match action {
+                    FromWorkerAction::KeepGoing => {}
+                    FromWorkerAction::Stop => {
                         info!(depth, "This game is over, no need to keep going");
                         break;
                     }
                 }
             }
 
-            // We send a signal to the worker threads to stop
-            // We can't kill the thread so we use this to help the
-            // worker know when to stop
-            let _ = suspend_scorer.send(());
-            let _ = suspend_explorer.send(());
+            if let Ok((action, depth, result)) = from_explorer_thread.try_recv() {
+                // println!("{}", self.game.evaluate_moves(&result.all_moves()));
+                current_explorer = Some((depth, result));
 
-            if let Some((depth, result)) = &current {
-                current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
-                current_span.record(
-                    "chosen_direction",
-                    &format!("{:?}", result.your_best_move(&you_id)).as_str(),
-                );
-                current_span.record(
-                    "all_moves",
-                    &format!("{:?}", result.chosen_route()).as_str(),
-                );
-                current_span.record("depth", &depth);
+                if let FromWorkerAction::Stop = action {
+                    info!(depth, "This game is over, no need to keep going");
+                    break;
+                }
             }
+        }
 
-            (current, current_explorer)
-        })
+        // We send a signal to the worker threads to stop
+        // We can't kill the thread so we use this to help the
+        // worker know when to stop
+        let _ = suspend_scorer.send(());
+        let _ = suspend_explorer.send(());
+
+        if let Some((depth, result)) = &current {
+            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            current_span.record(
+                "chosen_direction",
+                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+            );
+            current_span.record(
+                "all_moves",
+                &format!("{:?}", result.chosen_route()).as_str(),
+            );
+            current_span.record("depth", &depth);
+        }
+
+        (current, current_explorer)
     }
 
     /// This runs the minimax algorithm to the specified number of turns, returning an struct that
