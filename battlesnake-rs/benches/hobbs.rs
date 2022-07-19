@@ -32,7 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(3)
             })
@@ -55,7 +55,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(3)
             });
@@ -86,7 +86,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(6)
             });

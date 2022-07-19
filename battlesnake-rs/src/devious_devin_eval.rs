@@ -102,31 +102,31 @@ impl Factory {
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
                 BestCellBoard::Tiny(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::SmallExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Standard(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::MediumExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::LargestU8(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::LargeExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::ArcadeMaze(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Large(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Silly(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
             }
         } else {
@@ -134,31 +134,31 @@ impl Factory {
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
                 BestCellBoard::Tiny(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::SmallExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Standard(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::MediumExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::LargestU8(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::LargeExact(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::ArcadeMaze(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Large(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Silly(game) => {
-                    Box::new(MinimaxSnake::new(*game, game_info, turn, &score, name))
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
             }
         }

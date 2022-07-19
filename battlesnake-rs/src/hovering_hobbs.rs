@@ -128,7 +128,7 @@ macro_rules! build_from_best_cell_board_inner {
             let options = $options;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -136,7 +136,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -144,7 +144,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -152,7 +152,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -160,7 +160,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -168,7 +168,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -176,7 +176,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -184,7 +184,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Large(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::Large(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,
@@ -192,7 +192,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::new_with_options(
+                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::from_fn_with_options(
                     *game,
                     game_info,
                     turn,

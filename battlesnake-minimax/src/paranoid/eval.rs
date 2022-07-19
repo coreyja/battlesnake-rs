@@ -145,7 +145,7 @@ where
     /// // states are better than others
     /// fn score_function(board: &StandardCellBoard4Snakes11x11) -> i32 { 4 }
     ///
-    /// let minimax_snake = MinimaxSnake::new(
+    /// let minimax_snake = MinimaxSnake::from_fn(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -153,7 +153,7 @@ where
     ///    "minimax_snake",
     /// );
     /// ```
-    pub fn new(
+    pub fn from_fn(
         game: GameType,
         game_info: NestedGame,
         turn: i32,
@@ -207,7 +207,7 @@ where
     ///   ..Default::default()
     /// };
     ///
-    /// let minimax_snake = MinimaxSnake::new_with_options(
+    /// let minimax_snake = MinimaxSnake::from_fn_with_options(
     ///    compact_game,
     ///    game_info,
     ///    0,
@@ -216,7 +216,7 @@ where
     ///    snake_options,
     /// );
     /// ```
-    pub fn new_with_options(
+    pub fn from_fn_with_options(
         game: GameType,
         game_info: NestedGame,
         turn: i32,
@@ -255,6 +255,26 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
     ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync + Copy,
 {
+    /// Construct a new `MinimaxSnake`
+    pub fn new(
+        game: GameType,
+        game_info: NestedGame,
+        turn: i32,
+        score_function: ScorableType,
+        name: &'static str,
+        options: SnakeOptions,
+    ) -> Self {
+        Self {
+            game,
+            game_info,
+            turn,
+            score_function,
+            name,
+            options,
+            _phantom: Default::default(),
+        }
+    }
+
     ///
     /// Pick the next move to make
     ///
@@ -765,7 +785,7 @@ where
             let (to_manager_thread, from_explorer_thread) = mpsc::channel();
             let (suspend_explorer, explorer_halt_reciever) = mpsc::channel();
 
-            let explorer_snake = MinimaxSnake::new(
+            let explorer_snake = MinimaxSnake::from_fn(
                 explorer_game.clone(),
                 explorer_game_info,
                 turn,

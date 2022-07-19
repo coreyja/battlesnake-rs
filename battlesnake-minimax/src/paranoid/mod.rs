@@ -41,7 +41,7 @@
 //! };
 //!
 //!
-//! let minimax_snake = MinimaxSnake::new_with_options(
+//! let minimax_snake = MinimaxSnake::from_fn_with_options(
 //!    compact_game,
 //!    game_info,
 //!    0,

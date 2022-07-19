@@ -17,7 +17,7 @@ fn create_snake(game: Game) -> MinimaxSnake<StandardCellBoard4Snakes11x11, Score
 
     let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-    MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
 }
 
 fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
@@ -50,7 +50,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     //             let turn = game.turn;
     //             let id_map = build_snake_id_map(&game);
 
-    //             MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    //             MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
     //         };
     //         devin.single_minimax(max_turns)
     //     })
@@ -65,7 +65,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     //             let turn = game.turn;
     //             let id_map = build_snake_id_map(&game);
 
-    //             MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    //             MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
     //         };
     //         devin.deepend_minimax_to_turn(max_turns)
     //     })
