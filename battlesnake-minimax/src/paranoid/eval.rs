@@ -19,10 +19,7 @@ use types::{
     wire_representation::NestedGame,
 };
 
-use crate::{
-    paranoid::move_ordering::{BestFirst, MoveOrderable},
-    Instruments,
-};
+use crate::{paranoid::move_ordering::MoveOrdering, Instruments};
 
 use super::{score::Scorable, MinMaxReturn, WrappedScorable, WrappedScore};
 
@@ -464,7 +461,7 @@ where
 
         #[allow(clippy::type_complexity)]
         let possible_zipped: Vec<(Move, Option<MinMaxReturn<GameType, ScoreType>>)> =
-            BestFirst.order_moves(previous_return, possible_moves);
+            MoveOrdering::BestFirst.order_moves(previous_return, possible_moves);
 
         let mut alpha_beta_cutoff = false;
 
