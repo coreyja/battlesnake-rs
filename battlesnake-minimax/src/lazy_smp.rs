@@ -122,7 +122,7 @@ where
         .in_scope(|| {
             let num_background_snakes: usize = std::thread::available_parallelism()
                 .map(|x| x.into())
-                .map(|x: usize| x - 1)
+                .map(|x: usize| x / 2)
                 .unwrap_or(1);
 
             for _ in 0..num_background_snakes {
