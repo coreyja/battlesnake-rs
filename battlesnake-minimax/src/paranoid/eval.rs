@@ -9,7 +9,7 @@ use std::{
 
 use derivative::Derivative;
 use itertools::Itertools;
-use tracing::{debug_span, info, info_span, warn};
+use tracing::{info, info_span, warn};
 use types::{
     types::{
         HeadGettableGame, HealthGettableGame, Move, NeckQueryableGame, NeighborDeterminableGame,
