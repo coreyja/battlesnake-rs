@@ -2,8 +2,7 @@ use battlesnake_rs::{MinimaxSnake, StandardCellBoard4Snakes11x11};
 
 use types::{
     compact_representation::{
-        dimensions::{ArcadeMaze, Custom},
-        WrappedCellBoard, WrappedCellBoard4Snakes11x11,
+        dimensions::ArcadeMaze, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
     },
     types::build_snake_id_map,
     wire_representation::{Game, Ruleset},

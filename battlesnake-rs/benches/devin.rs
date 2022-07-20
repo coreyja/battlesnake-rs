@@ -16,7 +16,7 @@ fn create_snake(
 ) -> MinimaxSnake<
     StandardCellBoard4Snakes11x11,
     ScoreEndState,
-    impl Scorable<StandardCellBoard4Snakes11x11, ScoreEndState>,
+    impl Scorable<StandardCellBoard4Snakes11x11, ScoreEndState> + Clone,
     4,
 > {
     let game_info = game.game.clone();
