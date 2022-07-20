@@ -80,17 +80,13 @@ where
             options,
         );
 
+        let background_snake =
+            ParanoidMinimaxSnake::new(game, game_info, turn, cached_score, name, options);
+
         Self {
             cache,
             main_snake,
-            background_snake: ParanoidMinimaxSnake::new(
-                game,
-                game_info,
-                turn,
-                cached_score,
-                name,
-                options,
-            ),
+            background_snake,
         }
     }
 
