@@ -291,7 +291,7 @@ where
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        debug_span!(
+        info_span!(
           "deepened_minmax",
           snake_name = self.name,
           game_id = %&self.game_info.id,
