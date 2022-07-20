@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc, thread};
 
 use dashmap::DashMap;
 use derivative::Derivative;
+use tracing::info_span;
 use types::{types::*, wire_representation::NestedGame};
 
 use crate::{
@@ -109,18 +110,35 @@ where
     }
 
     pub fn choose_move(&self) -> Move {
-        let num_background_snakes: usize = std::thread::available_parallelism()
-            .map(|x| x.into())
-            .map(|x: usize| x - 1)
-            .unwrap_or(1);
+        info_span!(
+          "lazy_smp",
+          snake_name = self.main_snake.name,
+          game_id = %&self.main_snake.game_info.id,
+          turn = self.main_snake.turn,
+          ruleset_name = %self.main_snake.game_info.ruleset.name,
+          ruleset_version = %self.main_snake.game_info.ruleset.version,
+          chosen_score = tracing::field::Empty,
+          chosen_direction = tracing::field::Empty,
+          depth = tracing::field::Empty,
+        )
+        .in_scope(|| {
+            let num_background_snakes: usize = std::thread::available_parallelism()
+                .map(|x| x.into())
+                .map(|x: usize| x - 1)
+                .unwrap_or(1);
 
-        for _ in 0..num_background_snakes {
-            let snake = self.background_snake.clone();
-            thread::spawn(move || {
-                snake.choose_move();
-            });
-        }
+            for _ in 0..num_background_snakes {
+                let snake = self.background_snake.clone();
+                thread::spawn(move || {
+                    snake.choose_move();
+                });
+            }
 
-        self.main_snake.choose_move()
+            let (m, depth) = self.main_snake.choose_move();
+            let current_span = tracing::Span::current();
+            current_span.record("depth", &depth);
+
+            m
+        })
     }
 }

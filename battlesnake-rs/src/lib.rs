@@ -252,7 +252,7 @@ where
     ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
 {
     fn make_move(&self) -> Result<MoveOutput> {
-        let m: Move = self.choose_move();
+        let m: Move = self.choose_move().0;
 
         Ok(MoveOutput {
             r#move: format!("{}", m),

@@ -9,7 +9,7 @@ use std::{
 
 use derivative::Derivative;
 use itertools::Itertools;
-use tracing::{info, info_span, warn};
+use tracing::{debug_span, info, info_span, warn};
 use types::{
     types::{
         HeadGettableGame, HealthGettableGame, Move, NeckQueryableGame, NeighborDeterminableGame,
@@ -35,12 +35,12 @@ where
     ScoreType: 'static,
     ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + 'static + Clone,
 {
-    game: GameType,
-    game_info: NestedGame,
-    turn: i32,
+    pub game: GameType,
+    pub game_info: NestedGame,
+    pub turn: i32,
     #[derivative(Debug = "ignore")]
     score_function: ScorableType,
-    name: &'static str,
+    pub name: &'static str,
     options: SnakeOptions,
     _phantom: PhantomData<ScoreType>,
 }
@@ -286,12 +286,12 @@ where
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
     /// [MinimaxSnake::deepened_minimax_until_timelimit()]
-    pub fn choose_move(&self) -> Move {
+    pub fn choose_move(&self) -> (Move, usize) {
         let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        info_span!(
+        debug_span!(
           "deepened_minmax",
           snake_name = self.name,
           game_id = %&self.game_info.id,
@@ -310,7 +310,8 @@ where
             info!(depth = depth, "scored_depth");
 
             let scored_options = scored.first_options_for_snake(my_id).unwrap();
-            scored_options.first().unwrap().0
+
+            (scored_options.first().unwrap().0, depth)
         })
     }
 
