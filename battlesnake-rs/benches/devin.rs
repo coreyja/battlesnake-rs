@@ -1,3 +1,4 @@
+use battlesnake_minimax::paranoid::Scorable;
 use types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::build_snake_id_map,
     wire_representation::Game,
@@ -10,14 +11,21 @@ use battlesnake_rs::{
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
 
-fn create_snake(game: Game) -> MinimaxSnake<StandardCellBoard4Snakes11x11, ScoreEndState, 4> {
+fn create_snake(
+    game: Game,
+) -> MinimaxSnake<
+    StandardCellBoard4Snakes11x11,
+    ScoreEndState,
+    impl Scorable<StandardCellBoard4Snakes11x11, ScoreEndState> + Clone,
+    4,
+> {
     let game_info = game.game.clone();
     let turn = game.turn;
     let id_map = build_snake_id_map(&game);
 
     let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-    MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
 }
 
 fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
@@ -50,7 +58,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     //             let turn = game.turn;
     //             let id_map = build_snake_id_map(&game);
 
-    //             MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    //             MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
     //         };
     //         devin.single_minimax(max_turns)
     //     })
@@ -65,7 +73,7 @@ fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     //             let turn = game.turn;
     //             let id_map = build_snake_id_map(&game);
 
-    //             MinimaxSnake::new(game, game_info, turn, &score, "devin")
+    //             MinimaxSnake::from_fn(game, game_info, turn, &score, "devin")
     //         };
     //         devin.deepend_minimax_to_turn(max_turns)
     //     })

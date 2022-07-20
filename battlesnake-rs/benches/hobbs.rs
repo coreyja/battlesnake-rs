@@ -2,8 +2,7 @@ use battlesnake_rs::{MinimaxSnake, StandardCellBoard4Snakes11x11};
 
 use types::{
     compact_representation::{
-        dimensions::{ArcadeMaze, Custom},
-        WrappedCellBoard, WrappedCellBoard4Snakes11x11,
+        dimensions::ArcadeMaze, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
     },
     types::build_snake_id_map,
     wire_representation::{Game, Ruleset},
@@ -15,9 +14,8 @@ use pprof::criterion::{Output, PProfProfiler};
 use battlesnake_rs::hovering_hobbs::standard_score;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let _ = 1;
     {
-        let mut g = c.benchmark_group("fixture: start_of_game.json");
+        let mut g = c.benchmark_group("Hobbs/fixture: start_of_game.json");
         let game_json = include_str!("../fixtures/start_of_game.json");
 
         g.bench_function("Compact", |b| {
@@ -32,7 +30,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(3)
             })
@@ -55,7 +53,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(3)
             });
@@ -63,7 +61,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let mut g = c.benchmark_group("fixture: arcade_maze_end_game_duels.json");
+        let mut g = c.benchmark_group("Hobbs/fixture: arcade_maze_end_game_duels.json");
         let game_json = include_str!("../../fixtures/arcade_maze_end_game_duels.json");
 
         g.bench_function("arcade-maze", |b| {
@@ -86,7 +84,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 let snake =
-                    MinimaxSnake::new(black_box(game), game_info, turn, &standard_score, name);
+                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
 
                 snake.deepend_minimax_to_turn(6)
             });

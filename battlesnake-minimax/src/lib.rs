@@ -2,7 +2,7 @@
     warnings,
     missing_copy_implementations,
     missing_debug_implementations,
-    missing_docs
+    // missing_docs
 )]
 //! This crate implements the minimax algorithm for the battlesnake game. You provide a 'scoring'
 //! function that turns a given board into anything that implements the `Ord` trait.
@@ -45,7 +45,7 @@
 //! };
 //!
 //!
-//! let minimax_snake = MinimaxSnake::new_with_options(
+//! let minimax_snake = MinimaxSnake::from_fn_with_options(
 //!    compact_game,
 //!    game_info,
 //!    0,
@@ -65,6 +65,11 @@ pub use types;
 pub mod paranoid;
 
 pub use paranoid::MinimaxSnake as ParanoidMinimaxSnake;
+
+pub use dashmap;
+
+#[allow(missing_docs)]
+pub mod lazy_smp;
 
 /// The move output to be returned to the Battlesnake Engine
 #[derive(Debug, Clone)]
@@ -105,7 +110,7 @@ mod tests {
             .as_wrapped_cell_board(&snake_ids)
             .expect("Fixture data should be a valid game");
 
-        let explorer = MinimaxSnake::new_with_options(
+        let explorer = MinimaxSnake::from_fn_with_options(
             game,
             game_info.clone(),
             0,
@@ -123,7 +128,7 @@ mod tests {
             })
             .unwrap();
 
-        let next_explorer = MinimaxSnake::new(chosen_next.1, game_info, 0, &|_| (), "explorer");
+        let next_explorer = MinimaxSnake::from_fn(chosen_next.1, game_info, 0, &|_| (), "explorer");
         let next_result = next_explorer.deepend_minimax_to_turn(100);
         let next_score = next_result.score();
 

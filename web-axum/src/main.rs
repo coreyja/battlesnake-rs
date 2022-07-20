@@ -24,6 +24,7 @@ use tracing_honeycomb::{
 };
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
+use tracing_tree::HierarchicalLayer;
 
 use std::net::SocketAddr;
 
@@ -87,6 +88,17 @@ async fn main() {
         let telemetry_layer = new_blackhole_telemetry_layer();
         Registry::default()
             .with(logging)
+            .with(
+                HierarchicalLayer::default()
+                    .with_writer(std::io::stdout)
+                    .with_indent_lines(true)
+                    .with_indent_amount(2)
+                    .with_thread_names(true)
+                    .with_thread_ids(true)
+                    .with_verbose_exit(true)
+                    .with_verbose_entry(true)
+                    .with_targets(true),
+            )
             .with(telemetry_layer)
             .with(env_filter)
             .try_init()
