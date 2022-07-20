@@ -5,7 +5,7 @@ use derivative::Derivative;
 use types::{types::*, wire_representation::NestedGame};
 
 use crate::{
-    paranoid::{CachedScore, Scorable, SnakeOptions},
+    paranoid::{move_ordering::MoveOrdering, CachedScore, Scorable, SnakeOptions},
     Instruments, ParanoidMinimaxSnake,
 };
 
@@ -71,17 +71,35 @@ where
         let cache = Arc::new(cache);
         let cached_score = CachedScore::new(score_function, cache.clone());
 
+        let main_options = {
+            let mut options = options;
+            options.move_ordering = MoveOrdering::BestFirst;
+            options
+        };
+
         let main_snake = ParanoidMinimaxSnake::new(
             game,
             game_info.clone(),
             turn,
             cached_score.clone(),
             name,
-            options,
+            main_options,
         );
 
-        let background_snake =
-            ParanoidMinimaxSnake::new(game, game_info, turn, cached_score, name, options);
+        let background_options = {
+            let mut options = options;
+            options.move_ordering = MoveOrdering::Random;
+            options
+        };
+
+        let background_snake = ParanoidMinimaxSnake::new(
+            game,
+            game_info,
+            turn,
+            cached_score,
+            name,
+            background_options,
+        );
 
         Self {
             cache,

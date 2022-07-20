@@ -65,12 +65,15 @@ pub struct SnakeOptions {
     ///
     /// Defaults to 100 milliseconds
     pub network_latency_padding: Duration,
+    /// How should moves be ordered in the tree search
+    pub move_ordering: MoveOrdering,
 }
 
 impl Default for SnakeOptions {
     fn default() -> Self {
         Self {
             network_latency_padding: Duration::from_millis(100),
+            move_ordering: MoveOrdering::BestFirst,
         }
     }
 }
@@ -460,8 +463,10 @@ where
             .map(|(m, _)| m);
 
         #[allow(clippy::type_complexity)]
-        let possible_zipped: Vec<(Move, Option<MinMaxReturn<GameType, ScoreType>>)> =
-            MoveOrdering::BestFirst.order_moves(previous_return, possible_moves);
+        let possible_zipped: Vec<(Move, Option<MinMaxReturn<GameType, ScoreType>>)> = self
+            .options
+            .move_ordering
+            .order_moves(previous_return, possible_moves);
 
         let mut alpha_beta_cutoff = false;
 

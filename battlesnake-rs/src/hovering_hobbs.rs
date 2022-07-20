@@ -8,7 +8,7 @@ use crate::*;
 use battlesnake_minimax::{
     dashmap::DashMap,
     lazy_smp::LazySmpSnake,
-    paranoid::{CachedScore, SnakeOptions},
+    paranoid::{move_ordering::MoveOrdering, CachedScore, SnakeOptions},
 };
 use decorum::N64;
 use types::types::*;
@@ -222,26 +222,12 @@ impl BattlesnakeFactory for Factory {
 
         let options: SnakeOptions = SnakeOptions {
             network_latency_padding: Duration::from_millis(50),
+            move_ordering: MoveOrdering::BestFirst,
         };
 
         if game.is_arcade_maze_map() {
-            // let id_map = build_snake_id_map(&game);
-            // let compact = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-            // Box::new(MinimaxSnake::new(
-            //     compact,
-            //     game_info,
-            //     turn,
-            //     cached_score,
-            //     name,
-            //     options,
-            // ))
-
             build_from_best_cell_board!(game, game_info, turn, arcade_maze_score, name, options)
         } else {
-            let cache: DashMap<StandardCellBoard4Snakes11x11, Score> = DashMap::new();
-            let cache = Arc::new(cache);
-            let _cached_score = CachedScore::new(&standard_score, cache);
-
             build_from_best_cell_board!(game, game_info, turn, standard_score, name, options)
         }
     }
