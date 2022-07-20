@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::SpreadFromHead;
@@ -6,9 +6,8 @@ use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
 use battlesnake_minimax::{
-    dashmap::DashMap,
     lazy_smp::LazySmpSnake,
-    paranoid::{move_ordering::MoveOrdering, CachedScore, SnakeOptions},
+    paranoid::{move_ordering::MoveOrdering, SnakeOptions},
 };
 use decorum::N64;
 use types::types::*;
