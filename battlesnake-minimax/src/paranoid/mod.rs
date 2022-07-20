@@ -67,3 +67,6 @@ pub use eval::{MinimaxSnake, SnakeOptions};
 
 mod cached_score;
 pub use cached_score::CachedScore;
+
+#[allow(missing_docs)]
+pub mod move_ordering;

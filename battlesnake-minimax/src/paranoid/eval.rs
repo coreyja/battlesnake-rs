@@ -19,7 +19,10 @@ use types::{
     wire_representation::NestedGame,
 };
 
-use crate::Instruments;
+use crate::{
+    paranoid::move_ordering::{BestFirst, MoveOrderable},
+    Instruments,
+};
 
 use super::{score::Scorable, MinMaxReturn, WrappedScorable, WrappedScore};
 
@@ -456,34 +459,16 @@ where
         assert!(node.get_health_i64(snake_id) > 0);
         let possible_moves = node
             .possible_moves(&node.get_head_as_native_position(snake_id))
-            .filter(|(_, pos)| !node.is_neck(snake_id, pos));
+            .filter(|(_, pos)| !node.is_neck(snake_id, pos))
+            .map(|(m, _)| m);
 
         #[allow(clippy::type_complexity)]
-        let possible_zipped: Vec<(
-            (Move, GameType::NativePositionType),
-            Option<MinMaxReturn<GameType, ScoreType>>,
-        )> = if let Some(MinMaxReturn::Node { mut options, .. }) = previous_return {
-            let mut v: Vec<_> = possible_moves
-                .map(|m| {
-                    (
-                        m.clone(),
-                        options
-                            .iter()
-                            .position(|x| x.0 == m.0)
-                            .map(|x| options.remove(x).1),
-                    )
-                })
-                .collect();
-            v.sort_by_cached_key(|(_, r)| r.as_ref().map(|x| *x.score()));
-            v.reverse();
-            v
-        } else {
-            possible_moves.map(|m| (m, None)).collect()
-        };
+        let possible_zipped: Vec<(Move, Option<MinMaxReturn<GameType, ScoreType>>)> =
+            BestFirst.order_moves(previous_return, possible_moves);
 
         let mut alpha_beta_cutoff = false;
 
-        for ((dir, _coor), previous_return) in possible_zipped.into_iter() {
+        for (dir, previous_return) in possible_zipped.into_iter() {
             if let Some(worker_halt_reciever) = worker_halt_reciever {
                 if worker_halt_reciever.try_recv().is_ok() {
                     return Err(AbortedEarly);
