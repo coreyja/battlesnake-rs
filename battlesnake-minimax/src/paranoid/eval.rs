@@ -307,7 +307,6 @@ where
 
             let current_span = tracing::Span::current();
             current_span.record("scored_depth", &depth);
-            info!(depth = depth, "scored_depth");
 
             let scored_options = scored.first_options_for_snake(my_id).unwrap();
 
