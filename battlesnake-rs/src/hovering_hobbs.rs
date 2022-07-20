@@ -6,8 +6,8 @@ use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
 use battlesnake_minimax::{
-    lazy_smp::LazySmpSnake,
     paranoid::{move_ordering::MoveOrdering, SnakeOptions},
+    ParanoidMinimaxSnake,
 };
 use decorum::N64;
 use types::types::*;
@@ -131,7 +131,7 @@ macro_rules! build_from_best_cell_board_inner {
             let options = $options;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::Tiny(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -139,7 +139,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::SmallExact(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::SmallExact(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -147,7 +147,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Standard(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::Standard(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -155,7 +155,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::MediumExact(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::MediumExact(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -163,7 +163,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::LargestU8(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::LargestU8(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -171,7 +171,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::LargeExact(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::LargeExact(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -179,7 +179,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::ArcadeMaze(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::ArcadeMaze(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -187,7 +187,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Large(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::Large(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
@@ -195,7 +195,7 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
-                BestCellBoard::Silly(game) => Box::new(LazySmpSnake::new(
+                BestCellBoard::Silly(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,
                     turn,
