@@ -117,8 +117,6 @@ where
           turn = self.main_snake.turn,
           ruleset_name = %self.main_snake.game_info.ruleset.name,
           ruleset_version = %self.main_snake.game_info.ruleset.version,
-          chosen_score = tracing::field::Empty,
-          chosen_direction = tracing::field::Empty,
           depth = tracing::field::Empty,
         )
         .in_scope(|| {
