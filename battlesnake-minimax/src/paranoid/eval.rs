@@ -297,7 +297,6 @@ where
           ruleset_version = %self.game_info.ruleset.version,
           chosen_score = tracing::field::Empty,
           chosen_direction = tracing::field::Empty,
-          all_moves = tracing::field::Empty,
           depth = tracing::field::Empty,
         )
         .in_scope(|| {
@@ -305,6 +304,7 @@ where
 
             let current_span = tracing::Span::current();
             current_span.record("scored_depth", &depth);
+            info!(depth = depth, "scored_depth");
 
             let scored_options = scored.first_options_for_snake(my_id).unwrap();
             scored_options.first().unwrap().0
@@ -669,10 +669,6 @@ where
             current_span.record(
                 "chosen_direction",
                 &format!("{:?}", result.your_best_move(&you_id)).as_str(),
-            );
-            current_span.record(
-                "all_moves",
-                &format!("{:?}", result.chosen_route()).as_str(),
             );
             current_span.record("depth", &depth);
         }

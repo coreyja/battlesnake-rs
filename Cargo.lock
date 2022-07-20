@@ -2884,6 +2884,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-tree"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d07e90b329c621ade432823988574e820212648aa40e7a2497777d58de0fb453"
+dependencies = [
+ "ansi_term",
+ "atty",
+ "tracing-core",
+ "tracing-log",
+ "tracing-subscriber 0.3.11",
+]
+
+[[package]]
 name = "traitobject"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3186,6 +3199,7 @@ dependencies = [
  "tracing-honeycomb",
  "tracing-opentelemetry",
  "tracing-subscriber 0.3.11",
+ "tracing-tree",
 ]
 
 [[package]]

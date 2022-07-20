@@ -7,7 +7,8 @@ use crate::*;
 
 use battlesnake_minimax::{
     dashmap::DashMap,
-    paranoid::{CachedScore, MinimaxSnake, SnakeOptions},
+    lazy_smp::LazySmpSnake,
+    paranoid::{CachedScore, SnakeOptions},
 };
 use decorum::N64;
 use types::types::*;
@@ -131,75 +132,75 @@ macro_rules! build_from_best_cell_board_inner {
             let options = $options;
 
             match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::Tiny(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::SmallExact(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::SmallExact(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::Standard(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::Standard(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::MediumExact(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::MediumExact(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::LargestU8(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::LargestU8(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::LargeExact(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::LargeExact(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::ArcadeMaze(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::ArcadeMaze(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::Large(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::Large(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),
-                BestCellBoard::Silly(game) => Box::new(MinimaxSnake::new(
+                BestCellBoard::Silly(game) => Box::new(LazySmpSnake::new(
                     *game,
                     game_info,
                     turn,
-                    CachedScore::new(&$score_function, Arc::new(DashMap::new())),
+                    &$score_function,
                     name,
                     options,
                 )),

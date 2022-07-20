@@ -16,4 +16,5 @@ anyhow = "1.0.56"
 tower = "0.4.12"
 tracing-opentelemetry = "0.17.2"
 tracing-honeycomb = { git = "https://github.com/coreyja/tracing-honeycomb", rev = "862dade", features = ["use_parking_lot"] }
+tracing-tree = "0.2.1"
 # tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }

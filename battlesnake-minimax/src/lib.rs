@@ -68,6 +68,9 @@ pub use paranoid::MinimaxSnake as ParanoidMinimaxSnake;
 
 pub use dashmap;
 
+#[allow(missing_docs)]
+pub mod lazy_smp;
+
 /// The move output to be returned to the Battlesnake Engine
 #[derive(Debug, Clone)]
 pub struct MoveOutput {

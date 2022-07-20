@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate serde_derive;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, hash::Hash};
 
 use anyhow::Result;
 
@@ -220,7 +220,7 @@ impl SnakeTailPushableGame for Game {
 }
 
 pub use battlesnake_minimax::paranoid::MinimaxSnake;
-use battlesnake_minimax::{paranoid::Scorable, Instruments};
+use battlesnake_minimax::{lazy_smp::LazySmpSnake, paranoid::Scorable, Instruments};
 
 use crate::{
     amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
@@ -247,6 +247,41 @@ where
         + Copy
         + FoodGettableGame
         + Send,
+    T::SnakeIDType: Copy + Send + Sync,
+    ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
+    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
+{
+    fn make_move(&self) -> Result<MoveOutput> {
+        let m: Move = self.choose_move();
+
+        Ok(MoveOutput {
+            r#move: format!("{}", m),
+            shout: None,
+        })
+    }
+}
+
+impl<T, ScoreType, ScoreableType, const N_SNAKES: usize> BattlesnakeAI
+    for LazySmpSnake<T, ScoreType, ScoreableType, N_SNAKES>
+where
+    T: SnakeIDGettableGame
+        + YouDeterminableGame
+        + PositionGettableGame
+        + HeadGettableGame
+        + HealthGettableGame
+        + VictorDeterminableGame
+        + NeighborDeterminableGame
+        + NeckQueryableGame
+        // + ReasonableMoveDeterminableGame
+        + SimulableGame<Instruments, N_SNAKES>
+        + Clone
+        + Sync
+        + Copy
+        + FoodGettableGame
+        + Send
+        + Eq
+        + PartialEq
+        + Hash,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
     ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
