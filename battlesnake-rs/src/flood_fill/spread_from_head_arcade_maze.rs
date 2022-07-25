@@ -12,18 +12,14 @@ use types::{
 
 pub use super::spread_from_head::*;
 
-pub trait SpreadFromHeadArcadeMaze<CellType> {
+pub trait SpreadFromHeadArcadeMaze<CellType, const MAX_SNAKES: usize> {
     type GridType;
 
     fn calculate(&self, number_of_cycles: usize) -> Self::GridType;
-    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; 4];
+    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES];
 }
 
 // Board: 19 x 21
-// (3, 11) = 11 + 3*19 = 68
-// (9, 11) = 11 + 9*19 = 182
-// (15, 11) = 11 + 15*19 = 296
-
 // (1, 1) = 1 + 1*19 = 20
 // (3, 11) = 11 + 3*19 = 68
 // (4, 7) = 7 + 4*19 = 83
@@ -39,7 +35,8 @@ pub trait SpreadFromHeadArcadeMaze<CellType> {
 const FOOD_SPAWN_LOCATION_INDEX: [usize; 12] =
     [20, 68, 83, 93, 172, 176, 182, 188, 273, 283, 286, 334];
 
-impl<BoardType, CellType> SpreadFromHeadArcadeMaze<CellType> for BoardType
+impl<BoardType, CellType, const MAX_SNAKES: usize> SpreadFromHeadArcadeMaze<CellType, MAX_SNAKES>
+    for BoardType
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame<NativePositionType = CellIndex<CellType>>
@@ -66,7 +63,7 @@ where
         };
 
         let mut todos: TinyVec<[CellWrapper<CellType>; 16]> = TinyVec::new();
-        let mut todos_per_snake: [u8; 4] = [0; 4];
+        let mut todos_per_snake: [u8; MAX_SNAKES] = [0; MAX_SNAKES];
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_iter(sid) {
@@ -86,7 +83,7 @@ where
             }
 
             let mut new_todos = TinyVec::new();
-            let mut new_todos_per_snake = [0; 4];
+            let mut new_todos_per_snake = [0; MAX_SNAKES];
 
             let mut todos_iter = todos.into_iter();
 
@@ -112,10 +109,11 @@ where
         grid
     }
 
-    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; 4] {
-        let result = SpreadFromHeadArcadeMaze::calculate(self, number_of_cycles);
+    fn squares_per_snake_hazard_maze(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES] {
+        let result =
+            SpreadFromHeadArcadeMaze::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
 
-        let mut total_values = [0; 4];
+        let mut total_values = [0; MAX_SNAKES];
 
         for (i, sid) in result
             .cells

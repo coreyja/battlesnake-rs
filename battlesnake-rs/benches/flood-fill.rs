@@ -21,7 +21,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         )
         .unwrap();
 
-        b.iter(|| {
+        b.iter(|| -> [u8; 4] {
             let game = black_box(&game);
             game.squares_per_snake(5)
         })
@@ -44,7 +44,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         )
         .unwrap();
 
-        b.iter(|| {
+        b.iter(|| -> [u8; 4] {
             let game = black_box(&game);
             game.squares_per_snake(5)
         })

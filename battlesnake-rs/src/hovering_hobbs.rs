@@ -18,17 +18,18 @@ pub enum Score {
     FloodFill(N64),
 }
 
-pub fn standard_score<BoardType, CellType>(node: &BoardType) -> Score
+pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
-        + SpreadFromHead<CellType>
+        + SpreadFromHead<CellType, MAX_SNAKES>
         + APrimeCalculable
         + HeadGettableGame
         + HazardQueryableGame
         + HealthGettableGame
         + LengthGettableGame
-        + FoodGettableGame,
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
 {
     let square_counts = node.squares_per_snake_with_hazard_cost(5, 5);
 
@@ -51,18 +52,19 @@ where
     Score::FloodFill(my_ratio)
 }
 
-pub fn arcade_maze_score<BoardType, CellType>(node: &BoardType) -> Score
+pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
-        + SpreadFromHead<CellType>
-        + SpreadFromHeadArcadeMaze<CellType>
+        + SpreadFromHead<CellType, MAX_SNAKES>
+        + SpreadFromHeadArcadeMaze<CellType, MAX_SNAKES>
         + APrimeCalculable
         + HeadGettableGame
         + HazardQueryableGame
         + HealthGettableGame
         + LengthGettableGame
-        + FoodGettableGame,
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
 {
     let square_counts = node.squares_per_snake_hazard_maze(8);
 

@@ -19,16 +19,16 @@ where
     pub(crate) cells: Vec<Option<BoardType::SnakeIDType>>,
 }
 
-pub trait SpreadFromHead<CellType> {
+pub trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
     type GridType;
 
     fn calculate(&self, number_of_cycles: usize) -> Self::GridType;
-    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4];
+    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES];
     fn squares_per_snake_with_hazard_cost(
         &self,
         number_of_cycles: usize,
         hazard_cost: u16,
-    ) -> [u16; 4];
+    ) -> [u16; MAX_SNAKES];
 }
 
 pub struct CellWrapper<CellType: CellNum>(pub(crate) CellIndex<CellType>);
@@ -47,7 +47,8 @@ impl<CellType: CellNum> Deref for CellWrapper<CellType> {
     }
 }
 
-impl<BoardType, CellType> SpreadFromHead<CellType> for BoardType
+impl<BoardType, CellType, const MAX_SNAKES: usize> SpreadFromHead<CellType, MAX_SNAKES>
+    for BoardType
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + PositionGettableGame<NativePositionType = CellIndex<CellType>>
@@ -74,7 +75,7 @@ where
         };
 
         let mut todos: TinyVec<[CellWrapper<CellType>; 16]> = TinyVec::new();
-        let mut todos_per_snake: [u8; 4] = [0; 4];
+        let mut todos_per_snake: [u8; MAX_SNAKES] = [0; MAX_SNAKES];
 
         for sid in &sorted_snake_ids {
             for pos in self.get_snake_body_iter(sid) {
@@ -94,7 +95,7 @@ where
             }
 
             let mut new_todos = TinyVec::new();
-            let mut new_todos_per_snake = [0; 4];
+            let mut new_todos_per_snake = [0; MAX_SNAKES];
 
             let mut todos_iter = todos.into_iter();
 
@@ -120,11 +121,11 @@ where
         grid
     }
 
-    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; 4] {
-        let result = self.calculate(number_of_cycles);
+    fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES] {
+        let result = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
         let cell_sids = result.cells.iter().filter_map(|x| *x);
 
-        let mut total_values = [0; 4];
+        let mut total_values = [0; MAX_SNAKES];
 
         for sid in cell_sids {
             total_values[sid.as_usize()] += 1;
@@ -137,8 +138,8 @@ where
         &self,
         number_of_cycles: usize,
         non_hazard_bonus: u16,
-    ) -> [u16; 4] {
-        let grid = self.calculate(number_of_cycles);
+    ) -> [u16; MAX_SNAKES] {
+        let grid = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
 
         let sid_and_values = grid
             .cells
@@ -156,7 +157,7 @@ where
                 (sid, value)
             });
 
-        let mut total_values = [0; 4];
+        let mut total_values = [0; MAX_SNAKES];
 
         for (sid, value) in sid_and_values {
             total_values[sid.as_usize()] += value;
