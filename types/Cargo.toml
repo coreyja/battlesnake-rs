@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 # battlesnake-game-types = "0.11.1"
 # battlesnake-game-types = { git = "https://github.com/penelopezone/battlesnake-game-types.git", branch = "main" }
-battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "ec0499e" }
+battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "51bbcec" }
 # battlesnake-game-types = { path = "../../battlesnake-game-types" }
