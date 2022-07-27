@@ -189,6 +189,14 @@ macro_rules! build_from_best_cell_board_inner {
                     name,
                     options,
                 )),
+                BestCellBoard::ArcadeMaze8Snake(game) => Box::new(ParanoidMinimaxSnake::new(
+                    *game,
+                    game_info,
+                    turn,
+                    &$score_function,
+                    name,
+                    options,
+                )),
                 BestCellBoard::Large(game) => Box::new(ParanoidMinimaxSnake::new(
                     *game,
                     game_info,

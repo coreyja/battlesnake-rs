@@ -122,6 +122,9 @@ impl Factory {
                 BestCellBoard::ArcadeMaze(game) => {
                     Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
+                BestCellBoard::ArcadeMaze8Snake(game) => {
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
+                }
                 BestCellBoard::Large(game) => {
                     Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
@@ -152,6 +155,9 @@ impl Factory {
                     Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::ArcadeMaze(game) => {
+                    Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
+                }
+                BestCellBoard::ArcadeMaze8Snake(game) => {
                     Box::new(MinimaxSnake::from_fn(*game, game_info, turn, &score, name))
                 }
                 BestCellBoard::Large(game) => {
