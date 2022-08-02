@@ -5,9 +5,9 @@ use tinyvec::TinyVec;
 use types::{
     compact_representation::{CellNum, *},
     types::{
-        HazardQueryableGame, HeadGettableGame, LengthGettableGame, NeighborDeterminableGame,
-        PositionGettableGame, SizeDeterminableGame, SnakeBodyGettableGame, SnakeIDGettableGame,
-        SnakeId,
+        FoodQueryableGame, HazardQueryableGame, HeadGettableGame, LengthGettableGame,
+        NeighborDeterminableGame, PositionGettableGame, SizeDeterminableGame,
+        SnakeBodyGettableGame, SnakeIDGettableGame, SnakeId,
     },
 };
 
@@ -19,15 +19,22 @@ where
     pub(crate) cells: Vec<Option<BoardType::SnakeIDType>>,
 }
 
-pub trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Scores {
+    pub(crate) food: u16,
+    pub(crate) hazard: u16,
+    pub(crate) empty: u16,
+}
+
+pub(crate) trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
     type GridType;
 
     fn calculate(&self, number_of_cycles: usize) -> Self::GridType;
     fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES];
-    fn squares_per_snake_with_hazard_cost(
+    fn squares_per_snake_with_scores(
         &self,
         number_of_cycles: usize,
-        hazard_cost: u16,
+        scores: Scores,
     ) -> [u16; MAX_SNAKES];
 }
 
@@ -54,6 +61,7 @@ where
         + PositionGettableGame<NativePositionType = CellIndex<CellType>>
         + SizeDeterminableGame
         + HazardQueryableGame
+        + FoodQueryableGame
         + LengthGettableGame
         + NeighborDeterminableGame
         + HeadGettableGame
@@ -134,10 +142,10 @@ where
         total_values
     }
 
-    fn squares_per_snake_with_hazard_cost(
+    fn squares_per_snake_with_scores(
         &self,
         number_of_cycles: usize,
-        non_hazard_bonus: u16,
+        scores: Scores,
     ) -> [u16; MAX_SNAKES] {
         let grid = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
 
@@ -150,14 +158,19 @@ where
                 let value = if self.is_hazard(
                     &<BoardType as PositionGettableGame>::NativePositionType::from_usize(i),
                 ) {
-                    1
+                    scores.hazard
+                } else if self.is_food(
+                    &<BoardType as PositionGettableGame>::NativePositionType::from_usize(i),
+                ) {
+                    scores.food
                 } else {
-                    non_hazard_bonus + 1
+                    scores.empty
                 };
+
                 (sid, value)
             });
 
-        let mut total_values = [0; MAX_SNAKES];
+        let mut total_values = [0_u16; MAX_SNAKES];
 
         for (sid, value) in sid_and_values {
             total_values[sid.as_usize()] += value;

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::a_prime::APrimeCalculable;
-use crate::flood_fill::spread_from_head::SpreadFromHead;
+use crate::flood_fill::spread_from_head::{Scores, SpreadFromHead};
 use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
@@ -18,7 +18,9 @@ pub enum Score {
     FloodFill(N64),
 }
 
-pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+pub(crate) fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
@@ -31,7 +33,20 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    let square_counts = node.squares_per_snake_with_hazard_cost(5, 5);
+    let scores = if node.get_hazard_damage().is_positive() {
+        Scores {
+            food: 5,
+            hazard: 1,
+            empty: 5,
+        }
+    } else {
+        Scores {
+            food: 5,
+            hazard: 5,
+            empty: 1,
+        }
+    };
+    let square_counts = node.squares_per_snake_with_scores(5, scores);
 
     let me = node.you_id();
     let my_space: f64 = square_counts[me.as_usize()] as f64;
@@ -52,7 +67,9 @@ where
     Score::FloodFill(my_ratio)
 }
 
-pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+pub(crate) fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
