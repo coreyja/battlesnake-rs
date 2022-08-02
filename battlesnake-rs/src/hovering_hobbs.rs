@@ -18,9 +18,7 @@ pub enum Score {
     FloodFill(N64),
 }
 
-pub(crate) fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(
-    node: &BoardType,
-) -> Score
+pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
@@ -67,9 +65,7 @@ where
     Score::FloodFill(my_ratio)
 }
 
-pub(crate) fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(
-    node: &BoardType,
-) -> Score
+pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame

@@ -20,13 +20,13 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Scores {
+pub struct Scores {
     pub(crate) food: u16,
     pub(crate) hazard: u16,
     pub(crate) empty: u16,
 }
 
-pub(crate) trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
+pub trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
     type GridType;
 
     fn calculate(&self, number_of_cycles: usize) -> Self::GridType;
