@@ -1,0 +1,137 @@
+{
+  "game": {
+    "id": "df732ab7-7e22-41d8-b651-95bb912e45ab",
+    "ruleset": {
+      "name": "standard",
+      "version": "?",
+      "settings": {
+        "foodSpawnChance": 15,
+        "minimumFood": 1,
+        "hazardDamagePerTurn": 14,
+        "royale": { "shrinkEveryNTurns": 10 },
+        "squad": {
+          "allowBodyCollisions": false,
+          "sharedElimination": false,
+          "sharedHealth": false,
+          "sharedLength": false
+        }
+      }
+    },
+    "map": "standard",
+    "timeout": 500,
+    "source": "custom"
+  },
+  "turn": 10,
+  "board": {
+    "width": 11,
+    "height": 11,
+    "food": [{ "x": 10, "y": 2 }],
+    "hazards": [],
+    "snakes": [
+      {
+        "id": "gs_3y6cg4wCXKVSQ4BbxWcYP8Tc",
+        "name": "Shapeshifter",
+        "health": 92,
+        "body": [
+          { "x": 6, "y": 2 },
+          { "x": 5, "y": 2 },
+          { "x": 4, "y": 2 },
+          { "x": 4, "y": 3 }
+        ],
+        "latency": 401,
+        "head": { "x": 6, "y": 2 },
+        "length": 4,
+        "shout": "",
+        "squad": "",
+        "customizations": {
+          "color": "#900050",
+          "head": "cosmic-horror-special",
+          "tail": "cosmic-horror"
+        }
+      },
+      {
+        "id": "gs_d8CRSbfWBT6cxRwcy8kgSVCH",
+        "name": "Ziggy Snakedust",
+        "health": 92,
+        "body": [
+          { "x": 0, "y": 10 },
+          { "x": 1, "y": 10 },
+          { "x": 1, "y": 9 },
+          { "x": 0, "y": 9 }
+        ],
+        "latency": 82,
+        "head": { "x": 0, "y": 10 },
+        "length": 4,
+        "shout": "",
+        "squad": "",
+        "customizations": {
+          "color": "#fcb040",
+          "head": "iguana",
+          "tail": "iguana"
+        }
+      },
+      {
+        "id": "gs_7W4VSP6vjct3xVbS8DHkwpgK",
+        "name": "Local MCTS",
+        "health": 90,
+        "body": [
+          { "x": 8, "y": 6 },
+          { "x": 8, "y": 5 },
+          { "x": 8, "y": 4 }
+        ],
+        "latency": 443,
+        "head": { "x": 8, "y": 6 },
+        "length": 3,
+        "shout": "",
+        "squad": "",
+        "customizations": {
+          "color": "#fc0398",
+          "head": "trans-rights-scarf",
+          "tail": "default"
+        }
+      },
+      {
+        "id": "gs_ywKtcKkHxqpkGSdvPYWRfF4Y",
+        "name": "Hovering Hobbs",
+        "health": 100,
+        "body": [
+          { "x": 5, "y": 5 },
+          { "x": 5, "y": 6 },
+          { "x": 6, "y": 6 },
+          { "x": 7, "y": 6 },
+          { "x": 7, "y": 6 }
+        ],
+        "latency": 456,
+        "head": { "x": 5, "y": 5 },
+        "length": 5,
+        "shout": "",
+        "squad": "",
+        "customizations": {
+          "color": "#da8a1a",
+          "head": "beach-puffin-special",
+          "tail": "beach-puffin-special"
+        }
+      }
+    ]
+  },
+  "you": {
+    "id": "gs_7W4VSP6vjct3xVbS8DHkwpgK",
+    "name": "Local MCTS",
+    "health": 90,
+    "body": [
+      { "x": 8, "y": 6 },
+      { "x": 8, "y": 5 },
+      { "x": 8, "y": 4 }
+    ],
+    "latency": 443,
+    "head": { "x": 8, "y": 6 },
+    "length": 3,
+    "shout": "",
+    "squad": "",
+    "customizations": {
+      "color": "#fc0398",
+      "head": "trans-rights-scarf",
+      "tail": "default"
+    }
+  }
+}

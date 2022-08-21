@@ -726,4 +726,45 @@ mod test {
 
         assert_ne!(chosen_move, Move::Up);
     }
+    #[test]
+    fn test_move_df732ab7_7e22_41d8_b651_95bb912e45ab() {
+        let fixture = include_str!("../../fixtures/df732ab7-7e22-41d8-b651-95bb912e45ab.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+
+        let game_info = game.game.clone();
+        let id_map = build_snake_id_map(&game);
+        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let snake = MctsSnake::new(game, game_info);
+
+        let start = std::time::Instant::now();
+
+        const NETWORK_LATENCY_PADDING: i64 = 100;
+
+        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
+        let mut arena = Arena::new();
+        let root_node = snake.mcts(&while_condition, &mut arena);
+
+        let best_child = root_node
+            .highest_average_score_child()
+            .expect("The root should have a child");
+        let chosen_move = best_child
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
+        let borrowed = root_node.children.borrow();
+        let children = borrowed.as_ref().unwrap();
+        dbg!(children
+            .iter()
+            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
+            .collect_vec());
+
+        assert_ne!(chosen_move, Move::Left);
+    }
 }
