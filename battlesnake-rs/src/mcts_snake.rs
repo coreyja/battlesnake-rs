@@ -65,6 +65,7 @@ impl BattlesnakeFactory for MctsSnakeFactory {
         }
     }
 }
+
 impl<
         T: Clone
             + SimulableGame<Instrument, 4>
@@ -99,13 +100,11 @@ impl<
             let mut next_leaf_node = root_node.next_leaf_node(total_number_of_iterations);
 
             next_leaf_node = {
-                let borrowed = next_leaf_node;
-
                 // If next_leaf_node HAS been visited, then we expand it
-                if borrowed.number_of_visits.load(Ordering::Relaxed) > 0 {
-                    borrowed.expand(&arena);
+                if next_leaf_node.number_of_visits.load(Ordering::Relaxed) > 0 {
+                    next_leaf_node.expand(&arena);
 
-                    borrowed.next_leaf_node(total_number_of_iterations)
+                    next_leaf_node.next_leaf_node(total_number_of_iterations)
                 } else {
                     next_leaf_node
                 }
@@ -337,9 +336,7 @@ where
     fn next_leaf_node(&'arena self, total_number_of_iterations: usize) -> &'arena Node<'arena, T> {
         let mut best_node: &'arena Node<'arena, T> = self;
 
-        while !best_node.is_leaf() {
-            debug_assert!(best_node.has_been_expanded());
-
+        while best_node.has_been_expanded() {
             let next = best_node
                 .next_child_to_explore(total_number_of_iterations)
                 .expect("We are not a leaf node so we should have a best child");
@@ -349,14 +346,12 @@ where
         best_node
     }
 
-    fn is_leaf(&self) -> bool {
-        self.children.borrow().is_none() || self.children.borrow().as_ref().unwrap().is_empty()
-    }
-
     fn next_child_to_explore(&self, total_number_of_iterations: usize) -> Option<&'arena Node<T>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
-        let children = borrowed.as_ref().unwrap();
+        let children = borrowed
+            .as_ref()
+            .expect("We debug asserts that we are expanded already");
 
         children
             .iter()
@@ -365,8 +360,11 @@ where
     }
 
     fn highest_average_score_child(&self) -> Option<&'arena Node<T>> {
+        debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
-        let children = borrowed.as_ref().unwrap();
+        let children = borrowed
+            .as_ref()
+            .expect("We debug asserts that we are expanded already");
 
         children
             .iter()
