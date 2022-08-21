@@ -1225,6 +1225,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzer"
+version = "0.1.0"
+dependencies = [
+ "battlesnake-rs",
+ "itertools 0.10.3",
+ "rand 0.8.5",
+ "serde_json",
+ "types",
+ "ureq",
+]
+
+[[package]]
 name = "fxhash"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

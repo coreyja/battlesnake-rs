@@ -8,4 +8,5 @@ members = [
     "web-rocket",
     "web-axum",
     "sherlock",
+    "fuzzer",
 ]
