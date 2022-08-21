@@ -413,12 +413,32 @@ where
 
         let next_states = self.game_state.simulate(&Instrument {}, snakes);
 
-        let allocated_nodes = arena.alloc_extend(next_states.map(|(actions, game_state)| {
-            let r#move = actions.own_move();
-            Node::new_with_parent(game_state, self, r#move)
-        }));
+        let mut opponent_moves: [Option<Vec<(OtherAction<4>, T)>>; 4] = Default::default();
 
-        let children = allocated_nodes.iter().collect();
+        for (actions, game_state) in next_states {
+            let own_move = actions.own_move();
+            if opponent_moves[own_move.as_index()].is_none() {
+                opponent_moves[own_move.as_index()] = Some(vec![]);
+            }
+            opponent_moves[own_move.as_index()]
+                .as_mut()
+                .unwrap()
+                .push((actions.other_moves(), game_state));
+        }
+
+        let mut children: Vec<&_> = Vec::with_capacity(4);
+        for (own_move, next_states) in opponent_moves.iter().enumerate() {
+            if let Some(_next_states) = next_states {
+                let r#move = Move::from_index(own_move);
+                // TODO: Passing `game_state` here is WRONG
+                // Really self move nodes can't have a game state, since it depends on the opponent
+                // moves too. We are keeping the 'old' one around here since our types can't model
+                // the real shape of the tree
+                let new_node =
+                    arena.alloc(Node::new_with_parent(self.game_state.clone(), self, r#move));
+                children.push(new_node);
+            }
+        }
 
         debug_assert!(self.children.borrow().is_none());
 
