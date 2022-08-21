@@ -11,8 +11,9 @@ use axum::{
     Json, Router,
 };
 use battlesnake_rs::{
-    all_factories, build_snake_id_map, mcts_snake::MctsSnake, BoxedFactory, Game,
-    StandardCellBoard4Snakes11x11,
+    all_factories, build_snake_id_map,
+    mcts_snake::{Arena, MctsSnake},
+    BoxedFactory, Game, StandardCellBoard4Snakes11x11,
 };
 
 use tokio::{task::JoinHandle, time::Instant};
@@ -177,8 +178,9 @@ async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
 
     let root = span!(tracing::Level::INFO, "graph_move");
     let output = spawn_blocking_with_tracing(move || {
+        let mut arena = Arena::new();
         snake
-            .graph_move()
+            .graph_move(&mut arena)
             .expect("TODO: We need to work on our error handling")
     })
     .instrument(root)
