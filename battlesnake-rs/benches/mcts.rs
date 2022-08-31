@@ -1,5 +1,6 @@
 use battlesnake_rs::{mcts_snake::MctsSnake, StandardCellBoard4Snakes11x11};
 
+use typed_arena::Arena;
 use types::{
     compact_representation::WrappedCellBoard4Snakes11x11,
     types::build_snake_id_map,
@@ -23,7 +24,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = MctsSnake::new(black_box(game), game_info);
 
-            snake.mcts_bench(10000)
+            let mut arena = Arena::new();
+            snake.mcts_bench(10000, &mut arena);
         })
     });
 
@@ -42,7 +44,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let snake = MctsSnake::new(black_box(game), game_info);
 
-            snake.mcts_bench(10000)
+            let mut arena = Arena::new();
+            snake.mcts_bench(10000, &mut arena);
         });
     });
 }
