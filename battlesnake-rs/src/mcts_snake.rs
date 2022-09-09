@@ -275,6 +275,29 @@ impl<'arena, T> Node<'arena, T> {
     }
 }
 
+fn score<T>(state: &T) -> f64
+where
+    T: SimulableGame<Instrument, 4>
+        + SnakeIDGettableGame
+        + RandomReasonableMovesGame
+        + Clone
+        + VictorDeterminableGame
+        + YouDeterminableGame,
+{
+    let you_id = state.you_id();
+
+    match state.get_winner() {
+        Some(sid) => {
+            if &sid == you_id {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        None => 0.0,
+    }
+}
+
 impl<'arena, T> Node<'arena, T>
 where
     T: SimulableGame<Instrument, 4>
@@ -304,17 +327,7 @@ where
             current_state = Cow::Owned(next_state);
         }
 
-        let you_id = current_state.you_id();
-        match current_state.get_winner() {
-            Some(sid) => {
-                if &sid == you_id {
-                    1.0
-                } else {
-                    -1.0
-                }
-            }
-            None => 0.0,
-        }
+        score(current_state.as_ref())
     }
 
     fn has_been_expanded(&self) -> bool {
