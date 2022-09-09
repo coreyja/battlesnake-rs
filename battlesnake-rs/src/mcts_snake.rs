@@ -286,9 +286,8 @@ where
 {
     fn simulate(&self, rng: &mut ThreadRng) -> f64 {
         let mut current_state: Cow<T> = Cow::Borrowed(&self.game_state);
-        let mut simutation_count = 0;
 
-        while simutation_count < 50 && !current_state.is_over() {
+        while !current_state.is_over() {
             let random_moves: Vec<_> = current_state
                 .random_reasonable_move_for_each_snake(rng)
                 .map(|(sid, mv)| (sid, [mv]))
@@ -303,7 +302,6 @@ where
             };
 
             current_state = Cow::Owned(next_state);
-            simutation_count += 1;
         }
 
         let you_id = current_state.you_id();
