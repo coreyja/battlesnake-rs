@@ -163,12 +163,10 @@ fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game, &'
     })
 }
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
+#[derive(clap::Args, Debug)]
+struct Solve {
     /// Game ID to debug
     #[clap(short, long, value_parser)]
     game_id: String,
@@ -184,6 +182,20 @@ struct Args {
     /// Turn to start looking back from. Uses the last turn of the game if not specified
     #[clap(short, long, value_parser)]
     search_starting_turn: Option<i32>,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Adds files to myapp
+    Solve(Solve),
+}
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(subcommand)]
+    command: Commands,
 }
 
 fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
@@ -237,6 +249,12 @@ fn print_moves<
 fn main() -> Result<(), ureq::Error> {
     let args = Args::parse();
 
+    match args.command {
+        Commands::Solve(s) => solve(s),
+    }
+}
+
+fn solve(args: Solve) -> Result<(), ureq::Error> {
     let body: Value =
         ureq::get(format!("https://engine.battlesnake.com/games/{}", args.game_id).as_str())
             .call()?
