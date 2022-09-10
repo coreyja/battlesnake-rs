@@ -2,13 +2,14 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::TryInto,
-    fs::File,
+    fs::OpenOptions,
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use atomic_float::AtomicF64;
-use decorum::N64;
+use battlesnake_minimax::paranoid::WrappedScorable;
+use decorum::{Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
 use rand::prelude::ThreadRng;
@@ -17,6 +18,8 @@ pub use typed_arena::Arena;
 use types::{
     compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
 };
+
+use crate::flood_fill::spread_from_head_arcade_maze::{Scores, SpreadFromHead};
 
 use super::*;
 
@@ -67,15 +70,23 @@ impl BattlesnakeFactory for MctsSnakeFactory {
     }
 }
 
-impl<
-        GameType: Clone
-            + SimulableGame<Instrument, 4>
-            + PartialEq
-            + RandomReasonableMovesGame
-            + VictorDeterminableGame
-            + YouDeterminableGame
-            + 'static,
-    > MctsSnake<GameType>
+impl<BoardType> MctsSnake<BoardType>
+where
+    BoardType: Clone
+        + SimulableGame<Instrument, 4>
+        + PartialEq
+        + RandomReasonableMovesGame
+        + VictorDeterminableGame
+        + YouDeterminableGame
+        + 'static,
+    BoardType: SimulableGame<Instrument, 4>
+        + SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + RandomReasonableMovesGame
+        + SpreadFromHead<u8, 4>
+        + Clone
+        + VictorDeterminableGame
+        + HazardQueryableGame
+        + YouDeterminableGame,
 {
     #[tracing::instrument(
         level = "info",
@@ -84,15 +95,15 @@ impl<
     )]
     fn mcts<'arena>(
         &self,
-        while_condition: &dyn Fn(&Node<GameType>, usize) -> bool,
-        arena: &'arena mut Arena<Node<'arena, GameType>>,
-    ) -> &'arena Node<'arena, GameType> {
+        while_condition: &dyn Fn(&Node<BoardType>, usize) -> bool,
+        arena: &'arena mut Arena<Node<'arena, BoardType>>,
+    ) -> &'arena Node<'arena, BoardType> {
         let current_span = tracing::Span::current();
 
         let mut rng = rand::thread_rng();
 
         let cloned = self.game.clone();
-        let root_node: &mut Node<GameType> = arena.alloc(Node::new(cloned));
+        let root_node: &mut Node<BoardType> = arena.alloc(Node::new(cloned));
 
         root_node.expand(arena);
 
@@ -105,7 +116,9 @@ impl<
 
             next_leaf_node = {
                 // If next_leaf_node HAS been visited, then we expand it
-                if next_leaf_node.number_of_visits.load(Ordering::Relaxed) > 0 {
+                if next_leaf_node.number_of_visits.load(Ordering::Relaxed) > 0
+                    && !next_leaf_node.has_been_expanded()
+                {
                     next_leaf_node.expand(arena);
 
                     next_leaf_node.next_leaf_node(total_number_of_iterations)
@@ -134,9 +147,9 @@ impl<
     pub fn mcts_bench<'arena>(
         &self,
         max_iterations: usize,
-        arena: &'arena mut Arena<Node<'arena, GameType>>,
-    ) -> &'arena Node<'arena, GameType> {
-        let while_condition = |_root: &Node<GameType>, total_number_of_iterations: usize| {
+        arena: &'arena mut Arena<Node<'arena, BoardType>>,
+    ) -> &'arena Node<'arena, BoardType> {
+        let while_condition = |_root: &Node<BoardType>, total_number_of_iterations: usize| {
             total_number_of_iterations < max_iterations
         };
 
@@ -145,7 +158,7 @@ impl<
 
     pub fn graph_move<'arena>(
         &self,
-        arena: &'arena mut Arena<Node<'arena, GameType>>,
+        arena: &'arena mut Arena<Node<'arena, BoardType>>,
     ) -> Result<MoveOutput> {
         info!(player_count =? self.game.get_snake_ids(), "Graphing MCTS");
         let start = std::time::Instant::now();
@@ -153,11 +166,13 @@ impl<
         const NETWORK_LATENCY_PADDING: i64 = 100;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
-        let while_condition = |root_node: &Node<GameType>, total_number_of_iterations: usize| {
+        let while_condition = |root_node: &Node<BoardType>, total_number_of_iterations: usize| {
             if total_number_of_iterations % 64 == 0 {
-                let mut file =
-                    File::create(format!("tmp/iteration_{total_number_of_iterations}.dot"))
-                        .unwrap();
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(format!("/Users/coreyja/Projects/battlesnake-rs/tmp/iteration_{total_number_of_iterations}.dot"))
+                    .unwrap();
                 file.write_all(
                     format!("{}", root_node.graph(total_number_of_iterations)).as_bytes(),
                 )
@@ -185,15 +200,23 @@ impl<
     }
 }
 
-impl<
-        T: Clone
-            + SimulableGame<Instrument, 4>
-            + PartialEq
-            + RandomReasonableMovesGame
-            + VictorDeterminableGame
-            + YouDeterminableGame
-            + 'static,
-    > BattlesnakeAI for MctsSnake<T>
+impl<BoardType> BattlesnakeAI for MctsSnake<BoardType>
+where
+    BoardType: Clone
+        + SimulableGame<Instrument, 4>
+        + PartialEq
+        + RandomReasonableMovesGame
+        + VictorDeterminableGame
+        + YouDeterminableGame
+        + 'static,
+    BoardType: SimulableGame<Instrument, 4>
+        + SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + RandomReasonableMovesGame
+        + SpreadFromHead<u8, 4>
+        + Clone
+        + VictorDeterminableGame
+        + HazardQueryableGame
+        + YouDeterminableGame,
 {
     fn make_move(&self) -> Result<MoveOutput> {
         let start = std::time::Instant::now();
@@ -201,7 +224,7 @@ impl<
         const NETWORK_LATENCY_PADDING: i64 = 100;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
-        let while_condition = |_root_node: &Node<T>, _total_number_of_iterations: usize| {
+        let while_condition = |_root_node: &Node<BoardType>, _total_number_of_iterations: usize| {
             start.elapsed().as_millis() < max_duration.try_into().unwrap()
         };
 
@@ -276,46 +299,77 @@ impl<'arena, T> Node<'arena, T> {
     }
 }
 
-fn score<T>(state: &T) -> f64
+impl<'arena, BoardType> WrappedScorable<BoardType, N64> for Node<'arena, BoardType>
 where
-    T: SimulableGame<Instrument, 4>
-        + SnakeIDGettableGame
+    BoardType: SimulableGame<Instrument, 4>
+        + SnakeIDGettableGame<SnakeIDType = SnakeId>
         + RandomReasonableMovesGame
+        + SpreadFromHead<u8, 4>
         + Clone
         + VictorDeterminableGame
+        + HazardQueryableGame
         + YouDeterminableGame,
 {
-    let you_id = state.you_id();
-
-    match state.get_winner() {
-        Some(sid) => {
-            if &sid == you_id {
-                100.0
-            } else {
-                -1.0
+    fn score(&self, node: &BoardType) -> N64 {
+        let scores = if node.get_hazard_damage().is_positive() {
+            Scores {
+                food: 5,
+                hazard: 1,
+                empty: 5,
             }
+        } else {
+            Scores {
+                food: 5,
+                hazard: 5,
+                empty: 1,
+            }
+        };
+
+        let me = node.you_id();
+
+        if node.is_over() {
+            match node.get_winner() {
+                Some(sid) => {
+                    if &sid == me {
+                        1.0
+                    } else {
+                        -1.0
+                    }
+                }
+                None => 0.0,
+            }
+            .into()
+        } else {
+            let square_counts = node.squares_per_snake_with_scores(5, scores);
+
+            let my_space: f64 = square_counts[me.as_usize()] as f64;
+            let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
+
+            N64::from(my_space / total_space)
         }
-        None => 0.0,
     }
 }
 
-impl<'arena, T> Node<'arena, T>
+impl<'arena, BoardType> Node<'arena, BoardType>
 where
-    T: SimulableGame<Instrument, 4>
+    BoardType: SimulableGame<Instrument, 4>
         + SnakeIDGettableGame
         + RandomReasonableMovesGame
         + Clone
         + VictorDeterminableGame
         + YouDeterminableGame,
+    Node<'arena, BoardType>: WrappedScorable<BoardType, N64>,
 {
-    fn simulate(&self, rng: &mut ThreadRng) -> f64 {
-        let mut current_state: Cow<T> = Cow::Borrowed(&self.game_state);
+    fn simulate(&self, rng: &mut ThreadRng) -> N64 {
+        let mut current_state: Cow<BoardType> = Cow::Borrowed(&self.game_state);
+        let mut number_of_iterations = 0;
 
-        while !current_state.is_over() {
-            let random_moves: Vec<_> = current_state
+        while number_of_iterations < 100 && !current_state.is_over() {
+            number_of_iterations += 1;
+
+            let random_moves = current_state
                 .random_reasonable_move_for_each_snake(rng)
-                .map(|(sid, mv)| (sid, [mv]))
-                .collect();
+                .map(|(sid, mv)| (sid, [mv]));
 
             let next_state = {
                 let mut simulation_result =
@@ -328,15 +382,15 @@ where
             current_state = Cow::Owned(next_state);
         }
 
-        score(current_state.as_ref())
+        self.score(current_state.as_ref())
     }
 
     fn has_been_expanded(&self) -> bool {
         self.children.borrow().is_some()
     }
 
-    fn ucb1_score(&self, total_number_of_iterations: usize) -> f64 {
-        let constant = 2.0;
+    fn ucb1_score(&self, total_number_of_iterations: usize) -> N64 {
+        let constant: N64 = 2.0.into();
 
         // TODO: This should be fine when we are single threaded
         // But if/when we get to multi-threaded, we might want to think about if this wants
@@ -344,15 +398,17 @@ where
         // Or do we need to re-load it for each usage?
         let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
         let total_score = self.total_score.load(Ordering::Relaxed);
+        let total_score: N64 = total_score.into();
 
         if number_of_visits == 0 {
-            return f64::INFINITY;
+            return N64::INFINITY;
         }
 
         let number_of_visits = number_of_visits as f64;
+        let number_of_visits: N64 = number_of_visits.into();
 
         let average_score = total_score / number_of_visits;
-        let total_number_of_iterations = total_number_of_iterations as f64;
+        let total_number_of_iterations: N64 = (total_number_of_iterations as f64).into();
 
         let ln_total_number_of_iterations = total_number_of_iterations.ln();
 
@@ -375,20 +431,27 @@ where
         Some(average_score)
     }
 
-    fn next_leaf_node(&'arena self, total_number_of_iterations: usize) -> &'arena Node<'arena, T> {
-        let mut best_node: &'arena Node<'arena, T> = self;
+    fn next_leaf_node(
+        &'arena self,
+        total_number_of_iterations: usize,
+    ) -> &'arena Node<'arena, BoardType> {
+        let mut best_node: &'arena Node<'arena, BoardType> = self;
 
         while best_node.has_been_expanded() {
-            let next = best_node
-                .next_child_to_explore(total_number_of_iterations)
-                .expect("We are not a leaf node so we should have a best child");
-            best_node = next;
+            if let Some(next) = best_node.next_child_to_explore(total_number_of_iterations) {
+                best_node = next;
+            } else {
+                break;
+            }
         }
 
         best_node
     }
 
-    fn next_child_to_explore(&self, total_number_of_iterations: usize) -> Option<&'arena Node<T>> {
+    fn next_child_to_explore(
+        &self,
+        total_number_of_iterations: usize,
+    ) -> Option<&'arena Node<BoardType>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
         let children = borrowed
@@ -398,10 +461,10 @@ where
         children
             .iter()
             .cloned()
-            .max_by_key(|child| N64::from(child.ucb1_score(total_number_of_iterations)))
+            .max_by_key(|child| child.ucb1_score(total_number_of_iterations))
     }
 
-    fn highest_average_score_child(&self) -> Option<&'arena Node<T>> {
+    fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
         let children = borrowed
@@ -414,10 +477,12 @@ where
             .max_by_key(|child| child.average_score().map(N64::from))
     }
 
-    fn expand(&'arena self, arena: &'arena Arena<Node<'arena, T>>) {
+    fn expand(&'arena self, arena: &'arena Arena<Node<'arena, BoardType>>) {
         debug_assert!(!self.has_been_expanded());
 
         if self.game_state.is_over() {
+            self.children.replace(Some(vec![]));
+
             return;
         }
 
@@ -425,7 +490,7 @@ where
 
         let next_states = self.game_state.simulate(&Instrument {}, snakes);
 
-        let mut opponent_moves: [Option<Vec<(OtherAction<4>, T)>>; 4] = Default::default();
+        let mut opponent_moves: [Option<Vec<(OtherAction<4>, BoardType)>>; 4] = Default::default();
 
         for (actions, game_state) in next_states {
             let own_move = actions.own_move();
@@ -471,9 +536,9 @@ where
         self.children.replace(Some(children));
     }
 
-    fn backpropagate(&self, score: f64) {
+    fn backpropagate(&self, score: N64) {
         self.number_of_visits.fetch_add(1, Ordering::Relaxed);
-        self.total_score.fetch_add(score, Ordering::Relaxed);
+        self.total_score.fetch_add(score.into(), Ordering::Relaxed);
 
         if let Some(tree_context) = &self.tree_context {
             tree_context.parent.borrow().backpropagate(score)
@@ -529,6 +594,8 @@ where
 
 #[cfg(test)]
 mod test {
+
+    use decorum::Infinite;
     use itertools::Itertools;
     use types::compact_representation::standard::CellBoard4Snakes11x11;
 
@@ -542,8 +609,8 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         let n = Node::new(game);
 
-        assert_eq!(n.ucb1_score(1), f64::INFINITY);
-        assert_eq!(n.ucb1_score(0), f64::INFINITY);
+        assert_eq!(n.ucb1_score(1), N64::INFINITY);
+        assert_eq!(n.ucb1_score(0), N64::INFINITY);
     }
 
     #[test]
@@ -600,7 +667,7 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
         let n = Node::new(game);
 
-        n.backpropagate(10.0);
+        n.backpropagate(10.0.into());
 
         assert_eq!(n.number_of_visits.load(Ordering::Relaxed), 1);
         assert_eq!(n.total_score.load(Ordering::Relaxed), 10.0);
@@ -617,7 +684,7 @@ mod test {
 
         let child = Node::new_with_parent(game, &root, Move::Up);
 
-        child.backpropagate(10.0);
+        child.backpropagate(10.0.into());
 
         assert_eq!(child.number_of_visits.load(Ordering::Relaxed), 1);
         assert_eq!(child.total_score.load(Ordering::Relaxed), 10.0);
@@ -626,7 +693,7 @@ mod test {
         assert_eq!(root.total_score.load(Ordering::Relaxed), 10.0);
 
         let other_child = Node::new_with_parent(game, &root, Move::Down);
-        other_child.backpropagate(20.0);
+        other_child.backpropagate(20.0.into());
 
         assert_eq!(other_child.number_of_visits.load(Ordering::Relaxed), 1);
         assert_eq!(other_child.total_score.load(Ordering::Relaxed), 20.0);
@@ -670,9 +737,7 @@ mod test {
         assert_eq!(new_state.get_winner(), Some(other_id));
     }
 
-    #[test]
-    fn test_move_45e7de53_bca5_4fa3_8771_d9914ed141bb() {
-        let fixture = include_str!("../../fixtures/45e7de53-bca5-4fa3-8771-d9914ed141bb.json");
+    fn test_fixture(fixture: &'static str, allowed_moves: Vec<Move>) {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();
@@ -706,180 +771,71 @@ mod test {
         let children = borrowed.as_ref().unwrap();
         dbg!(children
             .iter()
-            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
+            .map(|n| (
+                n.average_score(),
+                n.number_of_visits.load(Ordering::Relaxed),
+                n.tree_context.as_ref().unwrap().r#move,
+                n.children
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|n| (
+                        n.average_score(),
+                        n.number_of_visits.load(Ordering::Relaxed),
+                        n.tree_context.as_ref().unwrap().r#move,
+                    ))
+                    .collect_vec()
+            ))
             .collect_vec());
 
-        assert_eq!(chosen_move, Move::Right);
+        assert!(
+            allowed_moves.contains(&chosen_move),
+            "{chosen_move} was not in the allowed set of moves: {allowed_moves:?}"
+        );
+    }
+
+    #[test]
+    fn test_move_45e7de53_bca5_4fa3_8771_d9914ed141bb() {
+        let fixture = include_str!("../../fixtures/45e7de53-bca5-4fa3-8771-d9914ed141bb.json");
+
+        test_fixture(fixture, vec![Move::Right]);
     }
 
     #[test]
     fn test_move_65401e8f_a92a_445f_9617_94770044e117() {
         let fixture = include_str!("../../fixtures/65401e8f-a92a-445f-9617-94770044e117.json");
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
 
-        let game_info = game.game.clone();
-        let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
-
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-
-        let snake = MctsSnake::new(game, game_info);
-
-        let start = std::time::Instant::now();
-
-        const NETWORK_LATENCY_PADDING: i64 = 400;
-
-        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
-        };
-        let mut arena = Arena::new();
-        let root_node = snake.mcts(&while_condition, &mut arena);
-
-        let best_child = root_node
-            .highest_average_score_child()
-            .expect("The root should have a child");
-        let chosen_move = best_child
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        let borrowed = root_node.children.borrow();
-        let children = borrowed.as_ref().unwrap();
-        dbg!(children
-            .iter()
-            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
-            .collect_vec());
-
-        assert_ne!(chosen_move, Move::Up);
+        test_fixture(fixture, vec![Move::Right, Move::Left, Move::Down]);
     }
     #[test]
     fn test_move_df732ab7_7e22_41d8_b651_95bb912e45ab() {
         let fixture = include_str!("../../fixtures/df732ab7-7e22-41d8-b651-95bb912e45ab.json");
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
 
-        let game_info = game.game.clone();
-        let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
-
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-
-        let snake = MctsSnake::new(game, game_info);
-
-        let start = std::time::Instant::now();
-
-        const NETWORK_LATENCY_PADDING: i64 = 400;
-
-        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
-        };
-        let mut arena = Arena::new();
-        let root_node = snake.mcts(&while_condition, &mut arena);
-
-        let best_child = root_node
-            .highest_average_score_child()
-            .expect("The root should have a child");
-        let chosen_move = best_child
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        let borrowed = root_node.children.borrow();
-        let children = borrowed.as_ref().unwrap();
-        dbg!(children
-            .iter()
-            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
-            .collect_vec());
-
-        assert_ne!(chosen_move, Move::Left);
+        test_fixture(fixture, vec![Move::Right, Move::Up, Move::Down]);
     }
 
     #[test]
     fn test_move_d9841bf6_c34f_42fb_8818_dfd5d5a09b4a_125() {
         let fixture = include_str!("../../fixtures/d9841bf6-c34f-42fb-8818-dfd5d5a09b4a_125.json");
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        // let game = serde_json::from_str::<Game>(fixture).unwrap();
 
-        let game_info = game.game.clone();
-        let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+        // let game_info = game.game.clone();
+        // let id_map = build_snake_id_map(&game);
 
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        // let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = MctsSnake::new(game, game_info);
+        // let snake = MctsSnake::new(game, game_info);
 
-        let start = std::time::Instant::now();
-
-        const NETWORK_LATENCY_PADDING: i64 = 400;
-
-        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
-        };
-        let mut arena = Arena::new();
-        let root_node = snake.mcts(&while_condition, &mut arena);
-
-        let best_child = root_node
-            .highest_average_score_child()
-            .expect("The root should have a child");
-        let chosen_move = best_child
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        let borrowed = root_node.children.borrow();
-        let children = borrowed.as_ref().unwrap();
-        let children = children
-            .iter()
-            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
-            .collect_vec();
-
-        dbg!(children);
-
-        assert_ne!(chosen_move, Move::Down);
+        // let mut arena = Arena::new();
+        // snake.graph_move(&mut arena).unwrap();
+        test_fixture(fixture, vec![Move::Right, Move::Up, Move::Left]);
     }
 
     #[test]
     fn test_move_af943832_1b3b_4795_9e35_081f71959aee_108() {
         let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
 
-        let game_info = game.game.clone();
-        let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
-
-        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-
-        let snake = MctsSnake::new(game, game_info);
-
-        let start = std::time::Instant::now();
-
-        const NETWORK_LATENCY_PADDING: i64 = 400;
-
-        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
-        };
-        let mut arena = Arena::new();
-        let root_node = snake.mcts(&while_condition, &mut arena);
-
-        let best_child = root_node
-            .highest_average_score_child()
-            .expect("The root should have a child");
-        let chosen_move = best_child
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
-
-        let borrowed = root_node.children.borrow();
-        let children = borrowed.as_ref().unwrap();
-        let children = children
-            .iter()
-            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
-            .collect_vec();
-
-        dbg!(children);
-
-        assert_eq!(chosen_move, Move::Right);
+        test_fixture(fixture, vec![Move::Right]);
     }
 }

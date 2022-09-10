@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, fs::File, io::Write};
+use std::{collections::HashMap, fmt::Debug, fs::File};
 
 use itertools::Itertools;
 use serde_json::Value;
