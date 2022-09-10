@@ -187,14 +187,14 @@ where
         let best_child = root_node
             .highest_average_score_child()
             .expect("The root should have a child");
-        let chosen_move = best_child
+        let chosen_move = &best_child
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
             .r#move;
 
         Ok(MoveOutput {
-            r#move: format!("{}", chosen_move),
+            r#move: format!("{}", chosen_move.my_move()),
             shout: None,
         })
     }
@@ -234,14 +234,14 @@ where
         let best_child = root_node
             .highest_average_score_child()
             .expect("The root should have a child");
-        let chosen_move = best_child
+        let chosen_move = &best_child
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
             .r#move;
 
         Ok(MoveOutput {
-            r#move: format!("{}", chosen_move),
+            r#move: format!("{}", chosen_move.my_move()),
             shout: None,
         })
     }
@@ -251,10 +251,25 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
+enum SomeonesMove {
+    MyMove(Move),
+    OtherMoves(OtherAction<4>),
+}
+
+impl SomeonesMove {
+    fn my_move(&self) -> Move {
+        match self {
+            SomeonesMove::MyMove(m) => *m,
+            SomeonesMove::OtherMoves(_) => panic!("We aren't at a my move"),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct TreeContext<'arena, T> {
     parent: RefCell<&'arena Node<'arena, T>>,
-    r#move: Move,
+    r#move: SomeonesMove,
 }
 
 #[derive(Debug)]
@@ -285,7 +300,7 @@ impl<'arena, T> Node<'arena, T> {
         }
     }
 
-    fn new_with_parent(game_state: T, parent: &'arena Self, r#move: Move) -> Self {
+    fn new_with_parent(game_state: T, parent: &'arena Self, r#move: SomeonesMove) -> Self {
         Self {
             game_state,
             total_score: AtomicF64::new(0.0),
@@ -333,7 +348,7 @@ where
                     if &sid == me {
                         1.0
                     } else {
-                        -1.0
+                        -10.0
                     }
                 }
                 None => 0.0,
@@ -364,7 +379,7 @@ where
         let mut current_state: Cow<BoardType> = Cow::Borrowed(&self.game_state);
         let mut number_of_iterations = 0;
 
-        while number_of_iterations < 100 && !current_state.is_over() {
+        while number_of_iterations < 25 && !current_state.is_over() {
             number_of_iterations += 1;
 
             let random_moves = current_state
@@ -514,15 +529,21 @@ where
             // Really self move nodes can't have a game state, since it depends on the opponent
             // moves too. We are keeping the 'old' one around here since our types can't model
             // the real shape of the tree
-            let new_node: &'arena _ =
-                arena.alloc(Node::new_with_parent(self.game_state.clone(), self, r#move));
+            let new_node: &'arena _ = arena.alloc(Node::new_with_parent(
+                self.game_state.clone(),
+                self,
+                SomeonesMove::MyMove(r#move),
+            ));
             children.push(new_node);
 
             let new_node_children: Vec<&'arena _> = next_states
                 .into_iter()
                 .map(|next_state| {
-                    let newer_node =
-                        arena.alloc(Node::new_with_parent(next_state.1, new_node, r#move));
+                    let newer_node = arena.alloc(Node::new_with_parent(
+                        next_state.1,
+                        new_node,
+                        SomeonesMove::OtherMoves(next_state.0),
+                    ));
 
                     &*newer_node
                 })
@@ -565,7 +586,7 @@ where
         let me_id: String = format!(
             "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}",
             child_id,
-            self.tree_context.as_ref().map(|t| t.r#move),
+            self.tree_context.as_ref().map(|t| t.r#move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_score(total_number_of_iterations),
@@ -682,7 +703,7 @@ mod test {
 
         let root = Node::new(game);
 
-        let child = Node::new_with_parent(game, &root, Move::Up);
+        let child = Node::new_with_parent(game, &root, SomeonesMove::MyMove(Move::Up));
 
         child.backpropagate(10.0.into());
 
@@ -692,7 +713,7 @@ mod test {
         assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 1);
         assert_eq!(root.total_score.load(Ordering::Relaxed), 10.0);
 
-        let other_child = Node::new_with_parent(game, &root, Move::Down);
+        let other_child = Node::new_with_parent(game, &root, SomeonesMove::MyMove(Move::Down));
         other_child.backpropagate(20.0.into());
 
         assert_eq!(other_child.number_of_visits.load(Ordering::Relaxed), 1);
@@ -761,7 +782,7 @@ mod test {
         let best_child = root_node
             .highest_average_score_child()
             .expect("The root should have a child");
-        let chosen_move = best_child
+        let chosen_move = &best_child
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
@@ -774,7 +795,7 @@ mod test {
             .map(|n| (
                 n.average_score(),
                 n.number_of_visits.load(Ordering::Relaxed),
-                n.tree_context.as_ref().unwrap().r#move,
+                n.tree_context.as_ref().unwrap().r#move.clone(),
                 n.children
                     .borrow()
                     .as_ref()
@@ -783,15 +804,15 @@ mod test {
                     .map(|n| (
                         n.average_score(),
                         n.number_of_visits.load(Ordering::Relaxed),
-                        n.tree_context.as_ref().unwrap().r#move,
+                        n.tree_context.as_ref().unwrap().r#move.clone(),
                     ))
                     .collect_vec()
             ))
             .collect_vec());
 
         assert!(
-            allowed_moves.contains(&chosen_move),
-            "{chosen_move} was not in the allowed set of moves: {allowed_moves:?}"
+            allowed_moves.contains(&chosen_move.my_move()),
+            "{chosen_move:?} was not in the allowed set of moves: {allowed_moves:?}"
         );
     }
 
