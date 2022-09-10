@@ -10,6 +10,7 @@ use std::{
 use atomic_float::AtomicF64;
 use decorum::N64;
 use dotavious::{Dot, Edge, GraphBuilder};
+use itertools::Itertools;
 use rand::prelude::ThreadRng;
 use tracing::info;
 pub use typed_arena::Arena;
@@ -437,18 +438,32 @@ where
                 .push((actions.other_moves(), game_state));
         }
 
-        let mut children: Vec<&_> = Vec::with_capacity(4);
-        for (own_move, next_states) in opponent_moves.iter().enumerate() {
-            if let Some(_next_states) = next_states {
-                let r#move = Move::from_index(own_move);
-                // TODO: Passing `game_state` here is WRONG
-                // Really self move nodes can't have a game state, since it depends on the opponent
-                // moves too. We are keeping the 'old' one around here since our types can't model
-                // the real shape of the tree
-                let new_node =
-                    arena.alloc(Node::new_with_parent(self.game_state.clone(), self, r#move));
-                children.push(new_node);
-            }
+        let mut children: Vec<&'arena _> = Vec::with_capacity(4);
+        for (own_move, next_states) in opponent_moves
+            .into_iter()
+            .enumerate()
+            .filter_map(|(own_move, next_states)| next_states.map(|n| (own_move, n)))
+        {
+            let r#move = Move::from_index(own_move);
+            // TODO: Passing `game_state` here is WRONG
+            // Really self move nodes can't have a game state, since it depends on the opponent
+            // moves too. We are keeping the 'old' one around here since our types can't model
+            // the real shape of the tree
+            let new_node: &'arena _ =
+                arena.alloc(Node::new_with_parent(self.game_state.clone(), self, r#move));
+            children.push(new_node);
+
+            let new_node_children: Vec<&'arena _> = next_states
+                .into_iter()
+                .map(|next_state| {
+                    let newer_node =
+                        arena.alloc(Node::new_with_parent(next_state.1, new_node, r#move));
+
+                    &*newer_node
+                })
+                .collect_vec();
+
+            new_node.children.replace(Some(new_node_children));
         }
 
         debug_assert!(self.children.borrow().is_none());
