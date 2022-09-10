@@ -788,25 +788,29 @@ mod test {
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
             .r#move;
 
+        let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
+
         let borrowed = root_node.children.borrow();
         let children = borrowed.as_ref().unwrap();
         dbg!(children
             .iter()
             .map(|n| (
                 n.average_score(),
+                n.ucb1_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
                 n.tree_context.as_ref().unwrap().r#move.clone(),
-                n.children
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|n| (
-                        n.average_score(),
-                        n.number_of_visits.load(Ordering::Relaxed),
-                        n.tree_context.as_ref().unwrap().r#move.clone(),
-                    ))
-                    .collect_vec()
+                // n.children
+                //     .borrow()
+                //     .as_ref()
+                //     .unwrap()
+                //     .iter()
+                //     .map(|n| (
+                //         n.average_score(),
+                //         n.ucb1_score(total_iterations),
+                //         n.number_of_visits.load(Ordering::Relaxed),
+                //         n.tree_context.as_ref().unwrap().r#move.clone(),
+                //     ))
+                //     .collect_vec()
             ))
             .collect_vec());
 
