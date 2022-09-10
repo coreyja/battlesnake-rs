@@ -8,7 +8,6 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
-use battlesnake_minimax::paranoid::WrappedScorable;
 use decorum::{Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
@@ -279,6 +278,7 @@ pub struct Node<'arena, T> {
     number_of_visits: AtomicUsize,
     children: RefCell<Option<Vec<&'arena Node<'arena, T>>>>,
     tree_context: Option<TreeContext<'arena, T>>,
+    depth: usize,
 }
 
 #[derive(Debug)]
@@ -297,6 +297,7 @@ impl<'arena, T> Node<'arena, T> {
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
             tree_context: None,
+            depth: 0,
         }
     }
 
@@ -310,11 +311,18 @@ impl<'arena, T> Node<'arena, T> {
                 parent: RefCell::new(parent),
                 r#move,
             }),
+            depth: parent.depth + 1,
         }
     }
 }
 
-impl<'arena, BoardType> WrappedScorable<BoardType, N64> for Node<'arena, BoardType>
+pub trait Scorable<BoardType> {
+    type ScoreType;
+
+    fn score(board: &BoardType) -> Self::ScoreType;
+}
+
+impl<'arena, BoardType> Scorable<BoardType> for Node<'arena, BoardType>
 where
     BoardType: SimulableGame<Instrument, 4>
         + SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -325,7 +333,9 @@ where
         + HazardQueryableGame
         + YouDeterminableGame,
 {
-    fn score(&self, node: &BoardType) -> N64 {
+    type ScoreType = N64;
+
+    fn score(node: &BoardType) -> N64 {
         let scores = if node.get_hazard_damage().is_positive() {
             Scores {
                 food: 5,
@@ -348,10 +358,10 @@ where
                     if &sid == me {
                         1.0
                     } else {
-                        -10.0
+                        -1.0
                     }
                 }
-                None => 0.0,
+                None => -0.25,
             }
             .into()
         } else {
@@ -373,7 +383,7 @@ where
         + Clone
         + VictorDeterminableGame
         + YouDeterminableGame,
-    Node<'arena, BoardType>: WrappedScorable<BoardType, N64>,
+    Node<'arena, BoardType>: Scorable<BoardType, ScoreType = N64>,
 {
     fn simulate(&self, rng: &mut ThreadRng) -> N64 {
         let mut current_state: Cow<BoardType> = Cow::Borrowed(&self.game_state);
@@ -397,7 +407,7 @@ where
             current_state = Cow::Owned(next_state);
         }
 
-        self.score(current_state.as_ref())
+        Self::score(current_state.as_ref())
     }
 
     fn has_been_expanded(&self) -> bool {
@@ -799,18 +809,18 @@ mod test {
                 n.ucb1_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
                 n.tree_context.as_ref().unwrap().r#move.clone(),
-                // n.children
-                //     .borrow()
-                //     .as_ref()
-                //     .unwrap()
-                //     .iter()
-                //     .map(|n| (
-                //         n.average_score(),
-                //         n.ucb1_score(total_iterations),
-                //         n.number_of_visits.load(Ordering::Relaxed),
-                //         n.tree_context.as_ref().unwrap().r#move.clone(),
-                //     ))
-                //     .collect_vec()
+                n.children
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|n| (
+                        n.average_score(),
+                        n.ucb1_score(total_iterations),
+                        n.number_of_visits.load(Ordering::Relaxed),
+                        n.tree_context.as_ref().unwrap().r#move.clone(),
+                    ))
+                    .collect_vec()
             ))
             .collect_vec());
 
@@ -854,7 +864,7 @@ mod test {
 
         // let mut arena = Arena::new();
         // snake.graph_move(&mut arena).unwrap();
-        test_fixture(fixture, vec![Move::Right, Move::Up, Move::Left]);
+        test_fixture(fixture, vec![Move::Up]);
     }
 
     #[test]
