@@ -1,0 +1,214 @@
+{
+  "you": {
+    "id": "gs_kjkSw6BDqTST3Ww8DKFBQwy4",
+    "name": "TBD MCTS",
+    "head": {
+      "x": 9,
+      "y": 3
+    },
+    "body": [
+      {
+        "x": 9,
+        "y": 3
+      },
+      {
+        "x": 9,
+        "y": 2
+      },
+      {
+        "x": 8,
+        "y": 2
+      },
+      {
+        "x": 8,
+        "y": 1
+      },
+      {
+        "x": 9,
+        "y": 1
+      }
+    ],
+    "health": 66,
+    "shout": ""
+  },
+  "board": {
+    "height": 11,
+    "width": 11,
+    "food": [
+      {
+        "x": 0,
+        "y": 1
+      },
+      {
+        "x": 0,
+        "y": 8
+      },
+      {
+        "x": 1,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 0
+      },
+      {
+        "x": 10,
+        "y": 2
+      }
+    ],
+    "snakes": [
+      {
+        "id": "gs_kjkSw6BDqTST3Ww8DKFBQwy4",
+        "name": "TBD MCTS",
+        "head": {
+          "x": 9,
+          "y": 3
+        },
+        "body": [
+          {
+            "x": 9,
+            "y": 3
+          },
+          {
+            "x": 9,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 1
+          },
+          {
+            "x": 9,
+            "y": 1
+          }
+        ],
+        "health": 66,
+        "shout": ""
+      },
+      {
+        "id": "gs_dH7xpGhHkHrpVBwybv3mFYbX",
+        "name": "Hovering Hobbs",
+        "head": {
+          "x": 9,
+          "y": 5
+        },
+        "body": [
+          {
+            "x": 9,
+            "y": 5
+          },
+          {
+            "x": 8,
+            "y": 5
+          },
+          {
+            "x": 7,
+            "y": 5
+          },
+          {
+            "x": 7,
+            "y": 4
+          },
+          {
+            "x": 7,
+            "y": 3
+          },
+          {
+            "x": 7,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 3
+          },
+          {
+            "x": 5,
+            "y": 3
+          }
+        ],
+        "health": 96,
+        "shout": ""
+      },
+      {
+        "id": "gs_4wv94YPf9R3FwCBwcTDdGt3G",
+        "name": "Ziggy Snakedust",
+        "head": {
+          "x": 3,
+          "y": 9
+        },
+        "body": [
+          {
+            "x": 3,
+            "y": 9
+          },
+          {
+            "x": 2,
+            "y": 9
+          },
+          {
+            "x": 1,
+            "y": 9
+          },
+          {
+            "x": 0,
+            "y": 9
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 1,
+            "y": 10
+          },
+          {
+            "x": 2,
+            "y": 10
+          },
+          {
+            "x": 3,
+            "y": 10
+          },
+          {
+            "x": 4,
+            "y": 10
+          },
+          {
+            "x": 4,
+            "y": 9
+          }
+        ],
+        "health": 89,
+        "shout": ""
+      }
+    ],
+    "hazards": []
+  },
+  "turn": 108,
+  "game": {
+    "id": "af943832-1b3b-4795-9e35-081f71959aee",
+    "ruleset": {
+      "name": "standard",
+      "version": "No version in frames",
+      "settings": {
+        "foodSpawnChance": 15,
+        "minimumFood": 1,
+        "hazardDamagePerTurn": 14,
+        "hazardMap": null,
+        "hazardMapAuthor": null,
+        "royale": null
+      }
+    },
+    "timeout": 500,
+    "map": "standard",
+    "source": "custom"
+  }
+}

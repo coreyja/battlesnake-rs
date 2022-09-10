@@ -685,7 +685,7 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 400;
 
         let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
             start.elapsed().as_millis() < max_duration.try_into().unwrap()
@@ -727,7 +727,7 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 400;
 
         let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
             start.elapsed().as_millis() < max_duration.try_into().unwrap()
@@ -768,7 +768,7 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 400;
 
         let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
             start.elapsed().as_millis() < max_duration.try_into().unwrap()
@@ -837,5 +837,49 @@ mod test {
         dbg!(children);
 
         assert_ne!(chosen_move, Move::Down);
+    }
+
+    #[test]
+    fn test_move_af943832_1b3b_4795_9e35_081f71959aee_108() {
+        let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+
+        let game_info = game.game.clone();
+        let id_map = build_snake_id_map(&game);
+        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let snake = MctsSnake::new(game, game_info);
+
+        let start = std::time::Instant::now();
+
+        const NETWORK_LATENCY_PADDING: i64 = 400;
+
+        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
+        let mut arena = Arena::new();
+        let root_node = snake.mcts(&while_condition, &mut arena);
+
+        let best_child = root_node
+            .highest_average_score_child()
+            .expect("The root should have a child");
+        let chosen_move = best_child
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
+        let borrowed = root_node.children.borrow();
+        let children = borrowed.as_ref().unwrap();
+        let children = children
+            .iter()
+            .map(|n| (n.average_score(), n.tree_context.as_ref().unwrap().r#move))
+            .collect_vec();
+
+        dbg!(children);
+
+        assert_eq!(chosen_move, Move::Right);
     }
 }
