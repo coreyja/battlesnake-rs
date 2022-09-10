@@ -90,7 +90,7 @@ where
     #[tracing::instrument(
         level = "info",
         skip_all,
-        fields(total_number_of_iterations, total_score,)
+        fields(total_number_of_iterations, total_score, average_score,)
     )]
     fn mcts<'arena>(
         &self,
@@ -133,12 +133,12 @@ where
             next_leaf_node.backpropagate(score);
         }
 
-        // We are outside the loop now and need to pick the best move
         current_span.record("total_number_of_iterations", &total_number_of_iterations);
         current_span.record(
             "total_score",
             &root_node.total_score.load(Ordering::Relaxed),
         );
+        current_span.record("average_score", &root_node.average_score());
 
         root_node
     }
