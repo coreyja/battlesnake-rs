@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, fs::File, io::Write};
 
 use itertools::Itertools;
 use serde_json::Value;
@@ -184,10 +184,26 @@ struct Solve {
     search_starting_turn: Option<i32>,
 }
 
+#[derive(clap::Args, Debug)]
+struct Fixture {
+    /// Game ID to debug
+    #[clap(short, long, value_parser)]
+    game_id: String,
+
+    /// The name of the snake to use as "you"
+    #[clap(short, long, value_parser)]
+    you_name: String,
+
+    /// Turn to make a fixture for
+    #[clap(short, long, value_parser)]
+    turn: i32,
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Adds files to myapp
     Solve(Solve),
+    Fixture(Fixture),
 }
 
 /// Simple program to greet a person
@@ -246,12 +262,33 @@ fn print_moves<
     println!()
 }
 
-fn main() -> Result<(), ureq::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     match args.command {
-        Commands::Solve(s) => solve(s),
+        Commands::Solve(s) => solve(s)?,
+        Commands::Fixture(f) => fixture(f)?,
     }
+
+    Ok(())
+}
+
+fn fixture(args: Fixture) -> Result<(), Box<dyn std::error::Error>> {
+    let game_id = args.game_id;
+    let turn = args.turn;
+
+    let body: Value = ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
+        .call()?
+        .into_json()?;
+    let frame = get_frame_for_turn(&game_id, args.turn)?;
+    let wire_game = frame_to_game(&frame, &body["Game"], &args.you_name).unwrap();
+
+    let file = File::create(format!("./fixtures/{game_id}_{turn}.json"))?;
+    serde_json::to_writer_pretty(file, &wire_game)?;
+
+    dbg!(wire_game);
+
+    Ok(())
 }
 
 fn solve(args: Solve) -> Result<(), ureq::Error> {
