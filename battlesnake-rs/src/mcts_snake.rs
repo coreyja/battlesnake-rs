@@ -275,6 +275,7 @@ struct TreeContext<'arena, T> {
 pub struct Node<'arena, T> {
     game_state: T,
     total_score: AtomicF64,
+    sum_of_square_scores: AtomicF64,
     number_of_visits: AtomicUsize,
     children: RefCell<Option<Vec<&'arena Node<'arena, T>>>>,
     tree_context: Option<TreeContext<'arena, T>>,
@@ -294,6 +295,7 @@ impl<'arena, T> Node<'arena, T> {
         Self {
             game_state,
             total_score: AtomicF64::new(0.0),
+            sum_of_square_scores: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
             tree_context: None,
@@ -305,6 +307,7 @@ impl<'arena, T> Node<'arena, T> {
         Self {
             game_state,
             total_score: AtomicF64::new(0.0),
+            sum_of_square_scores: AtomicF64::new(0.0),
             number_of_visits: AtomicUsize::new(0),
             children: RefCell::new(None),
             tree_context: Some(TreeContext {
@@ -414,6 +417,7 @@ where
         self.children.borrow().is_some()
     }
 
+    #[allow(dead_code)]
     fn ucb1_score(&self, total_number_of_iterations: usize) -> N64 {
         let constant: N64 = 2.0.into();
 
@@ -438,6 +442,40 @@ where
         let ln_total_number_of_iterations = total_number_of_iterations.ln();
 
         let right_hand_side = constant * (ln_total_number_of_iterations / number_of_visits).sqrt();
+
+        average_score + right_hand_side
+    }
+
+    fn ucb1_normal_score(&self, total_number_of_iterations: usize) -> N64 {
+        let constant: N64 = 16.0.into();
+
+        let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
+        let total_score = self.total_score.load(Ordering::Relaxed);
+        let total_score: N64 = total_score.into();
+        let some_of_squares: N64 = self.sum_of_square_scores.load(Ordering::Relaxed).into();
+
+        let number_of_visits = number_of_visits as f64;
+
+        // TODO: Future Optimization
+        // We could re-work the surrounding code to do this eagerly so that we don't waste time on
+        // doing the rest of the math if we find a branch that matches this
+        if number_of_visits <= 8.0 * (total_number_of_iterations as f64).ln() {
+            return N64::INFINITY;
+        }
+
+        let number_of_visits: N64 = number_of_visits.into();
+
+        let average_score = total_score / number_of_visits;
+        let total_number_of_iterations_minus_one: N64 =
+            ((total_number_of_iterations - 1) as f64).into();
+
+        let ln_total_number_of_iterations_minus_one = total_number_of_iterations_minus_one.ln();
+
+        let first_fraction = (some_of_squares - (number_of_visits * average_score.powi(2)))
+            / (number_of_visits - 1.0);
+        let second_fraction = ln_total_number_of_iterations_minus_one / number_of_visits;
+
+        let right_hand_side = (constant * first_fraction * second_fraction).sqrt();
 
         average_score + right_hand_side
     }
@@ -486,7 +524,7 @@ where
         children
             .iter()
             .cloned()
-            .max_by_key(|child| child.ucb1_score(total_number_of_iterations))
+            .max_by_key(|child| child.ucb1_normal_score(total_number_of_iterations))
     }
 
     fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
@@ -569,7 +607,12 @@ where
 
     fn backpropagate(&self, score: N64) {
         self.number_of_visits.fetch_add(1, Ordering::Relaxed);
-        self.total_score.fetch_add(score.into(), Ordering::Relaxed);
+        {
+            let score: f64 = score.into();
+            self.total_score.fetch_add(score, Ordering::Relaxed);
+            self.sum_of_square_scores
+                .fetch_add(score.powi(2), Ordering::Relaxed);
+        }
 
         if let Some(tree_context) = &self.tree_context {
             tree_context.parent.borrow().backpropagate(score)
@@ -599,7 +642,7 @@ where
             self.tree_context.as_ref().map(|t| t.r#move.clone()),
             self.total_score,
             self.number_of_visits,
-            self.ucb1_score(total_number_of_iterations),
+            self.ucb1_normal_score(total_number_of_iterations),
             self.average_score(),
         );
 
@@ -806,7 +849,7 @@ mod test {
             .iter()
             .map(|n| (
                 n.average_score(),
-                n.ucb1_score(total_iterations),
+                n.ucb1_normal_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
                 n.tree_context.as_ref().unwrap().r#move.clone(),
                 n.children
@@ -816,7 +859,7 @@ mod test {
                     .iter()
                     .map(|n| (
                         n.average_score(),
-                        n.ucb1_score(total_iterations),
+                        n.ucb1_normal_score(total_iterations),
                         n.number_of_visits.load(Ordering::Relaxed),
                         n.tree_context.as_ref().unwrap().r#move.clone(),
                     ))
