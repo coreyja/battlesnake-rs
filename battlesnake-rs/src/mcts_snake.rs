@@ -90,7 +90,7 @@ where
     #[tracing::instrument(
         level = "info",
         skip_all,
-        fields(total_number_of_iterations, total_score, average_score,)
+        fields(total_number_of_iterations, total_score, average_score, game_id)
     )]
     fn mcts<'arena>(
         &self,
@@ -139,6 +139,7 @@ where
             &root_node.total_score.load(Ordering::Relaxed),
         );
         current_span.record("average_score", &root_node.average_score());
+        current_span.record("game_id", &self.game_info.id);
 
         root_node
     }

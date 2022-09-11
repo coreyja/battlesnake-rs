@@ -4,3 +4,6 @@
 tmp
 
 */samconfig.toml
+
+/archive
+/archive/*

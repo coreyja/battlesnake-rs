@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, fs::File};
+use std::{collections::HashMap, fmt::Debug, fs::File, io::Write};
 
 use itertools::Itertools;
 use serde_json::Value;
@@ -152,7 +152,12 @@ fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game, &'
         .snakes
         .iter()
         .find(|snake| snake.name == you_name)
-        .ok_or("You are not in the game")?
+        .unwrap_or_else(|| {
+            board
+                .snakes
+                .first()
+                .expect("There are no snakes in this game")
+        })
         .clone();
 
     Ok(Game {
@@ -199,11 +204,23 @@ struct Fixture {
     turn: i32,
 }
 
+#[derive(clap::Args, Debug)]
+struct Archive {
+    /// Game ID to debug
+    #[clap(short, long, value_parser)]
+    game_id: String,
+
+    /// The name of the snake to use as "you"
+    #[clap(short, long, value_parser)]
+    you_name: String,
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Adds files to myapp
     Solve(Solve),
     Fixture(Fixture),
+    Archive(Archive),
 }
 
 /// Simple program to greet a person
@@ -268,11 +285,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
         Commands::Solve(s) => solve(s)?,
         Commands::Fixture(f) => fixture(f)?,
+        Commands::Archive(a) => archive(a)?,
     }
 
     Ok(())
 }
 
+fn archive(args: Archive) -> Result<(), Box<dyn std::error::Error>> {
+    let game_id = args.game_id;
+
+    let body: Value = ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
+        .call()?
+        .into_json()?;
+
+    let mut turn = 0;
+
+    let mut frames = vec![];
+
+    while let Ok(Value::Object(frame)) = get_frame_for_turn(&game_id, turn) {
+        dbg!(turn, &frame);
+        frames.push(frame);
+
+        turn += 1;
+    }
+
+    let games: Result<Vec<Game>, _> = frames
+        .into_iter()
+        .map(|f| frame_to_game(&Value::Object(f), &body["Game"], &args.you_name))
+        .collect();
+    let mut games = games?;
+
+    games.sort_by_key(|g| g.turn);
+
+    let document: Result<String, _> = games
+        .into_iter()
+        .map(|g| serde_json::to_string(&g))
+        .collect();
+
+    let mut file = File::create(format!("./archive/{game_id}.jsonl"))?;
+    file.write_all(document?.as_bytes())?;
+
+    Ok(())
+}
 fn fixture(args: Fixture) -> Result<(), Box<dyn std::error::Error>> {
     let game_id = args.game_id;
     let turn = args.turn;
