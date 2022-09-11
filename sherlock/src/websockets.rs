@@ -32,7 +32,7 @@ struct Snake {
     #[serde(rename = "IsBot")]
     is_bot: bool,
     #[serde(rename = "IsEnvironment")]
-    is_false: bool,
+    is_environment: bool,
     #[serde(rename = "Latency")]
     latency: String,
     #[serde(rename = "Name")]
