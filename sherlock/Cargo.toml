@@ -18,3 +18,5 @@ serde = { version = "1.0.144", features = ["derive"] }
 color-eyre = "0.6.2"
 axum = { version = "0.5.16", features = ["ws"] }
 tokio = { version = "1.21.0", features = ["full"] }
+tungstenite = { version = "0.17.3", features = ["native-tls"] }
+url = { version = "2.3.1", features = ["serde"] }

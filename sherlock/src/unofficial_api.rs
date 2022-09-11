@@ -221,5 +221,7 @@ pub(crate) fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<
         offset += LIMIT;
     }
 
+    all_frames.sort_by_key(|f| f["Turn"].as_u64());
+
     Ok(all_frames)
 }

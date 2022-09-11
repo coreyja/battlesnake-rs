@@ -1,4 +1,7 @@
+use color_eyre::eyre::Result;
 use serde::{Deserialize, Serialize};
+use tungstenite::{connect, Message};
+use url::Url;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Point {
@@ -54,4 +57,18 @@ pub(crate) struct Frame {
     snakes: Vec<Snake>,
     #[serde(rename = "Turn")]
     turn: u32,
+}
+
+pub(crate) fn get_websockets_for_game(game_id: &str) -> Result<Vec<String>> {
+    let url = Url::parse(&format!(
+        "wss://engine.battlesnake.com/games/{game_id}/events"
+    ))?;
+    let (mut socket, _response) = connect(url)?;
+
+    let mut messages = vec![];
+    while let Ok(Message::Text(msg)) = socket.read_message() {
+        messages.push(msg);
+    }
+
+    Ok(messages)
 }
