@@ -2,7 +2,7 @@ mod commands;
 mod unofficial_api;
 
 use color_eyre::eyre::Result;
-use commands::Commands;
+use commands::Command;
 
 use std::fmt::Debug;
 
@@ -12,7 +12,7 @@ use clap::Parser;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 fn main() -> Result<()> {

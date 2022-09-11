@@ -29,13 +29,12 @@ impl Fixture {
             ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
                 .call()?
                 .into_json()?;
+
         let frame = get_frame_for_turn(&game_id, self.turn)?;
         let wire_game = frame_to_game(&frame, &body["Game"], &self.you_name).unwrap();
 
         let file = File::create(format!("./fixtures/{game_id}_{turn}.json"))?;
         serde_json::to_writer_pretty(file, &wire_game)?;
-
-        dbg!(wire_game);
 
         Ok(())
     }

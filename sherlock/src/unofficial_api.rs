@@ -7,7 +7,7 @@ use types::wire_representation::{
     BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings,
 };
 
-pub fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
+fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
     let id = game["ID"]
         .as_str()
         .ok_or_else(|| eyre!("Missing Game ID"))?
@@ -62,7 +62,7 @@ pub fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
     })
 }
 
-pub fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
+fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
     value
         .as_array()
         .ok_or_else(|| eyre!("Not an array"))?
@@ -85,7 +85,7 @@ pub fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
         .collect()
 }
 
-pub fn value_to_snake(value: &Value) -> Result<BattleSnake> {
+fn value_to_snake(value: &Value) -> Result<BattleSnake> {
     let id = value["ID"]
         .as_str()
         .ok_or_else(|| eyre!("Missing ID"))?
@@ -115,7 +115,7 @@ pub fn value_to_snake(value: &Value) -> Result<BattleSnake> {
     })
 }
 
-pub fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
+fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
     let height = game["Height"]
         .as_i64()
         .ok_or_else(|| eyre!("Missing Height"))?
@@ -145,7 +145,7 @@ pub fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
     })
 }
 
-pub fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game> {
+pub(crate) fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game> {
     let turn = frame["Turn"]
         .as_i64()
         .ok_or_else(|| eyre!("Turn is not an integer"))?
@@ -176,7 +176,7 @@ pub fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game
     })
 }
 
-pub fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value> {
+pub(crate) fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value> {
     let body: Value = ureq::get(
         format!(
             "https://engine.battlesnake.com/games/{}/frames?offset={}&limit=1",
@@ -191,12 +191,12 @@ pub fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct FrameResponse {
+pub(crate) struct FrameResponse {
     #[serde(rename = "Frames")]
     frames: Option<Vec<Value>>,
 }
 
-pub fn get_batch_of_frames_for_games(
+pub(crate) fn get_batch_of_frames_for_games(
     game_id: &str,
     offset: usize,
     limit: usize,
@@ -209,7 +209,7 @@ pub fn get_batch_of_frames_for_games(
     .frames)
 }
 
-pub fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<Value>> {
+pub(crate) fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<Value>> {
     const LIMIT: usize = 100;
     let mut offset = 0;
 
