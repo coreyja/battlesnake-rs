@@ -245,6 +245,30 @@ fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
     Ok(body["Frames"][0].clone())
 }
 
+fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<Value>, ureq::Error> {
+    const LIMIT: usize = 100;
+    let mut offset = 0;
+
+    let mut all_frames: Vec<Value> = Vec::with_capacity(end_turn);
+
+    while let Some(frames) = ureq::get(
+        format!(
+            "https://engine.battlesnake.com/games/{game_id}/frames?offset={offset}&limit={LIMIT}",
+        )
+        .as_str(),
+    )
+    .call()?
+    .into_json::<Value>()?["Frames"]
+        .as_array() && !frames.is_empty()
+    {
+        dbg!(offset, LIMIT);
+        all_frames.extend(frames.iter().cloned());
+        offset += LIMIT;
+    }
+
+    Ok(all_frames)
+}
+
 fn print_moves<
     GameType: SnakeIDGettableGame<SnakeIDType = SnakeId> + Debug + Clone,
     ScoreType: Copy + Ord + Debug,
@@ -297,21 +321,13 @@ fn archive(args: Archive) -> Result<(), Box<dyn std::error::Error>> {
     let body: Value = ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
         .call()?
         .into_json()?;
+    let last_turn = body["LastFrame"]["Turn"].as_i64().unwrap() as usize;
 
-    let mut turn = 0;
-
-    let mut frames = vec![];
-
-    while let Ok(Value::Object(frame)) = get_frame_for_turn(&game_id, turn) {
-        dbg!(turn, &frame);
-        frames.push(frame);
-
-        turn += 1;
-    }
+    let frames = get_frames_for_game(&game_id, last_turn)?;
 
     let games: Result<Vec<Game>, _> = frames
-        .into_iter()
-        .map(|f| frame_to_game(&Value::Object(f), &body["Game"], &args.you_name))
+        .iter()
+        .map(|f| frame_to_game(f, &body["Game"], &args.you_name))
         .collect();
     let mut games = games?;
 
