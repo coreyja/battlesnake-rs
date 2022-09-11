@@ -1,6 +1,9 @@
+use color_eyre::eyre::{eyre, Result, WrapErr};
+
 use std::{collections::HashMap, fmt::Debug, fs::File, io::Write};
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
@@ -10,36 +13,41 @@ use types::{
     wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings},
 };
 
-fn frame_to_nested_game(game: &Value) -> Result<NestedGame, &'static str> {
-    let id = game["ID"].as_str().ok_or("Missing Game ID")?.to_string();
+fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
+    let id = game["ID"]
+        .as_str()
+        .ok_or(eyre!("Missing Game ID"))?
+        .to_string();
 
     let map = game["Map"].as_str().map(|x| x.to_string());
     let source = game["Source"].as_str().map(|x| x.to_string());
 
-    let timeout = game["SnakeTimeout"].as_i64().ok_or("Missing Timeout")?;
+    let timeout = game["SnakeTimeout"]
+        .as_i64()
+        .ok_or(eyre!("Missing Timeout"))?;
 
     let ruleset_name = game["Ruleset"]["name"]
         .as_str()
-        .ok_or("Missing Ruleset Name")?
+        .ok_or(eyre!("Missing Ruleset Name"))?
         .to_string();
     let ruleset_version = "No version in frames".to_string();
 
     let settings = Settings {
         food_spawn_chance: game["Ruleset"]["foodSpawnChance"]
             .as_str()
-            .ok_or("Missing Food Spawn Chance")?
+            .ok_or(eyre!("Missing Food Spawn Chance"))?
             .parse()
-            .map_err(|_| "Too big for an i32")?,
+            .wrap_err("Too big for an i32")?,
         minimum_food: game["Ruleset"]["minimumFood"]
             .as_str()
-            .ok_or("Missing minimumFood")?
+            .ok_or(eyre!("Missing minimumFood"))?
             .parse()
-            .map_err(|_| "Too big for an i32")?,
+            .wrap_err("Too big for an i32")?,
         hazard_damage_per_turn: game["Ruleset"]["damagePerTurn"]
             .as_str()
-            .ok_or("Missing damagePerTurn")?
+            .ok_or(eyre!("Missing damagePerTurn"))?
             .parse()
-            .map_err(|_| "Too big for an i32")?,
+            .wrap_err("Too big for an i32")?,
         hazard_map: None,
         hazard_map_author: None,
         royale: None,
@@ -60,39 +68,42 @@ fn frame_to_nested_game(game: &Value) -> Result<NestedGame, &'static str> {
     })
 }
 
-fn value_to_position_vec(value: &Value) -> Result<Vec<Position>, &'static str> {
+fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
     value
         .as_array()
-        .ok_or("Not an array")?
+        .ok_or(eyre!("Not an array"))?
         .iter()
         .map(|pos| {
             let x = pos["X"]
                 .as_i64()
-                .ok_or("X is not an integer")?
+                .ok_or(eyre!("X is not an integer"))?
                 .try_into()
-                .map_err(|_| "Too big for an i32")?;
+                .wrap_err("Too big for an i32")?;
 
             let y = pos["Y"]
                 .as_i64()
-                .ok_or("Y is not an integer")?
+                .ok_or(eyre!("Y is not an integer"))?
                 .try_into()
-                .map_err(|_| "Too big for an i32")?;
+                .wrap_err("Too big for an i32")?;
 
             Ok(Position { x, y })
         })
         .collect()
 }
 
-fn value_to_snake(value: &Value) -> Result<BattleSnake, &'static str> {
-    let id = value["ID"].as_str().ok_or("Missing ID")?.to_string();
-    let name = value["Name"].as_str().ok_or("Missing Name")?.to_string();
+fn value_to_snake(value: &Value) -> Result<BattleSnake> {
+    let id = value["ID"].as_str().ok_or(eyre!("Missing ID"))?.to_string();
+    let name = value["Name"]
+        .as_str()
+        .ok_or(eyre!("Missing Name"))?
+        .to_string();
     let body = value_to_position_vec(&value["Body"])?;
     let head = body[0];
     let health = value["Health"]
         .as_i64()
-        .ok_or("Missing Health")?
+        .ok_or(eyre!("Missing Health"))?
         .try_into()
-        .map_err(|_| "Health is too big for an i32")?;
+        .wrap_err("Health is too big for an i32")?;
     let shout = value["Shout"].as_str().map(|x| x.to_string());
     let length = body.len() as i32;
 
@@ -107,26 +118,26 @@ fn value_to_snake(value: &Value) -> Result<BattleSnake, &'static str> {
     })
 }
 
-fn frame_to_board(frame: &Value, game: &Value) -> Result<Board, &'static str> {
+fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
     let height = game["Height"]
         .as_i64()
-        .ok_or("Missing Height")?
+        .ok_or(eyre!("Missing Height"))?
         .try_into()
-        .map_err(|_| "Height doesn't fit in a u32")?;
+        .wrap_err("Height doesn't fit in a u32")?;
 
     let width = game["Width"]
         .as_i64()
-        .ok_or("Missing Width")?
+        .ok_or(eyre!("Missing Width"))?
         .try_into()
-        .map_err(|_| "Width doesn't fit in a u32")?;
+        .wrap_err("Width doesn't fit in a u32")?;
 
     let snakes = frame["Snakes"]
         .as_array()
-        .ok_or("Missing Snakes")?
+        .ok_or(eyre!("Missing Snakes"))?
         .iter()
         .filter(|snake_json| snake_json["Death"].is_null())
         .map(value_to_snake)
-        .collect::<Result<Vec<BattleSnake>, &'static str>>()?;
+        .collect::<Result<Vec<BattleSnake>>>()?;
 
     Ok(Board {
         height,
@@ -137,12 +148,12 @@ fn frame_to_board(frame: &Value, game: &Value) -> Result<Board, &'static str> {
     })
 }
 
-fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game, &'static str> {
+fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game> {
     let turn = frame["Turn"]
         .as_i64()
-        .ok_or("Turn is not an integer")?
+        .ok_or(eyre!("Turn is not an integer"))?
         .try_into()
-        .map_err(|_| "Turn is too big for an i32")?;
+        .wrap_err("Turn is too big for an i32")?;
 
     let nested_game = frame_to_nested_game(game)?;
 
@@ -231,7 +242,7 @@ struct Args {
     command: Commands,
 }
 
-fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
+fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value> {
     let body: Value = ureq::get(
         format!(
             "https://engine.battlesnake.com/games/{}/frames?offset={}&limit=1",
@@ -245,23 +256,33 @@ fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value, ureq::Error> {
     Ok(body["Frames"][0].clone())
 }
 
-fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<Value>, ureq::Error> {
+#[derive(Serialize, Deserialize)]
+struct FrameResponse {
+    #[serde(rename = "Frames")]
+    frames: Option<Vec<Value>>,
+}
+
+fn get_batch_of_frames_for_games(
+    game_id: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<Option<Vec<Value>>> {
+    Ok(ureq::get(&format!(
+        "https://engine.battlesnake.com/games/{game_id}/frames?offset={offset}&limit={limit}",
+    ))
+    .call()?
+    .into_json::<FrameResponse>()?
+    .frames)
+}
+
+fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<Value>> {
     const LIMIT: usize = 100;
     let mut offset = 0;
 
     let mut all_frames: Vec<Value> = Vec::with_capacity(end_turn);
 
-    while let Some(frames) = ureq::get(
-        format!(
-            "https://engine.battlesnake.com/games/{game_id}/frames?offset={offset}&limit={LIMIT}",
-        )
-        .as_str(),
-    )
-    .call()?
-    .into_json::<Value>()?["Frames"]
-        .as_array() && !frames.is_empty()
+    while let Some(frames) = get_batch_of_frames_for_games(game_id, offset, LIMIT)? && !frames.is_empty()
     {
-        dbg!(offset, LIMIT);
         all_frames.extend(frames.iter().cloned());
         offset += LIMIT;
     }
@@ -303,7 +324,8 @@ fn print_moves<
     println!()
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
+    color_eyre::install()?;
     let args = Args::parse();
 
     match args.command {
@@ -315,7 +337,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn archive(args: Archive) -> Result<(), Box<dyn std::error::Error>> {
+fn archive(args: Archive) -> Result<()> {
     let game_id = args.game_id;
 
     let body: Value = ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
@@ -343,7 +365,7 @@ fn archive(args: Archive) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-fn fixture(args: Fixture) -> Result<(), Box<dyn std::error::Error>> {
+fn fixture(args: Fixture) -> Result<()> {
     let game_id = args.game_id;
     let turn = args.turn;
 
@@ -361,7 +383,7 @@ fn fixture(args: Fixture) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn solve(args: Solve) -> Result<(), ureq::Error> {
+fn solve(args: Solve) -> Result<()> {
     let body: Value =
         ureq::get(format!("https://engine.battlesnake.com/games/{}", args.game_id).as_str())
             .call()?
