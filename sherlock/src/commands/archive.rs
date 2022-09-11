@@ -6,7 +6,7 @@ use types::wire_representation::Game;
 
 use crate::{
     unofficial_api::{frame_to_game, get_frames_for_game},
-    websockets::get_websockets_for_game,
+    websockets::get_raw_messages_from_game,
 };
 
 #[derive(clap::Args, Debug)]
@@ -59,7 +59,7 @@ impl Archive {
         }
 
         {
-            let websocket_messages = get_websockets_for_game(&game_id)?;
+            let websocket_messages = get_raw_messages_from_game(&game_id)?;
 
             let document = websocket_messages.join("\n");
             let mut file = File::create(format!("./archive/{game_id}/websockets.jsonl"))?;

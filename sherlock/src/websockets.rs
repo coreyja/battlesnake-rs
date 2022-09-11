@@ -59,7 +59,7 @@ pub(crate) struct Frame {
     turn: u32,
 }
 
-pub(crate) fn get_websockets_for_game(game_id: &str) -> Result<Vec<String>> {
+pub(crate) fn get_raw_messages_from_game(game_id: &str) -> Result<Vec<String>> {
     let url = Url::parse(&format!(
         "wss://engine.battlesnake.com/games/{game_id}/events"
     ))?;
