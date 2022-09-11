@@ -37,13 +37,23 @@ impl Archive {
 
         games.sort_by_key(|g| g.turn);
 
-        let document: Result<String, _> = games
-            .into_iter()
-            .map(|g| serde_json::to_string(&g))
-            .collect();
+        std::fs::create_dir_all(format!("./archive/{game_id}"))?;
 
-        let mut file = File::create(format!("./archive/{game_id}.jsonl"))?;
-        file.write_all(document?.as_bytes())?;
+        {
+            let document: Result<String, _> = games
+                .into_iter()
+                .map(|g| serde_json::to_string(&g))
+                .collect();
+            let mut file = File::create(format!("./archive/{game_id}/wire_json.jsonl"))?;
+            file.write_all(document?.as_bytes())?;
+        }
+
+        {
+            let frame_document: Result<String, _> =
+                frames.iter().map(|g| serde_json::to_string(&g)).collect();
+            let mut file = File::create(format!("./archive/{game_id}/frames.jsonl"))?;
+            file.write_all(frame_document?.as_bytes())?;
+        }
 
         Ok(())
     }

@@ -16,3 +16,5 @@ battlesnake-minimax = { path = "../battlesnake-minimax" }
 itertools = "0.10.3"
 serde = { version = "1.0.144", features = ["derive"] }
 color-eyre = "0.6.2"
+axum = { version = "0.5.16", features = ["ws"] }
+tokio = { version = "1.21.0", features = ["full"] }

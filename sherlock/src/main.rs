@@ -1,5 +1,6 @@
 mod commands;
 mod unofficial_api;
+mod websockets;
 
 use color_eyre::eyre::Result;
 use commands::Command;
