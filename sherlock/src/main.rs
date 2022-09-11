@@ -16,7 +16,7 @@ use types::{
 fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
     let id = game["ID"]
         .as_str()
-        .ok_or(eyre!("Missing Game ID"))?
+        .ok_or_else(|| eyre!("Missing Game ID"))?
         .to_string();
 
     let map = game["Map"].as_str().map(|x| x.to_string());
@@ -24,28 +24,28 @@ fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
 
     let timeout = game["SnakeTimeout"]
         .as_i64()
-        .ok_or(eyre!("Missing Timeout"))?;
+        .ok_or_else(|| eyre!("Missing Timeout"))?;
 
     let ruleset_name = game["Ruleset"]["name"]
         .as_str()
-        .ok_or(eyre!("Missing Ruleset Name"))?
+        .ok_or_else(|| eyre!("Missing Ruleset Name"))?
         .to_string();
     let ruleset_version = "No version in frames".to_string();
 
     let settings = Settings {
         food_spawn_chance: game["Ruleset"]["foodSpawnChance"]
             .as_str()
-            .ok_or(eyre!("Missing Food Spawn Chance"))?
+            .ok_or_else(|| eyre!("Missing Food Spawn Chance"))?
             .parse()
             .wrap_err("Too big for an i32")?,
         minimum_food: game["Ruleset"]["minimumFood"]
             .as_str()
-            .ok_or(eyre!("Missing minimumFood"))?
+            .ok_or_else(|| eyre!("Missing minimumFood"))?
             .parse()
             .wrap_err("Too big for an i32")?,
         hazard_damage_per_turn: game["Ruleset"]["damagePerTurn"]
             .as_str()
-            .ok_or(eyre!("Missing damagePerTurn"))?
+            .ok_or_else(|| eyre!("Missing damagePerTurn"))?
             .parse()
             .wrap_err("Too big for an i32")?,
         hazard_map: None,
@@ -71,18 +71,18 @@ fn frame_to_nested_game(game: &Value) -> Result<NestedGame> {
 fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
     value
         .as_array()
-        .ok_or(eyre!("Not an array"))?
+        .ok_or_else(|| eyre!("Not an array"))?
         .iter()
         .map(|pos| {
             let x = pos["X"]
                 .as_i64()
-                .ok_or(eyre!("X is not an integer"))?
+                .ok_or_else(|| eyre!("X is not an integer"))?
                 .try_into()
                 .wrap_err("Too big for an i32")?;
 
             let y = pos["Y"]
                 .as_i64()
-                .ok_or(eyre!("Y is not an integer"))?
+                .ok_or_else(|| eyre!("Y is not an integer"))?
                 .try_into()
                 .wrap_err("Too big for an i32")?;
 
@@ -92,16 +92,19 @@ fn value_to_position_vec(value: &Value) -> Result<Vec<Position>> {
 }
 
 fn value_to_snake(value: &Value) -> Result<BattleSnake> {
-    let id = value["ID"].as_str().ok_or(eyre!("Missing ID"))?.to_string();
+    let id = value["ID"]
+        .as_str()
+        .ok_or_else(|| eyre!("Missing ID"))?
+        .to_string();
     let name = value["Name"]
         .as_str()
-        .ok_or(eyre!("Missing Name"))?
+        .ok_or_else(|| eyre!("Missing Name"))?
         .to_string();
     let body = value_to_position_vec(&value["Body"])?;
     let head = body[0];
     let health = value["Health"]
         .as_i64()
-        .ok_or(eyre!("Missing Health"))?
+        .ok_or_else(|| eyre!("Missing Health"))?
         .try_into()
         .wrap_err("Health is too big for an i32")?;
     let shout = value["Shout"].as_str().map(|x| x.to_string());
@@ -121,19 +124,19 @@ fn value_to_snake(value: &Value) -> Result<BattleSnake> {
 fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
     let height = game["Height"]
         .as_i64()
-        .ok_or(eyre!("Missing Height"))?
+        .ok_or_else(|| eyre!("Missing Height"))?
         .try_into()
         .wrap_err("Height doesn't fit in a u32")?;
 
     let width = game["Width"]
         .as_i64()
-        .ok_or(eyre!("Missing Width"))?
+        .ok_or_else(|| eyre!("Missing Width"))?
         .try_into()
         .wrap_err("Width doesn't fit in a u32")?;
 
     let snakes = frame["Snakes"]
         .as_array()
-        .ok_or(eyre!("Missing Snakes"))?
+        .ok_or_else(|| eyre!("Missing Snakes"))?
         .iter()
         .filter(|snake_json| snake_json["Death"].is_null())
         .map(value_to_snake)
@@ -151,7 +154,7 @@ fn frame_to_board(frame: &Value, game: &Value) -> Result<Board> {
 fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Result<Game> {
     let turn = frame["Turn"]
         .as_i64()
-        .ok_or(eyre!("Turn is not an integer"))?
+        .ok_or_else(|| eyre!("Turn is not an integer"))?
         .try_into()
         .wrap_err("Turn is too big for an i32")?;
 
