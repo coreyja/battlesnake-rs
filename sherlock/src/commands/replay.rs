@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, net::SocketAddr, process::Command};
+use std::{fs::read_to_string, net::SocketAddr};
 
 use color_eyre::eyre::Result;
 
