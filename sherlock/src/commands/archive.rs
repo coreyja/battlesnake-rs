@@ -5,6 +5,14 @@ use serde_json::Value;
 
 use crate::{unofficial_api::get_frames_for_game, websockets::get_raw_messages_from_game};
 
+pub fn archive(game_id: String, archive_dir: PathBuf) -> Result<()> {
+    Archive {
+        game_id,
+        archive_dir,
+    }
+    .run()
+}
+
 #[derive(clap::Args, Debug)]
 pub(crate) struct Archive {
     /// Game ID to debug
