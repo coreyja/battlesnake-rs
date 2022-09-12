@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, net::SocketAddr};
+use std::{fs::read_to_string, net::SocketAddr, process::Command};
 
 use color_eyre::eyre::Result;
 
@@ -7,26 +7,46 @@ pub(crate) struct Replay;
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        Query,
+        ws::{rejection::WebSocketUpgradeRejection, Message, WebSocket, WebSocketUpgrade},
+        Path,
     },
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
-    Router,
+    Json, Router,
 };
-use serde::Deserialize;
+use serde_json::Value;
+use tower_http::cors::CorsLayer;
 
-#[derive(Deserialize)]
-struct ReplayQueryParams {
-    game_id: String,
+async fn game_handler(Path(game_id): Path<String>) -> Response {
+    println!("We got a game for {game_id}");
+
+    let game_info = read_to_string(format!("./archive/{game_id}/info.json"));
+
+    match game_info {
+        Ok(info) => IntoResponse::into_response(Json::<Value>(
+            serde_json::from_str(&info)
+                .expect("This should be safe since we just deserialized from json"),
+        )),
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::NotFound => StatusCode::NOT_FOUND.into_response(),
+            _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        },
+    }
 }
 
-async fn handler(ws: WebSocketUpgrade, query: Query<ReplayQueryParams>) -> Response {
-    let game_id = query.game_id.clone();
-    let game_lines = read_to_string(format!("./archive/{game_id}.jsonl"));
+async fn websocket_handler(
+    ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
+    Path(game_id): Path<String>,
+) -> Response {
+    println!("Websocket for game {game_id}");
+
+    let game_lines = read_to_string(format!("./archive/{game_id}/websockets.jsonl"));
     match game_lines {
-        Ok(l) => ws.on_upgrade(move |s| handle_socket(s, l)),
+        Ok(l) => match ws {
+            Ok(ws) => ws.on_upgrade(move |s| handle_socket(s, l)),
+            Err(_) => "fallback".into_response(),
+        },
         Err(e) => match e.kind() {
             std::io::ErrorKind::NotFound => StatusCode::NOT_FOUND.into_response(),
             _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -56,9 +76,17 @@ impl Replay {
             .block_on(async {
                 println!("Hello world");
 
-                let app = Router::new().route("/ws", get(handler));
-
                 let addr = SocketAddr::from(([0, 0, 0, 0], 8085));
+
+                let cors = CorsLayer::new()
+                    .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
+                    .allow_origin(tower_http::cors::Any)
+                    .allow_credentials(false);
+
+                let app = Router::new()
+                    .route("/games/:game_id", get(game_handler))
+                    .route("/games/:game_id/events", get(websocket_handler))
+                    .layer(cors);
 
                 axum::Server::bind(&addr)
                     .serve(app.into_make_service())

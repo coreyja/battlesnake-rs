@@ -24,15 +24,22 @@ impl Archive {
     pub(crate) fn run(self) -> Result<()> {
         let game_id = self.game_id;
 
-        let body: Value =
+        let game_details: Value =
             ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
                 .call()?
                 .into_json()?;
-        let last_turn = body["LastFrame"]["Turn"].as_i64().unwrap() as usize;
+        let last_turn = game_details["LastFrame"]["Turn"].as_i64().unwrap() as usize;
 
         let frames = get_frames_for_game(&game_id, last_turn)?;
 
         std::fs::create_dir_all(format!("./archive/{game_id}"))?;
+
+        // Archive the Frames 'raw' from the API
+        {
+            let contents = serde_json::to_string(&game_details)?;
+            let mut file = File::create(format!("./archive/{game_id}/info.json"))?;
+            file.write_all(contents.as_bytes())?;
+        }
 
         // Archive the Frames 'raw' from the API
         {
@@ -46,7 +53,7 @@ impl Archive {
         {
             let games: Result<Vec<Game>, _> = frames
                 .iter()
-                .map(|f| frame_to_game(f, &body["Game"], &self.you_name))
+                .map(|f| frame_to_game(f, &game_details["Game"], &self.you_name))
                 .collect();
             let games = games?;
 

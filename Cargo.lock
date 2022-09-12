@@ -2585,6 +2585,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower-http",
  "tungstenite",
  "types",
  "ureq",
