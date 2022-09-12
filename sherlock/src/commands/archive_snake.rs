@@ -1,22 +1,21 @@
-use std::path::PathBuf;
-
 use color_eyre::eyre::Result;
 use scraper::{Html, Selector};
 
-use crate::commands::archive::archive;
+use crate::commands::archive::Archive;
+
+use super::archive::ArchiveShared;
 
 #[derive(clap::Args, Debug)]
-pub(crate) struct ArchiveAll {
+pub(crate) struct ArchiveSnake {
     /// The URL for the snake to archive
     #[clap(short, long, value_parser)]
     snake_url: String,
 
-    /// Directory to archive games to
-    #[clap(short, long, value_parser)]
-    archive_dir: PathBuf,
+    #[clap(flatten)]
+    shared: ArchiveShared,
 }
 
-impl ArchiveAll {
+impl ArchiveSnake {
     pub(crate) fn run(self) -> Result<()> {
         let res = ureq::get(&self.snake_url).call()?;
         let html_string = res.into_string()?;
@@ -37,7 +36,7 @@ impl ArchiveAll {
                 game_id.to_string()
             };
 
-            archive(game_id, self.archive_dir.clone())?
+            Archive::new(game_id, self.shared.clone()).run()?
         }
 
         Ok(())

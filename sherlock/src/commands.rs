@@ -1,10 +1,11 @@
 pub mod archive;
-pub mod archive_all;
+pub mod archive_snake;
 pub mod fixture;
 pub mod replay;
 pub mod solve;
 
 use archive::Archive;
+use archive_snake::ArchiveSnake;
 use fixture::Fixture;
 use replay::Replay;
 use solve::Solve;
@@ -12,15 +13,13 @@ use solve::Solve;
 use clap::Subcommand;
 use color_eyre::eyre::Result;
 
-use self::archive_all::ArchiveAll;
-
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
     Solve(Solve),
     Fixture(Fixture),
     Archive(Archive),
     Replay(Replay),
-    ArchiveAll(ArchiveAll),
+    ArchiveSnake(ArchiveSnake),
 }
 
 impl Command {
@@ -30,7 +29,7 @@ impl Command {
             Command::Fixture(f) => f.run()?,
             Command::Archive(a) => a.run()?,
             Command::Replay(r) => r.run()?,
-            Command::ArchiveAll(a) => a.run()?,
+            Command::ArchiveSnake(a) => a.run()?,
         }
 
         Ok(())

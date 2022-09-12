@@ -22,3 +22,4 @@ tungstenite = { version = "0.17.3", features = ["native-tls"] }
 url = { version = "2.3.1", features = ["serde"] }
 tower-http = { version = "0.3.4", features = ["cors"] }
 scraper = "0.13.0"
+colored = "2.0.0"
