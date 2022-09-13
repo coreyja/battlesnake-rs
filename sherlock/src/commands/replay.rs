@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, net::SocketAddr};
+use std::{fs::read_to_string, net::SocketAddr, path::PathBuf};
 
 use clap::Subcommand;
 use color_eyre::eyre::Result;
@@ -13,6 +13,15 @@ pub(crate) struct Replay {
 pub(crate) enum ReplayCommand {
     /// Start an engine that uses the local archive of Websocket Games
     Archive,
+    /// Start the engine with a local file from the Rules repo output
+    File(File),
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct File {
+    /// File to replay
+    #[clap(value_parser)]
+    file: PathBuf,
 }
 
 use axum::{
@@ -28,10 +37,20 @@ use axum::{
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
 
+use crate::websockets::rules_format_to_websocket;
+
 async fn game_handler(Path(game_id): Path<String>) -> Response {
     println!("We got a game for {game_id}");
 
-    let game_info = read_to_string(format!("./archive/{game_id}/info.json"));
+    let (info, _frames, _end_frame) = rules_format_to_websocket(
+        read_to_string("/Users/coreyja/Downloads/group_0_game_0.jsonl.txt").unwrap(),
+    );
+
+    let game_info = if game_id == ":local:" {
+        Ok(serde_json::to_string(&info).unwrap())
+    } else {
+        read_to_string(format!("./archive/{game_id}/info.json"))
+    };
 
     match game_info {
         Ok(info) => IntoResponse::into_response(Json::<Value>(
@@ -51,7 +70,19 @@ async fn websocket_handler(
 ) -> Response {
     println!("Websocket for game {game_id}");
 
-    let game_lines = read_to_string(format!("./archive/{game_id}/websockets.jsonl"));
+    let (_info, frames, end_frame) = rules_format_to_websocket(
+        read_to_string("/Users/coreyja/Downloads/group_0_game_0.jsonl.txt").unwrap(),
+    );
+
+    let game_lines = if game_id == ":local:" {
+        let mut lines: Vec<String> = vec![];
+        lines.extend(frames.iter().map(|s| serde_json::to_string(s).unwrap()));
+        lines.push(serde_json::to_string(&end_frame).unwrap());
+
+        Ok(lines.join("\n"))
+    } else {
+        read_to_string(format!("./archive/{game_id}/websockets.jsonl"))
+    };
     match game_lines {
         Ok(l) => match ws {
             Ok(ws) => ws.on_upgrade(move |s| handle_socket(s, l)),
