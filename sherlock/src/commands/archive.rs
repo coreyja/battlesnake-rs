@@ -3,6 +3,7 @@ use std::{fs::File, io::Write, path::PathBuf};
 use color_eyre::eyre::Result;
 use colored::Colorize;
 use serde_json::Value;
+use ureq::Error;
 
 use crate::{unofficial_api::get_frames_for_game, websockets::get_raw_messages_from_game};
 
@@ -49,10 +50,26 @@ impl Archive {
             format!("⏳ Archive in progress for {game_id}").yellow()
         );
 
-        let game_details: Value =
-            ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str())
-                .call()?
-                .into_json()?;
+        let game_details_resp =
+            ureq::get(format!("https://engine.battlesnake.com/games/{game_id}").as_str()).call();
+
+        let game_details: Value = match game_details_resp {
+            Ok(game_details) => game_details.into_json()?,
+            Err(Error::Status(code, response)) => {
+                if code == 404 {
+                    println!(
+                        "{}",
+                        "❌ Game does not exist in engine (likely already deleted)".yellow()
+                    );
+
+                    return Ok(());
+                }
+
+                return Err(Error::Status(code, response).into());
+            }
+            Err(e) => return Err(e.into()),
+        };
+
         let last_turn = game_details["LastFrame"]["Turn"].as_i64().unwrap() as usize;
 
         let frames = get_frames_for_game(&game_id, last_turn)?;

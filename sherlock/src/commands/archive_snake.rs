@@ -1,4 +1,5 @@
 use color_eyre::eyre::Result;
+use colored::Colorize;
 use scraper::{Html, Selector};
 
 use crate::commands::archive::Archive;
@@ -21,9 +22,19 @@ impl ArchiveSnake {
         let html_string = res.into_string()?;
         let document = Html::parse_document(&html_string);
 
-        let selector = Selector::parse(".list-group-item a").unwrap();
+        let snake_name: String = document
+            .select(&Selector::parse(".page-header h1").unwrap())
+            .next()
+            .unwrap()
+            .text()
+            .collect();
 
-        for element in document.select(&selector) {
+        println!(
+            "{}",
+            format!("⏳🐍 Archive in progress for {snake_name}").yellow()
+        );
+
+        for element in document.select(&Selector::parse(".list-group-item a").unwrap()) {
             let url = element
                 .value()
                 .attr("href")
@@ -40,5 +51,9 @@ impl ArchiveSnake {
         }
 
         Ok(())
+    }
+
+    pub fn new(snake_url: String, shared: ArchiveShared) -> Self {
+        Self { snake_url, shared }
     }
 }

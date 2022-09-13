@@ -1,11 +1,13 @@
 pub mod archive;
 pub mod archive_snake;
+pub mod archive_user;
 pub mod fixture;
 pub mod replay;
 pub mod solve;
 
 use archive::Archive;
 use archive_snake::ArchiveSnake;
+use archive_user::ArchiveUser;
 use fixture::Fixture;
 use replay::Replay;
 use solve::Solve;
@@ -20,6 +22,7 @@ pub(crate) enum Command {
     Archive(Archive),
     Replay(Replay),
     ArchiveSnake(ArchiveSnake),
+    ArchiveUser(ArchiveUser),
 }
 
 impl Command {
@@ -30,6 +33,7 @@ impl Command {
             Command::Archive(a) => a.run()?,
             Command::Replay(r) => r.run()?,
             Command::ArchiveSnake(a) => a.run()?,
+            Command::ArchiveUser(a) => a.run()?,
         }
 
         Ok(())
