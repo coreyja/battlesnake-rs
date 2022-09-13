@@ -1,9 +1,19 @@
 use std::{fs::read_to_string, net::SocketAddr};
 
+use clap::Subcommand;
 use color_eyre::eyre::Result;
 
 #[derive(clap::Args, Debug)]
-pub(crate) struct Replay;
+pub(crate) struct Replay {
+    #[clap(subcommand)]
+    command: ReplayCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum ReplayCommand {
+    /// Start an engine that uses the local archive of Websocket Games
+    Archive,
+}
 
 use axum::{
     extract::{
