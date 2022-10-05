@@ -134,7 +134,7 @@ where
 
             let (m, depth) = self.main_snake.choose_move();
             let current_span = tracing::Span::current();
-            current_span.record("depth", &depth);
+            current_span.record("depth", depth);
 
             m
         })

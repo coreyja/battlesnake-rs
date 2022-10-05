@@ -3,7 +3,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tungstenite::{connect, Message};
 use types::{
-    types::{SizeDeterminableGame, SnakeIDGettableGame},
+    types::SizeDeterminableGame,
     wire_representation::{BattleSnake, Game, NestedGame, Position},
 };
 use url::Url;

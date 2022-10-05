@@ -229,7 +229,7 @@ async fn log_request(
 
     if let Some(f) = factory {
         let factory_name = f.0.name();
-        current_span.record("factory_name", &format!("{:?}", &factory_name).as_str());
+        current_span.record("factory_name", format!("{:?}", &factory_name).as_str());
     }
 
     let req = req_parts
@@ -243,7 +243,7 @@ async fn log_request(
 
     let duration = start.elapsed();
 
-    current_span.record("request_duration_ms", &(duration.as_millis() as u64));
+    current_span.record("request_duration_ms", duration.as_millis() as u64);
 
     Ok(res)
 }

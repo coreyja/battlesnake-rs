@@ -306,7 +306,7 @@ where
             let (depth, scored) = self.clone().deepened_minimax_until_timelimit(sorted_ids);
 
             let current_span = tracing::Span::current();
-            current_span.record("scored_depth", &depth);
+            current_span.record("scored_depth", depth);
 
             let scored_options = scored.first_options_for_snake(my_id).unwrap();
 
@@ -574,7 +574,7 @@ where
 
             loop {
                 let next = {
-                    let result = copy.minimax(
+                    let result: Result<MinMaxReturn<_, _>, AbortedEarly> = copy.minimax(
                         Cow::Borrowed(&self.game),
                         &players,
                         0,
@@ -588,10 +588,10 @@ where
 
                     if let Ok(ref result) = result {
                         let current_span = tracing::Span::current();
-                        current_span.record("score", &format!("{:?}", result.score()).as_str());
+                        current_span.record("score", format!("{:?}", result.score()).as_str());
                         current_span.record(
                             "direction",
-                            &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+                            format!("{:?}", result.your_best_move(&you_id)).as_str(),
                         );
                     }
 
@@ -652,12 +652,12 @@ where
         let _ = suspend_worker.send(());
 
         if let Some((depth, result)) = &current {
-            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            current_span.record("chosen_score", format!("{:?}", result.score()).as_str());
             current_span.record(
                 "chosen_direction",
-                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+                format!("{:?}", result.your_best_move(&you_id)).as_str(),
             );
-            current_span.record("depth", &depth);
+            current_span.record("depth", depth);
         }
 
         current.expect("We weren't able to do even a single layer of minmax")
@@ -704,7 +704,7 @@ where
 
                 loop {
                     let next = {
-                        let result = copy.minimax(
+                        let result: Result<MinMaxReturn<_, _>, AbortedEarly> = copy.minimax(
                             Cow::Borrowed(&self.game),
                             &players,
                             0,
@@ -718,10 +718,10 @@ where
 
                         if let Ok(ref result) = result {
                             let current_span = tracing::Span::current();
-                            current_span.record("score", &format!("{:?}", result.score()).as_str());
+                            current_span.record("score", format!("{:?}", result.score()).as_str());
                             current_span.record(
                                 "direction",
-                                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+                                format!("{:?}", result.your_best_move(&you_id)).as_str(),
                             );
                         }
 
@@ -798,10 +798,10 @@ where
 
                         if let Ok(ref result) = result {
                             let current_span = tracing::Span::current();
-                            current_span.record("score", &format!("{:?}", result.score()).as_str());
+                            current_span.record("score", format!("{:?}", result.score()).as_str());
                             current_span.record(
                                 "direction",
-                                &format!("{:?}", result.your_best_move(you_id)).as_str(),
+                                format!("{:?}", result.your_best_move(you_id)).as_str(),
                             );
                         }
 
@@ -877,16 +877,14 @@ where
         let _ = suspend_explorer.send(());
 
         if let Some((depth, result)) = &current {
-            current_span.record("chosen_score", &format!("{:?}", result.score()).as_str());
+            let score = result.score();
+            current_span.record("chosen_score", format!("{:?}", score).as_str());
             current_span.record(
                 "chosen_direction",
-                &format!("{:?}", result.your_best_move(&you_id)).as_str(),
+                format!("{:?}", result.your_best_move(&you_id)).as_str(),
             );
-            current_span.record(
-                "all_moves",
-                &format!("{:?}", result.chosen_route()).as_str(),
-            );
-            current_span.record("depth", &depth);
+            current_span.record("all_moves", format!("{:?}", result.chosen_route()).as_str());
+            current_span.record("depth", depth);
         }
 
         (current, current_explorer)

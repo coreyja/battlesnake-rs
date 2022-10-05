@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 mod commands;
 mod unofficial_api;
 mod websockets;
