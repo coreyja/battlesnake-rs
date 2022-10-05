@@ -39,6 +39,8 @@ impl Archive {
         let game_dir = self.shared.archive_dir.join(&game_id);
         let game_info_path = game_dir.join("info.json");
 
+        let mut t = term::stdout().unwrap();
+
         if game_info_path.is_file() && !self.shared.force {
             println!("🎉 Archive already exists for {game_id}");
 
@@ -57,6 +59,8 @@ impl Archive {
             Ok(game_details) => game_details.into_json()?,
             Err(Error::Status(code, response)) => {
                 if code == 404 {
+                    t.cursor_up()?;
+                    t.delete_line()?;
                     println!(
                         "{}",
                         "❌ Game does not exist in engine (likely already deleted)".yellow()
@@ -100,6 +104,8 @@ impl Archive {
             file.write_all(document.as_bytes())?;
         }
 
+        t.cursor_up()?;
+        t.delete_line()?;
         println!(
             "{}",
             format!("✔️ Archive created for game {game_id}").green()
