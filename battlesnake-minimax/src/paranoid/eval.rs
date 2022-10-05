@@ -35,12 +35,12 @@ where
     ScoreType: 'static,
     ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + 'static + Clone,
 {
-    pub game: GameType,
-    pub game_info: NestedGame,
-    pub turn: i32,
+    pub(crate) game: GameType,
+    pub(crate) game_info: NestedGame,
+    pub(crate) turn: i32,
     #[derivative(Debug = "ignore")]
     score_function: ScorableType,
-    pub name: &'static str,
+    pub(crate) name: &'static str,
     options: SnakeOptions,
     _phantom: PhantomData<ScoreType>,
 }

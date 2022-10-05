@@ -2,7 +2,7 @@
     warnings,
     missing_copy_implementations,
     missing_debug_implementations,
-    // missing_docs
+    missing_docs
 )]
 //! This crate implements the minimax algorithm for the battlesnake game. You provide a 'scoring'
 //! function that turns a given board into anything that implements the `Ord` trait.
