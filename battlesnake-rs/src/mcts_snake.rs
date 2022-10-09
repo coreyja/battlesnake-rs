@@ -871,6 +871,68 @@ mod test {
         );
     }
 
+    fn test_fixture_wrapped(fixture: &'static str, allowed_moves: Vec<Move>) {
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+
+        let game_info = game.game.clone();
+        let id_map = build_snake_id_map(&game);
+        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let snake = MctsSnake::new(game, game_info);
+
+        let start = std::time::Instant::now();
+
+        const NETWORK_LATENCY_PADDING: i64 = 400;
+
+        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
+        let mut arena = Arena::new();
+        let root_node = snake.mcts(&while_condition, &mut arena);
+
+        let best_child = root_node
+            .highest_average_score_child()
+            .expect("The root should have a child");
+        let chosen_move = &best_child
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .r#move;
+
+        let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
+
+        let borrowed = root_node.children.borrow();
+        let children = borrowed.as_ref().unwrap();
+        dbg!(children
+            .iter()
+            .map(|n| (
+                n.average_score(),
+                n.ucb1_normal_score(total_iterations),
+                n.number_of_visits.load(Ordering::Relaxed),
+                n.tree_context.as_ref().unwrap().r#move.clone(),
+                n.children
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|n| (
+                        n.average_score(),
+                        n.ucb1_normal_score(total_iterations),
+                        n.number_of_visits.load(Ordering::Relaxed),
+                        n.tree_context.as_ref().unwrap().r#move.clone(),
+                    ))
+                    .collect_vec()
+            ))
+            .collect_vec());
+
+        assert!(
+            allowed_moves.contains(&chosen_move.my_move()),
+            "{chosen_move:?} was not in the allowed set of moves: {allowed_moves:?}"
+        );
+    }
+
     #[test]
     fn test_move_45e7de53_bca5_4fa3_8771_d9914ed141bb() {
         let fixture = include_str!("../../fixtures/45e7de53-bca5-4fa3-8771-d9914ed141bb.json");
@@ -902,5 +964,19 @@ mod test {
         let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
 
         test_fixture(fixture, vec![Move::Right]);
+    }
+
+    #[test]
+    fn test_move_130b18e2_8689_4d64_a09f_c4345f80ae79_25() {
+        let fixture = include_str!("../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json");
+
+        test_fixture(fixture, vec![Move::Down]);
+    }
+
+    #[test]
+    fn test_move_b6a045ae_abf2_4f6f_b04c_a80ace7881b4_399() {
+        let fixture = include_str!("../../fixtures/b6a045ae-abf2-4f6f-b04c-a80ace7881b4_399.json");
+
+        test_fixture_wrapped(fixture, vec![Move::Up]);
     }
 }

@@ -115,8 +115,6 @@ impl Replay {
             .build()
             .unwrap()
             .block_on(async {
-                println!("Hello world");
-
                 let addr = SocketAddr::from(([0, 0, 0, 0], 8085));
 
                 let cors = CorsLayer::new()
