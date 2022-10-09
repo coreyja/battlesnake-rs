@@ -568,7 +568,7 @@ where
             .enumerate()
             .filter_map(|(own_move, next_states)| next_states.map(|n| (own_move, n)))
         {
-            let r#move = Move::from_index(own_move);
+            let own_move = Move::from_index(own_move);
             // TODO: Passing `game_state` here is WRONG
             // Really self move nodes can't have a game state, since it depends on the opponent
             // moves too. We are keeping the 'old' one around here since our types can't model
@@ -576,7 +576,7 @@ where
             let new_node: &'arena _ = arena.alloc(Node::new_with_parent(
                 self.game_state.clone(),
                 self,
-                SomeonesMove::MyMove(r#move),
+                SomeonesMove::MyMove(own_move),
             ));
             children.push(new_node);
 
