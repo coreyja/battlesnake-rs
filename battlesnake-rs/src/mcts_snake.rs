@@ -133,12 +133,9 @@ where
             next_leaf_node.backpropagate(score);
         }
 
-        current_span.record("total_number_of_iterations", &total_number_of_iterations);
-        current_span.record(
-            "total_score",
-            &root_node.total_score.load(Ordering::Relaxed),
-        );
-        current_span.record("average_score", &root_node.average_score());
+        current_span.record("total_number_of_iterations", total_number_of_iterations);
+        current_span.record("total_score", root_node.total_score.load(Ordering::Relaxed));
+        current_span.record("average_score", root_node.average_score());
         current_span.record("game_id", &self.game_info.id);
 
         root_node
@@ -897,17 +894,6 @@ mod test {
     #[test]
     fn test_move_d9841bf6_c34f_42fb_8818_dfd5d5a09b4a_125() {
         let fixture = include_str!("../../fixtures/d9841bf6-c34f-42fb-8818-dfd5d5a09b4a_125.json");
-        // let game = serde_json::from_str::<Game>(fixture).unwrap();
-
-        // let game_info = game.game.clone();
-        // let id_map = build_snake_id_map(&game);
-
-        // let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-
-        // let snake = MctsSnake::new(game, game_info);
-
-        // let mut arena = Arena::new();
-        // snake.graph_move(&mut arena).unwrap();
         test_fixture(fixture, vec![Move::Up]);
     }
 
