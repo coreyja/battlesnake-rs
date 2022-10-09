@@ -857,7 +857,7 @@ mod test {
                 })
                 .collect::<Vec<_>>();
 
-            Move::all_iter().permutations(2).for_each(|v| {
+            for v in Move::all_iter().permutations(2) {
                 let mut actions: [Option<Move>; 4] = Default::default();
                 actions[0] = Some(m);
                 actions[1] = Some(v[0]);
@@ -866,11 +866,79 @@ mod test {
 
                 dbg!(&opponent_moves, &actions);
                 assert!(opponent_moves.contains(&actions));
-            });
+            }
 
             let inner_childer = child.children.borrow();
             let inner_childer = inner_childer.as_ref().unwrap();
             assert_eq!(inner_childer.len(), 16);
+        }
+    }
+
+    #[test]
+    fn test_less_basic_expand() {
+        let game = serde_json::from_str::<Game>(include_str!(
+            "../../fixtures/less_basic_expand_mcts.json"
+        ))
+        .unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let arena = Arena::new();
+        let root_node = arena.alloc(Node::new(game));
+
+        assert!(!root_node.has_been_expanded());
+
+        root_node.expand(&arena);
+
+        assert!(root_node.has_been_expanded());
+
+        let children = root_node.children.borrow();
+        let children = children.as_ref().unwrap();
+        assert_eq!(children.len(), 2);
+
+        let my_moves = children
+            .iter()
+            .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+            .collect::<Vec<_>>();
+
+        for m in [Move::Up, Move::Down] {
+            assert!(my_moves.contains(&SomeonesMove::MyMove(m)));
+        }
+
+        for child in children {
+            let m = child.tree_context.as_ref().unwrap().snake_move.clone();
+            let m = m.my_move();
+
+            let opponent_moves = child
+                .children
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+                .map(|m| {
+                    if let SomeonesMove::OtherMoves(m) = m {
+                        m
+                    } else {
+                        panic!("Expected an opponents move");
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            for v in [Move::Right, Move::Down].iter() {
+                let mut actions: [Option<Move>; 4] = Default::default();
+                actions[0] = Some(m);
+                actions[1] = Some(*v);
+                let actions = Action::new(actions);
+
+                dbg!(&opponent_moves, &actions);
+                assert!(opponent_moves.contains(&actions));
+            }
+
+            let inner_childer = child.children.borrow();
+            let inner_childer = inner_childer.as_ref().unwrap();
+            assert_eq!(inner_childer.len(), 2);
         }
     }
 
