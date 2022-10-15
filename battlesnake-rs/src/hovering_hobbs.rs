@@ -107,9 +107,9 @@ where
         .unwrap();
     let length_diff = me_length - max_opponent_length;
     let capped_diff = length_diff.min(3);
-    let length_diff_multipier: f64 = 0.05 * capped_diff as f64;
+    let length_diff_multiplier: f64 = 0.05 * capped_diff as f64;
 
-    Score::FloodFill(my_ratio * length_diff_multipier)
+    Score::FloodFill(my_ratio * length_diff_multiplier)
 }
 
 pub struct Factory;
