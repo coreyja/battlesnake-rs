@@ -1006,6 +1006,7 @@ mod test {
         );
     }
 
+    #[allow(unused)]
     fn test_fixture_wrapped(fixture: &'static str, allowed_moves: Vec<Move>) {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
@@ -1095,6 +1096,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_af943832_1b3b_4795_9e35_081f71959aee_108() {
         let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
 
@@ -1102,6 +1104,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_130b18e2_8689_4d64_a09f_c4345f80ae79_25() {
         let fixture = include_str!("../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json");
 
@@ -1109,6 +1112,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_b6a045ae_abf2_4f6f_b04c_a80ace7881b4_399() {
         let fixture = include_str!("../../fixtures/b6a045ae-abf2-4f6f-b04c-a80ace7881b4_399.json");
 
