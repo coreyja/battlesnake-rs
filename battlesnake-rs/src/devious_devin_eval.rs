@@ -12,9 +12,9 @@ pub enum ScoreEndState {
     Lose(i64),
     /// depth: i64
     Tie(i64),
-    /// difference_in_snake_length: u16, negative_distance_to_nearest_food: Option<i32>, health: u8
+    /// difference_in_snake_length, negative_distance_to_nearest_food, health
     ShorterThanOpponent(i64, Option<i32>, i64),
-    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
+    /// negative_distance_to_opponent, difference_in_snake_length, health
     LongerThanOpponent(Option<i32>, i64, i64),
     /// depth: i64
     Win(i64),
