@@ -12,9 +12,9 @@ pub enum ScoreEndState {
     Lose(i64),
     /// depth: i64
     Tie(i64),
-    /// difference_in_snake_length: u16, negative_distance_to_nearest_food: Option<i32>, health: u8
+    /// difference_in_snake_length, negative_distance_to_nearest_food, health
     ShorterThanOpponent(i64, Option<i32>, i64),
-    /// negative_distance_to_opponent: Option<i64>, difference_in_snake_length: i64, health: u8
+    /// negative_distance_to_opponent, difference_in_snake_length, health
     LongerThanOpponent(Option<i32>, i64, i64),
     /// depth: i64
     Win(i64),
@@ -63,7 +63,7 @@ pub fn score<
         .map(|o| node.get_length_i64(o))
         .max()
         .unwrap();
-    let length_difference = (my_length as i64) - (max_opponent_length as i64);
+    let length_difference = my_length - max_opponent_length;
     let my_health = node.get_health_i64(me_id);
 
     if max_opponent_length >= my_length || my_health < 20 {

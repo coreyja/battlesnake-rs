@@ -76,14 +76,10 @@ where
         + PartialEq
         + RandomReasonableMovesGame
         + VictorDeterminableGame
-        + YouDeterminableGame
-        + 'static,
-    BoardType: SimulableGame<Instrument, 4>
+        + 'static
         + SnakeIDGettableGame<SnakeIDType = SnakeId>
-        + RandomReasonableMovesGame
         + SpreadFromHead<u8, 4>
         + Clone
-        + VictorDeterminableGame
         + HazardQueryableGame
         + YouDeterminableGame,
 {
@@ -188,7 +184,7 @@ where
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
+            .snake_move;
 
         Ok(MoveOutput {
             r#move: format!("{}", chosen_move.my_move()),
@@ -235,7 +231,7 @@ where
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
+            .snake_move;
 
         Ok(MoveOutput {
             r#move: format!("{}", chosen_move.my_move()),
@@ -248,10 +244,10 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum SomeonesMove {
     MyMove(Move),
-    OtherMoves(OtherAction<4>),
+    OtherMoves(Action<4>),
 }
 
 impl SomeonesMove {
@@ -266,7 +262,7 @@ impl SomeonesMove {
 #[derive(Debug)]
 struct TreeContext<'arena, T> {
     parent: RefCell<&'arena Node<'arena, T>>,
-    r#move: SomeonesMove,
+    snake_move: SomeonesMove,
 }
 
 #[derive(Debug)]
@@ -310,7 +306,7 @@ impl<'arena, T> Node<'arena, T> {
             children: RefCell::new(None),
             tree_context: Some(TreeContext {
                 parent: RefCell::new(parent),
-                r#move,
+                snake_move: r#move,
             }),
             depth: parent.depth + 1,
         }
@@ -551,7 +547,9 @@ where
 
         let next_states = self.game_state.simulate(&Instrument {}, snakes);
 
-        let mut opponent_moves: [Option<Vec<(OtherAction<4>, BoardType)>>; 4] = Default::default();
+        // TODO: The hard coded 4 needs to be changed to be a const generic that is also used
+        // for picking the board size
+        let mut opponent_moves: [Option<Vec<(Action<4>, BoardType)>>; 4] = Default::default();
 
         for (actions, game_state) in next_states {
             let own_move = actions.own_move();
@@ -561,7 +559,7 @@ where
             opponent_moves[own_move.as_index()]
                 .as_mut()
                 .unwrap()
-                .push((actions.other_moves(), game_state));
+                .push((actions, game_state));
         }
 
         let mut children: Vec<&'arena _> = Vec::with_capacity(4);
@@ -570,7 +568,7 @@ where
             .enumerate()
             .filter_map(|(own_move, next_states)| next_states.map(|n| (own_move, n)))
         {
-            let r#move = Move::from_index(own_move);
+            let own_move = Move::from_index(own_move);
             // TODO: Passing `game_state` here is WRONG
             // Really self move nodes can't have a game state, since it depends on the opponent
             // moves too. We are keeping the 'old' one around here since our types can't model
@@ -578,7 +576,7 @@ where
             let new_node: &'arena _ = arena.alloc(Node::new_with_parent(
                 self.game_state.clone(),
                 self,
-                SomeonesMove::MyMove(r#move),
+                SomeonesMove::MyMove(own_move),
             ));
             children.push(new_node);
 
@@ -637,7 +635,7 @@ where
         let me_id: String = format!(
             "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}",
             child_id,
-            self.tree_context.as_ref().map(|t| t.r#move.clone()),
+            self.tree_context.as_ref().map(|t| t.snake_move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_normal_score(total_number_of_iterations),
@@ -809,6 +807,143 @@ mod test {
         assert_eq!(new_state.get_winner(), Some(other_id));
     }
 
+    #[test]
+    fn test_basic_expand() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let arena = Arena::new();
+        let root_node = arena.alloc(Node::new(game));
+
+        assert!(!root_node.has_been_expanded());
+
+        root_node.expand(&arena);
+
+        assert!(root_node.has_been_expanded());
+
+        let children = root_node.children.borrow();
+        let children = children.as_ref().unwrap();
+        assert_eq!(children.len(), 4);
+
+        let my_moves = children
+            .iter()
+            .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+            .collect::<Vec<_>>();
+
+        for m in Move::all() {
+            assert!(my_moves.contains(&SomeonesMove::MyMove(m)));
+        }
+
+        for child in children {
+            let m = child.tree_context.as_ref().unwrap().snake_move.clone();
+            let m = m.my_move();
+
+            let opponent_moves = child
+                .children
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+                .map(|m| {
+                    if let SomeonesMove::OtherMoves(m) = m {
+                        m
+                    } else {
+                        panic!("Expected an opponents move");
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            for v in Move::all_iter().permutations(2) {
+                let mut actions: [Option<Move>; 4] = Default::default();
+                actions[0] = Some(m);
+                actions[1] = Some(v[0]);
+                actions[2] = Some(v[1]);
+                let actions = Action::new(actions);
+
+                dbg!(&opponent_moves, &actions);
+                assert!(opponent_moves.contains(&actions));
+            }
+
+            let inner_childer = child.children.borrow();
+            let inner_childer = inner_childer.as_ref().unwrap();
+            assert_eq!(inner_childer.len(), 16);
+        }
+    }
+
+    #[test]
+    fn test_less_basic_expand() {
+        let game = serde_json::from_str::<Game>(include_str!(
+            "../../fixtures/less_basic_expand_mcts.json"
+        ))
+        .unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let arena = Arena::new();
+        let root_node = arena.alloc(Node::new(game));
+
+        assert!(!root_node.has_been_expanded());
+
+        root_node.expand(&arena);
+
+        assert!(root_node.has_been_expanded());
+
+        let children = root_node.children.borrow();
+        let children = children.as_ref().unwrap();
+        assert_eq!(children.len(), 2);
+
+        let my_moves = children
+            .iter()
+            .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+            .collect::<Vec<_>>();
+
+        for m in [Move::Up, Move::Down] {
+            assert!(my_moves.contains(&SomeonesMove::MyMove(m)));
+        }
+
+        for child in children {
+            let m = child.tree_context.as_ref().unwrap().snake_move.clone();
+            let m = m.my_move();
+
+            let opponent_moves = child
+                .children
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|child| child.tree_context.as_ref().unwrap().snake_move.clone())
+                .map(|m| {
+                    if let SomeonesMove::OtherMoves(m) = m {
+                        m
+                    } else {
+                        panic!("Expected an opponents move");
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            for v in [Move::Right, Move::Down].iter() {
+                let mut actions: [Option<Move>; 4] = Default::default();
+                actions[0] = Some(m);
+                actions[1] = Some(*v);
+                let actions = Action::new(actions);
+
+                dbg!(&opponent_moves, &actions);
+                assert!(opponent_moves.contains(&actions));
+            }
+
+            let inner_childer = child.children.borrow();
+            let inner_childer = inner_childer.as_ref().unwrap();
+            assert_eq!(inner_childer.len(), 2);
+        }
+    }
+
+    // ----------------- FIXTURE TESTS DOWN BELOW -----------------
+
     fn test_fixture(fixture: &'static str, allowed_moves: Vec<Move>) {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
@@ -837,7 +972,7 @@ mod test {
             .tree_context
             .as_ref()
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .r#move;
+            .snake_move;
 
         let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
 
@@ -849,7 +984,7 @@ mod test {
                 n.average_score(),
                 n.ucb1_normal_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
-                n.tree_context.as_ref().unwrap().r#move.clone(),
+                n.tree_context.as_ref().unwrap().snake_move.clone(),
                 n.children
                     .borrow()
                     .as_ref()
@@ -859,7 +994,70 @@ mod test {
                         n.average_score(),
                         n.ucb1_normal_score(total_iterations),
                         n.number_of_visits.load(Ordering::Relaxed),
-                        n.tree_context.as_ref().unwrap().r#move.clone(),
+                        n.tree_context.as_ref().unwrap().snake_move.clone(),
+                    ))
+                    .collect_vec()
+            ))
+            .collect_vec());
+
+        assert!(
+            allowed_moves.contains(&chosen_move.my_move()),
+            "{chosen_move:?} was not in the allowed set of moves: {allowed_moves:?}"
+        );
+    }
+
+    #[allow(unused)]
+    fn test_fixture_wrapped(fixture: &'static str, allowed_moves: Vec<Move>) {
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+
+        let game_info = game.game.clone();
+        let id_map = build_snake_id_map(&game);
+        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+
+        let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let snake = MctsSnake::new(game, game_info);
+
+        let start = std::time::Instant::now();
+
+        const NETWORK_LATENCY_PADDING: i64 = 400;
+
+        let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
+            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+        };
+        let mut arena = Arena::new();
+        let root_node = snake.mcts(&while_condition, &mut arena);
+
+        let best_child = root_node
+            .highest_average_score_child()
+            .expect("The root should have a child");
+        let chosen_move = &best_child
+            .tree_context
+            .as_ref()
+            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .snake_move;
+
+        let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
+
+        let borrowed = root_node.children.borrow();
+        let children = borrowed.as_ref().unwrap();
+        dbg!(children
+            .iter()
+            .map(|n| (
+                n.average_score(),
+                n.ucb1_normal_score(total_iterations),
+                n.number_of_visits.load(Ordering::Relaxed),
+                n.tree_context.as_ref().unwrap().snake_move.clone(),
+                n.children
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|n| (
+                        n.average_score(),
+                        n.ucb1_normal_score(total_iterations),
+                        n.number_of_visits.load(Ordering::Relaxed),
+                        n.tree_context.as_ref().unwrap().snake_move.clone(),
                     ))
                     .collect_vec()
             ))
@@ -898,9 +1096,26 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_af943832_1b3b_4795_9e35_081f71959aee_108() {
         let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
 
         test_fixture(fixture, vec![Move::Right]);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_move_130b18e2_8689_4d64_a09f_c4345f80ae79_25() {
+        let fixture = include_str!("../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json");
+
+        test_fixture(fixture, vec![Move::Down]);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_move_b6a045ae_abf2_4f6f_b04c_a80ace7881b4_399() {
+        let fixture = include_str!("../../fixtures/b6a045ae-abf2-4f6f-b04c-a80ace7881b4_399.json");
+
+        test_fixture_wrapped(fixture, vec![Move::Up]);
     }
 }

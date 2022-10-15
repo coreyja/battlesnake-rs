@@ -7,3 +7,6 @@ tmp
 
 /archive
 /archive/*
+
+.idea/
+.idea/**/*

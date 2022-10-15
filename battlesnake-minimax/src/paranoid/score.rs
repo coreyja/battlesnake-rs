@@ -104,12 +104,12 @@ where
             let score = match node.get_winner() {
                 Some(s) => {
                     if s == *you_id {
-                        WrappedScore::Win(Reverse(depth as i64))
+                        WrappedScore::Win(Reverse(depth))
                     } else {
-                        WrappedScore::Lose(depth as i64)
+                        WrappedScore::Lose(depth)
                     }
                 }
-                None => WrappedScore::Tie(depth as i64),
+                None => WrappedScore::Tie(depth),
             };
 
             return Some(score);

@@ -1,0 +1,178 @@
+{
+  "you": {
+    "id": "gs_wWHwDCggVBcp8TC3QktV7B43",
+    "name": "TBD MCTS",
+    "head": {
+      "x": 3,
+      "y": 10
+    },
+    "body": [
+      {
+        "x": 3,
+        "y": 10
+      },
+      {
+        "x": 4,
+        "y": 10
+      },
+      {
+        "x": 5,
+        "y": 10
+      },
+      {
+        "x": 6,
+        "y": 10
+      }
+    ],
+    "health": 77,
+    "shout": ""
+  },
+  "board": {
+    "height": 11,
+    "width": 11,
+    "food": [
+      {
+        "x": 3,
+        "y": 0
+      }
+    ],
+    "snakes": [
+      {
+        "id": "gs_kSP4CqkgFRBJd3w9MdkTrgYS",
+        "name": "One",
+        "head": {
+          "x": 2,
+          "y": 5
+        },
+        "body": [
+          {
+            "x": 2,
+            "y": 5
+          },
+          {
+            "x": 2,
+            "y": 6
+          },
+          {
+            "x": 3,
+            "y": 6
+          },
+          {
+            "x": 3,
+            "y": 5
+          },
+          {
+            "x": 4,
+            "y": 5
+          }
+        ],
+        "health": 85,
+        "shout": ""
+      },
+      {
+        "id": "gs_GRT6qmVW9bpwRyBxhCGjxpTR",
+        "name": "Fairy Rust",
+        "head": {
+          "x": 5,
+          "y": 4
+        },
+        "body": [
+          {
+            "x": 5,
+            "y": 4
+          },
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 5,
+            "y": 6
+          },
+          {
+            "x": 6,
+            "y": 6
+          }
+        ],
+        "health": 77,
+        "shout": ""
+      },
+      {
+        "id": "gs_49c8rKykgqDBd4KSJSVyqYvK",
+        "name": "soma-mini v1[standard]",
+        "head": {
+          "x": 1,
+          "y": 8
+        },
+        "body": [
+          {
+            "x": 1,
+            "y": 8
+          },
+          {
+            "x": 1,
+            "y": 7
+          },
+          {
+            "x": 2,
+            "y": 7
+          },
+          {
+            "x": 3,
+            "y": 7
+          }
+        ],
+        "health": 77,
+        "shout": "406"
+      },
+      {
+        "id": "gs_wWHwDCggVBcp8TC3QktV7B43",
+        "name": "TBD MCTS",
+        "head": {
+          "x": 3,
+          "y": 10
+        },
+        "body": [
+          {
+            "x": 3,
+            "y": 10
+          },
+          {
+            "x": 4,
+            "y": 10
+          },
+          {
+            "x": 5,
+            "y": 10
+          },
+          {
+            "x": 6,
+            "y": 10
+          }
+        ],
+        "health": 77,
+        "shout": ""
+      }
+    ],
+    "hazards": []
+  },
+  "turn": 25,
+  "game": {
+    "id": "130b18e2-8689-4d64-a09f-c4345f80ae79",
+    "ruleset": {
+      "name": "standard",
+      "version": "No version in frames",
+      "settings": {
+        "foodSpawnChance": 15,
+        "minimumFood": 1,
+        "hazardDamagePerTurn": 14,
+        "hazardMap": null,
+        "hazardMapAuthor": null,
+        "royale": null
+      }
+    },
+    "timeout": 500,
+    "map": "standard",
+    "source": "ladder"
+  }
+}
