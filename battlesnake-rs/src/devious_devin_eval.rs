@@ -63,7 +63,7 @@ pub fn score<
         .map(|o| node.get_length_i64(o))
         .max()
         .unwrap();
-    let length_difference = (my_length as i64) - (max_opponent_length as i64);
+    let length_difference = my_length - max_opponent_length;
     let my_health = node.get_health_i64(me_id);
 
     if max_opponent_length >= my_length || my_health < 20 {
