@@ -557,8 +557,8 @@ where
         // for picking the board size
         const MAX_SNAKES: usize = 4;
 
-        // WORKING ON NOW:
-        // We dont want to add moves to the tree that end in definite death for the snake (unless its the only option)
+        // TODO: We can do this live/dead check without actually running through simulation results
+        // We likely want to do that instead cause it should be much faster
         let mut living_snakes_table = [[false; N_MOVES]; MAX_SNAKES];
 
         for sid in self.game_state.get_snake_ids() {
