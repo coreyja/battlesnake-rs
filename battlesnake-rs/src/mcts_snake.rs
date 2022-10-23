@@ -75,6 +75,7 @@ where
         + SimulableGame<Instrument, 4>
         + PartialEq
         + RandomReasonableMovesGame
+        + ReasonableMovesGame
         + VictorDeterminableGame
         + HealthGettableGame
         + 'static
@@ -200,6 +201,7 @@ where
         + SimulableGame<Instrument, 4>
         + PartialEq
         + RandomReasonableMovesGame
+        + ReasonableMovesGame
         + VictorDeterminableGame
         + YouDeterminableGame
         + 'static,
@@ -380,6 +382,7 @@ where
         + SnakeIDGettableGame<SnakeIDType = SnakeId>
         + HealthGettableGame
         + RandomReasonableMovesGame
+        + ReasonableMovesGame
         + Clone
         + VictorDeterminableGame
         + YouDeterminableGame,
@@ -546,48 +549,7 @@ where
             return;
         }
 
-        let snakes = self.game_state.get_snake_ids();
-
-        let next_states = self
-            .game_state
-            .simulate(&Instrument {}, snakes)
-            .collect_vec();
-
-        // TODO: The hard coded 4  needs to be changed to be a const generic that is also used
-        // for picking the board size
-        const MAX_SNAKES: usize = 4;
-
-        // TODO: We can do this live/dead check without actually running through simulation results
-        // We likely want to do that instead cause it should be much faster
-        let mut living_snakes_table = [[false; N_MOVES]; MAX_SNAKES];
-
-        for sid in self.game_state.get_snake_ids() {
-            for m in Move::all() {
-                for (_, next_state) in next_states
-                    .iter()
-                    .filter(|(actions, _)| actions.into_inner()[sid.as_usize()] == Some(m))
-                {
-                    let past_result = living_snakes_table[sid.as_usize()][m.as_index()];
-                    let is_alive = next_state.is_alive(&sid);
-
-                    living_snakes_table[sid.as_usize()][m.as_index()] = past_result || is_alive;
-                }
-            }
-        }
-
-        let binding = self.game_state.get_snake_ids();
-        let moves_to_sim = binding.iter().map(|sid| {
-            let mut moves = Move::all()
-                .into_iter()
-                .filter(|m| living_snakes_table[sid.as_usize()][m.as_index()])
-                .collect_vec();
-
-            if moves.is_empty() {
-                moves = [Move::Up].to_vec();
-            }
-
-            (*sid, moves)
-        });
+        let moves_to_sim = self.game_state.reasonable_moves_for_each_snake();
         let next_states = self
             .game_state
             .simulate_with_moves(&Instrument {}, moves_to_sim)
