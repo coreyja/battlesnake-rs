@@ -76,6 +76,7 @@ where
         + PartialEq
         + RandomReasonableMovesGame
         + VictorDeterminableGame
+        + HealthGettableGame
         + 'static
         + SnakeIDGettableGame<SnakeIDType = SnakeId>
         + SpreadFromHead<u8, 4>
@@ -208,6 +209,7 @@ where
         + SpreadFromHead<u8, 4>
         + Clone
         + VictorDeterminableGame
+        + HealthGettableGame
         + HazardQueryableGame
         + YouDeterminableGame,
 {
@@ -375,7 +377,8 @@ where
 impl<'arena, BoardType> Node<'arena, BoardType>
 where
     BoardType: SimulableGame<Instrument, 4>
-        + SnakeIDGettableGame
+        + SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + HealthGettableGame
         + RandomReasonableMovesGame
         + Clone
         + VictorDeterminableGame
@@ -545,12 +548,52 @@ where
 
         let snakes = self.game_state.get_snake_ids();
 
-        let next_states = self.game_state.simulate(&Instrument {}, snakes);
+        let next_states = self
+            .game_state
+            .simulate(&Instrument {}, snakes)
+            .collect_vec();
 
-        // TODO: The hard coded 4 needs to be changed to be a const generic that is also used
+        // TODO: The hard coded 4  needs to be changed to be a const generic that is also used
         // for picking the board size
-        let mut opponent_moves: [Option<Vec<(Action<4>, BoardType)>>; 4] = Default::default();
+        const MAX_SNAKES: usize = 4;
 
+        // WORKING ON NOW:
+        // We dont want to add moves to the tree that end in definite death for the snake (unless its the only option)
+        let mut living_snakes_table = [[false; N_MOVES]; MAX_SNAKES];
+
+        for sid in self.game_state.get_snake_ids() {
+            for m in Move::all() {
+                for (_, next_state) in next_states
+                    .iter()
+                    .filter(|(actions, _)| actions.into_inner()[sid.as_usize()] == Some(m))
+                {
+                    let past_result = living_snakes_table[sid.as_usize()][m.as_index()];
+                    let is_alive = next_state.is_alive(&sid);
+
+                    living_snakes_table[sid.as_usize()][m.as_index()] = past_result || is_alive;
+                }
+            }
+        }
+
+        let binding = self.game_state.get_snake_ids();
+        let moves_to_sim = binding.iter().map(|sid| {
+            let mut moves = Move::all()
+                .into_iter()
+                .filter(|m| living_snakes_table[sid.as_usize()][m.as_index()])
+                .collect_vec();
+
+            if moves.is_empty() {
+                moves = [Move::Up].to_vec();
+            }
+
+            (*sid, moves)
+        });
+        let next_states = self
+            .game_state
+            .simulate_with_moves(&Instrument {}, moves_to_sim)
+            .collect_vec();
+
+        let mut opponent_moves: [Option<Vec<(Action<4>, BoardType)>>; 4] = Default::default();
         for (actions, game_state) in next_states {
             let own_move = actions.own_move();
             if opponent_moves[own_move.as_index()].is_none() {
@@ -1096,7 +1139,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn test_move_af943832_1b3b_4795_9e35_081f71959aee_108() {
         let fixture = include_str!("../../fixtures/af943832-1b3b-4795-9e35-081f71959aee_108.json");
 
@@ -1104,18 +1146,16 @@ mod test {
     }
 
     #[test]
-    #[ignore]
-    fn test_move_130b18e2_8689_4d64_a09f_c4345f80ae79_25() {
-        let fixture = include_str!("../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json");
-
-        test_fixture(fixture, vec![Move::Down]);
-    }
-
-    #[test]
-    #[ignore]
     fn test_move_b6a045ae_abf2_4f6f_b04c_a80ace7881b4_399() {
         let fixture = include_str!("../../fixtures/b6a045ae-abf2-4f6f-b04c-a80ace7881b4_399.json");
 
         test_fixture_wrapped(fixture, vec![Move::Up]);
+    }
+
+    #[test]
+    fn test_move_7a02e19b_f658_4639_8ace_ece46629a6ed_192() {
+        let fixture = include_str!("../../fixtures/7a02e19b-f658-4639-8ace-ece46629a6ed_192.json");
+
+        test_fixture(fixture, vec![Move::Up, Move::Right]);
     }
 }
