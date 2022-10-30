@@ -10,7 +10,9 @@ pub struct BombasticBob<T> {
 impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> BattlesnakeAI
     for BombasticBob<T>
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let mut rng = thread_rng();
         let chosen = self
             .game
@@ -30,12 +32,14 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> B
 pub struct BombasticBobFactory;
 
 impl BattlesnakeFactory for BombasticBobFactory {
+    type Snake = BombasticBob<Game>;
+
     fn name(&self) -> String {
         "bombastic-bob".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        Box::new(BombasticBob { game })
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
+        BombasticBob { game }
     }
 
     fn about(&self) -> AboutMe {

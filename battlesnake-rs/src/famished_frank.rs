@@ -20,7 +20,9 @@ where
         + SnakeIDGettableGame
         + YouDeterminableGame,
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let target_length = self.game.get_height() * 2 + self.game.get_width();
         let you_body = self.game.get_snake_body_vec(self.game.you_id());
         let targets = if you_body.len() < target_length as usize {
@@ -97,13 +99,16 @@ where
 pub struct FamishedFrankFactory {}
 
 impl BattlesnakeFactory for FamishedFrankFactory {
+    type Snake = FamishedFrank<Game>;
+
     fn name(&self) -> String {
         "famished-frank".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        Box::new(FamishedFrank { game })
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
+        FamishedFrank { game }
     }
+
     fn about(&self) -> AboutMe {
         AboutMe {
             author: Some("coreyja".to_owned()),

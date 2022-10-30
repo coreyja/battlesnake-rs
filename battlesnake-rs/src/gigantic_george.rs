@@ -75,7 +75,9 @@ where
         + TurnDeterminableGame
         + std::clone::Clone,
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
 
         if let Some(s) = self.game.get_shout(you_id) {
@@ -128,15 +130,17 @@ where
         let eric = EremeticEric {
             game: self.game.clone(),
         };
-        eric.make_move()
+        eric.make_move(None)
     }
 }
 
 pub struct GiganticGeorgeFactory {}
 
 impl BattlesnakeFactory for GiganticGeorgeFactory {
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        Box::new(GiganticGeorge { game })
+    type Snake = GiganticGeorge<Game>;
+
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
+        GiganticGeorge { game }
     }
 
     fn name(&self) -> String {

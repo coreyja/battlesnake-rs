@@ -23,11 +23,18 @@ where
 pub struct JumpFloodingSnakeFactory;
 
 impl BattlesnakeFactory for JumpFloodingSnakeFactory {
+    type Snake = MinimaxSnake<
+        WrappedCellBoard4Snakes11x11,
+        N64,
+        &'static (dyn Fn(&WrappedCellBoard4Snakes11x11) -> N64 + Sync + Send),
+        4,
+    >;
+
     fn name(&self) -> String {
         "jump-flooding".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
         let game_info = game.game.clone();
         let turn = game.turn;
         let id_map = build_snake_id_map(&game);
@@ -36,7 +43,7 @@ impl BattlesnakeFactory for JumpFloodingSnakeFactory {
 
         let snake = MinimaxSnake::from_fn(game, game_info, turn, &score, "jump-flooding");
 
-        Box::new(snake)
+        snake
     }
 
     fn about(&self) -> AboutMe {

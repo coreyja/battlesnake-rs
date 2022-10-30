@@ -92,7 +92,7 @@ impl Factory {
         Self
     }
 
-    pub fn create(&self, game: Game) -> BoxedSnake {
+    pub fn create(&self, game: Game) -> Box<dyn BattlesnakeAI<State = ()>> {
         let game_info = game.game.clone();
         let turn = game.turn;
         let name = "devious-devin";
@@ -178,11 +178,13 @@ impl Default for Factory {
 }
 
 impl BattlesnakeFactory for Factory {
+    type Snake = Box<dyn BattlesnakeAI<State = ()>>;
+
     fn name(&self) -> String {
         "devious-devin".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
         self.create(game)
     }
 

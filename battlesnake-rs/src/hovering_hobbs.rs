@@ -232,11 +232,13 @@ macro_rules! build_from_best_cell_board_inner {
 }
 
 impl BattlesnakeFactory for Factory {
+    type Snake = ParanoidMinimaxSnake<_, N64, &'static (dyn Fn(&_) -> N64 + Sync + Send), _>;
+
     fn name(&self) -> String {
         "hovering-hobbs".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
         let game_info = game.game.clone();
         let turn = game.turn;
 

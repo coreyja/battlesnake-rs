@@ -87,7 +87,9 @@ impl<
             + HealthGettableGame,
     > BattlesnakeAI for AmphibiousArthur<T>
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
         let possible = self
             .game
@@ -115,12 +117,14 @@ impl<
 pub struct AmphibiousArthurFactory;
 
 impl BattlesnakeFactory for AmphibiousArthurFactory {
+    type Snake = AmphibiousArthur<Game>;
+
     fn name(&self) -> String {
         "amphibious-arthur".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        Box::new(AmphibiousArthur { game })
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
+        AmphibiousArthur { game }
     }
 
     fn about(&self) -> AboutMe {

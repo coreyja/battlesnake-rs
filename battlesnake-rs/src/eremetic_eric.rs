@@ -26,6 +26,7 @@ where
         + HeadGettableGame
         + FoodGettableGame,
 {
+    type State = ();
     fn end(&self) {
         println!("Died at turn: {}", self.game.turn());
         let you_vec = self.game.get_snake_body_vec(self.game.you_id());
@@ -35,7 +36,7 @@ where
         }
     }
 
-    fn make_move(&self) -> Result<MoveOutput> {
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let you_id = self.game.you_id();
         let body = self.game.get_snake_body_vec(self.game.you_id());
         let modified_board = {
@@ -187,12 +188,14 @@ where
 pub struct EremeticEricFactory {}
 
 impl BattlesnakeFactory for EremeticEricFactory {
+    type Snake = EremeticEric<Game>;
+
     fn name(&self) -> String {
         "eremetic-eric".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        Box::new(EremeticEric { game })
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
+        EremeticEric { game }
     }
     fn about(&self) -> AboutMe {
         AboutMe {

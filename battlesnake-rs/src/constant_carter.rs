@@ -5,7 +5,9 @@ use super::*;
 pub struct ConstantCarter {}
 
 impl BattlesnakeAI for ConstantCarter {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         Ok(MoveOutput {
             r#move: format!("{}", Move::Right),
             shout: None,
@@ -20,13 +22,16 @@ impl BattlesnakeAI for ConstantCarter {
 pub struct ConstantCarterFactory;
 
 impl BattlesnakeFactory for ConstantCarterFactory {
+    type Snake = ConstantCarter;
+
     fn name(&self) -> String {
         "constant-carter".to_owned()
     }
 
-    fn create_from_wire_game(&self, _game: Game) -> BoxedSnake {
-        Box::new(ConstantCarter {})
+    fn create_from_wire_game(&self, _game: Game) -> Self::Snake {
+        ConstantCarter {}
     }
+
     fn about(&self) -> AboutMe {
         AboutMe {
             author: Some("coreyja".to_owned()),

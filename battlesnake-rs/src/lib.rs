@@ -1,13 +1,11 @@
 #![deny(warnings)]
 #![feature(min_specialization)]
 
-#[macro_use]
-extern crate serde_derive;
-
 use std::{fmt::Debug, hash::Hash};
 
 use anyhow::Result;
 
+use serde::Serialize;
 pub use types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::*, wire_representation::Game,
 };
@@ -186,17 +184,34 @@ pub struct MoveOutput {
     shout: Option<String>,
 }
 
-pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
-pub type BoxedFactory = Box<dyn BattlesnakeFactory + Send + Sync>;
+pub trait SnakeState {}
+
+impl SnakeState for () {}
 
 pub trait BattlesnakeAI {
+    type State: SnakeState;
+
     fn end(&self) {}
-    fn make_move(&self) -> Result<MoveOutput>;
+    fn make_move(&self, state: Option<Self::State>) -> Result<MoveOutput>;
+}
+
+impl<T: BattlesnakeAI> BattlesnakeAI for Box<T> {
+    type State = T::State;
+
+    fn end(&self) {
+        self.as_ref().end()
+    }
+
+    fn make_move(&self, state: Option<Self::State>) -> Result<MoveOutput> {
+        self.as_ref().make_move(state)
+    }
 }
 
 pub trait BattlesnakeFactory {
+    type Snake: BattlesnakeAI;
+
     fn name(&self) -> String;
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake;
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake;
 
     fn about(&self) -> AboutMe {
         Default::default()
@@ -222,13 +237,6 @@ impl SnakeTailPushableGame for Game {
 pub use battlesnake_minimax::paranoid::MinimaxSnake;
 use battlesnake_minimax::{lazy_smp::LazySmpSnake, paranoid::Scorable, Instruments};
 
-use crate::{
-    amphibious_arthur::AmphibiousArthurFactory, bombastic_bob::BombasticBobFactory,
-    constant_carter::ConstantCarterFactory, eremetic_eric::EremeticEricFactory,
-    famished_frank::FamishedFrankFactory, gigantic_george::GiganticGeorgeFactory,
-    improbable_irene::ImprobableIreneFactory, jump_flooding_snake::JumpFloodingSnakeFactory,
-};
-
 impl<T, ScoreType, ScoreableType, const N_SNAKES: usize> BattlesnakeAI
     for MinimaxSnake<T, ScoreType, ScoreableType, N_SNAKES>
 where
@@ -251,7 +259,9 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
     ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let m: Move = self.choose_move().0;
 
         Ok(MoveOutput {
@@ -286,7 +296,9 @@ where
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
     ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let m: Move = self.choose_move();
 
         Ok(MoveOutput {
@@ -296,17 +308,17 @@ where
     }
 }
 
-pub fn all_factories() -> Vec<BoxedFactory> {
-    vec![
-        Box::new(AmphibiousArthurFactory {}),
-        Box::new(BombasticBobFactory {}),
-        Box::new(ConstantCarterFactory {}),
-        Box::new(devious_devin_eval::Factory {}),
-        Box::new(EremeticEricFactory {}),
-        Box::new(FamishedFrankFactory {}),
-        Box::new(GiganticGeorgeFactory {}),
-        Box::new(JumpFloodingSnakeFactory {}),
-        Box::new(hovering_hobbs::Factory {}),
-        Box::new(ImprobableIreneFactory {}),
-    ]
-}
+// pub fn all_factories() -> Vec<Box<dyn BattlesnakeFactory<Snake = Box>> {
+//     vec![
+//         Box::new(AmphibiousArthurFactory {}),
+//         Box::new(BombasticBobFactory {}),
+//         Box::new(ConstantCarterFactory {}),
+//         Box::new(devious_devin_eval::Factory {}),
+//         Box::new(EremeticEricFactory {}),
+//         Box::new(FamishedFrankFactory {}),
+//         Box::new(GiganticGeorgeFactory {}),
+//         Box::new(JumpFloodingSnakeFactory {}),
+//         Box::new(hovering_hobbs::Factory {}),
+//         Box::new(ImprobableIreneFactory {}),
+//     ]
+// }

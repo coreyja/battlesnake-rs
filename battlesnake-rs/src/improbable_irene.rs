@@ -36,11 +36,13 @@ impl<T> ImprobableIrene<T> {
 pub struct ImprobableIreneFactory;
 
 impl BattlesnakeFactory for ImprobableIreneFactory {
+    type Snake = ImprobableIrene<WrappedCellBoard4Snakes11x11>;
+
     fn name(&self) -> String {
         "improbable-irene".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
         let game_info = game.game.clone();
         let id_map = build_snake_id_map(&game);
 
@@ -216,7 +218,9 @@ where
         + HazardQueryableGame
         + YouDeterminableGame,
 {
-    fn make_move(&self) -> Result<MoveOutput> {
+    type State = ();
+
+    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
         let start = std::time::Instant::now();
 
         const NETWORK_LATENCY_PADDING: i64 = 100;
