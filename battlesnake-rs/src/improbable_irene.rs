@@ -22,22 +22,22 @@ use crate::flood_fill::spread_from_head_arcade_maze::{Scores, SpreadFromHead};
 
 use super::*;
 
-pub struct MctsSnake<T> {
+pub struct ImprobableIrene<T> {
     game: T,
     game_info: NestedGame,
 }
 
-impl<T> MctsSnake<T> {
+impl<T> ImprobableIrene<T> {
     pub fn new(game: T, game_info: NestedGame) -> Self {
         Self { game, game_info }
     }
 }
 
-pub struct MctsSnakeFactory;
+pub struct ImprobableIreneFactory;
 
-impl BattlesnakeFactory for MctsSnakeFactory {
+impl BattlesnakeFactory for ImprobableIreneFactory {
     fn name(&self) -> String {
-        "mcts".to_owned()
+        "improbable-irene".to_owned()
     }
 
     fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
@@ -47,13 +47,13 @@ impl BattlesnakeFactory for MctsSnakeFactory {
         if game_info.ruleset.name == "wrapped" {
             let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = MctsSnake::new(game, game_info);
+            let snake = ImprobableIrene::new(game, game_info);
 
             Box::new(snake)
         } else {
             let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = MctsSnake::new(game, game_info);
+            let snake = ImprobableIrene::new(game, game_info);
 
             Box::new(snake)
         }
@@ -62,14 +62,15 @@ impl BattlesnakeFactory for MctsSnakeFactory {
     fn about(&self) -> AboutMe {
         AboutMe {
             author: Some("coreyja".to_owned()),
-            color: Some("#fc0398".to_owned()),
-            head: Some("trans-rights-scarf".to_owned()),
+            color: Some("#5a25a8".to_owned()),
+            head: Some("hydra".to_owned()),
+            tail: Some("mystic-moon".to_owned()),
             ..Default::default()
         }
     }
 }
 
-impl<BoardType> MctsSnake<BoardType>
+impl<BoardType> ImprobableIrene<BoardType>
 where
     BoardType: Clone
         + SimulableGame<Instrument, 4>
@@ -195,7 +196,7 @@ where
     }
 }
 
-impl<BoardType> BattlesnakeAI for MctsSnake<BoardType>
+impl<BoardType> BattlesnakeAI for ImprobableIrene<BoardType>
 where
     BoardType: Clone
         + SimulableGame<Instrument, 4>
@@ -958,7 +959,7 @@ mod test {
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = MctsSnake::new(game, game_info);
+        let snake = ImprobableIrene::new(game, game_info);
 
         let start = std::time::Instant::now();
 
@@ -1021,7 +1022,7 @@ mod test {
 
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = MctsSnake::new(game, game_info);
+        let snake = ImprobableIrene::new(game, game_info);
 
         let start = std::time::Instant::now();
 

@@ -12,7 +12,7 @@ use axum::{
 };
 use battlesnake_rs::{
     all_factories, build_snake_id_map,
-    mcts_snake::{Arena, MctsSnake},
+    improbable_irene::{Arena, ImprobableIrene},
     BoxedFactory, Game, StandardCellBoard4Snakes11x11,
 };
 
@@ -111,7 +111,7 @@ async fn main() {
         .route("/:snake_name", get(route_info))
         .route("/:snake_name/start", post(route_start))
         .route("/:snake_name/move", post(route_move))
-        .route("/mcts/graph", post(route_graph))
+        .route("/improbable-irene/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
         .layer(axum::middleware::from_fn(log_request));
 
@@ -174,7 +174,7 @@ async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
     );
     let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-    let snake = MctsSnake::new(game, game_info);
+    let snake = ImprobableIrene::new(game, game_info);
 
     let root = span!(tracing::Level::INFO, "graph_move");
     let output = spawn_blocking_with_tracing(move || {

@@ -46,9 +46,9 @@ harness = false
 path = "benches/hobbs.rs"
 
 [[bench]]
-name = "mcts"
+name = "improbable_irene"
 harness = false
-path = "benches/mcts.rs"
+path = "benches/improbable_irene.rs"
 
 [[bench]]
 name = "a-prime"
