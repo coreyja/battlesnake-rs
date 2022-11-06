@@ -5,7 +5,10 @@ use color_eyre::eyre::Result;
 use itertools::Itertools;
 use serde_json::Value;
 use types::{
-    compact_representation::{dimensions::ArcadeMaze, WrappedCellBoard},
+    compact_representation::{
+        dimensions::{ArcadeMaze, Square},
+        WrappedCellBoard,
+    },
     types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
 };
 
@@ -72,7 +75,7 @@ impl Solve {
 
             let snake_ids = build_snake_id_map(&wire_game);
             let game_info = wire_game.game.clone();
-            let game: WrappedCellBoard<u16, ArcadeMaze, { 19 * 21 }, 8> =
+            let game: WrappedCellBoard<u16, Square, { 11 * 11 }, 8> =
                 wire_game.as_wrapped_cell_board(&snake_ids).unwrap();
 
             let you_id = game.you_id();

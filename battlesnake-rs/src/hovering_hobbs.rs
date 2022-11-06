@@ -276,18 +276,7 @@ mod tests {
     #[test]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_5() {
         let fixture = include_str!("../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_5.json");
-
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
-
-        let game_info = game.game.clone();
-        let turn = game.turn;
-        let name = "hovering-hobbs";
-        let options = Default::default();
-
-        let hobbs: BoxedSnake =
-            build_from_best_cell_board!(game, game_info, turn, standard_score, name, options);
-
-        let next_move = hobbs.make_move().unwrap().r#move;
+        let next_move = move_for_fixture(fixture);
 
         // Right allows us to tailchase,
         // but left gets us into a spot where the 'best' minimax
@@ -298,18 +287,7 @@ mod tests {
     #[test]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_6() {
         let fixture = include_str!("../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_6.json");
-
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
-
-        let game_info = game.game.clone();
-        let turn = game.turn;
-        let name = "hovering-hobbs";
-        let options = Default::default();
-
-        let hobbs: BoxedSnake =
-            build_from_best_cell_board!(game, game_info, turn, standard_score, name, options);
-
-        let next_move = hobbs.make_move().unwrap().r#move;
+        let next_move = move_for_fixture(fixture);
 
         // Down looks like a tie at best,
         // but left is a lose for sure so down is a tad better
@@ -322,6 +300,29 @@ mod tests {
     fn test_4f198c01_d613_4109_b8b9_226208cde009_turn_505() {
         let fixture = include_str!("../../fixtures/4f198c01-d613-4109-b8b9-226208cde009_505.json");
 
+        let next_move = move_for_fixture(fixture);
+
+        // Right is still a lose by 'minimax' but its a lose thats less for sure than going left
+        assert_eq!(next_move, "right");
+    }
+
+    #[test]
+    fn test_6d9cd0b1_6829_4430_926c_562918397774_turn_101() {
+        let fixture = include_str!("../../fixtures/6d9cd0b1-6829-4430-926c-562918397774_101.json");
+
+        let next_move = move_for_fixture(fixture);
+
+        let allowed_moves = vec!["left", "right"];
+
+        // I think right actually can result in a win. While left is a lose
+        // Definitely don't want to go left
+        assert!(
+            allowed_moves.contains(&next_move.as_str()),
+            "{next_move} not in {allowed_moves:?}"
+        );
+    }
+
+    fn move_for_fixture(fixture: &str) -> String {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();
@@ -332,10 +333,6 @@ mod tests {
         let hobbs: BoxedSnake =
             build_from_best_cell_board!(game, game_info, turn, standard_score, name, options);
 
-        let next_move = hobbs.make_move().unwrap().r#move;
-
-        // I think right actually can result in a win. While left is a lose
-        // Definitely don't want to go left
-        assert_eq!(next_move, "right");
+        hobbs.make_move().unwrap().r#move
     }
 }
