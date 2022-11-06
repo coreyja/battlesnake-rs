@@ -5,10 +5,7 @@ use color_eyre::eyre::Result;
 use itertools::Itertools;
 use serde_json::Value;
 use types::{
-    compact_representation::{
-        dimensions::{ArcadeMaze, Square},
-        WrappedCellBoard,
-    },
+    compact_representation::{dimensions::Square, WrappedCellBoard},
     types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
 };
 
@@ -88,7 +85,7 @@ impl Solve {
 
             let score = *result.score();
 
-            if matches!(score, WrappedScore::Lose(_) | WrappedScore::Tie(_)) {
+            if matches!(score, WrappedScore::Lose(..) | WrappedScore::Tie(..)) {
                 println!("At turn {}, there were no safe options", current_turn);
             } else if matches!(score, WrappedScore::Win(_)) {
                 println!("At turn {}, you could have won!", current_turn);

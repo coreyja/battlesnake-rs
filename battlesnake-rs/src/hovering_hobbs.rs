@@ -268,7 +268,11 @@ impl BattlesnakeFactory for Factory {
 
 #[cfg(test)]
 mod tests {
-    use types::wire_representation::Game;
+    use types::{
+        compact_representation::WrappedCellBoard4Snakes11x11,
+        types::{build_snake_id_map, SnakeIDGettableGame, YouDeterminableGame},
+        wire_representation::Game,
+    };
 
     use crate::{hovering_hobbs::standard_score, BoxedSnake};
     use battlesnake_minimax::ParanoidMinimaxSnake;
@@ -276,7 +280,7 @@ mod tests {
     #[test]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_5() {
         let fixture = include_str!("../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_5.json");
-        let next_move = move_for_fixture(fixture);
+        let next_move = move_for_wrapped_fixture(fixture);
 
         // Right allows us to tailchase,
         // but left gets us into a spot where the 'best' minimax
@@ -287,7 +291,7 @@ mod tests {
     #[test]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_6() {
         let fixture = include_str!("../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_6.json");
-        let next_move = move_for_fixture(fixture);
+        let next_move = move_for_wrapped_fixture(fixture);
 
         // Down looks like a tie at best,
         // but left is a lose for sure so down is a tad better
@@ -297,20 +301,10 @@ mod tests {
     }
 
     #[test]
-    fn test_4f198c01_d613_4109_b8b9_226208cde009_turn_505() {
-        let fixture = include_str!("../../fixtures/4f198c01-d613-4109-b8b9-226208cde009_505.json");
-
-        let next_move = move_for_fixture(fixture);
-
-        // Right is still a lose by 'minimax' but its a lose thats less for sure than going left
-        assert_eq!(next_move, "right");
-    }
-
-    #[test]
     fn test_6d9cd0b1_6829_4430_926c_562918397774_turn_101() {
         let fixture = include_str!("../../fixtures/6d9cd0b1-6829-4430-926c-562918397774_101.json");
 
-        let next_move = move_for_fixture(fixture);
+        let next_move = move_for_best_fixture(fixture);
 
         let allowed_moves = vec!["left", "right"];
 
@@ -322,7 +316,35 @@ mod tests {
         );
     }
 
-    fn move_for_fixture(fixture: &str) -> String {
+    fn move_for_wrapped_fixture(fixture: &str) -> String {
+        let game = serde_json::from_str::<Game>(fixture).unwrap();
+        let id_map = build_snake_id_map(&game);
+
+        let game_info = game.game.clone();
+        let turn = game.turn;
+        let name = "hovering-hobbs";
+        let options = Default::default();
+        let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let hobbs =
+            ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+
+        let my_id = game.you_id();
+        let mut sorted_ids = game.get_snake_ids();
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+
+        let (depth, scored) = hobbs.deepened_minimax_until_timelimit(sorted_ids);
+        let scored_options = scored.first_options_for_snake(my_id).unwrap();
+        let scores = scored_options
+            .iter()
+            .map(|(m, r)| (m, r.score()))
+            .collect::<Vec<_>>();
+
+        dbg!(depth, &scores);
+
+        scored_options.first().unwrap().0.to_string()
+    }
+
+    fn move_for_best_fixture(fixture: &str) -> String {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();

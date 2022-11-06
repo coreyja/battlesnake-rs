@@ -88,7 +88,7 @@ impl<GameType, ScoreType, ScorableType, const N_SNAKES: usize> WrappedScorable<G
     for MinimaxSnake<GameType, ScoreType, ScorableType, N_SNAKES>
 where
     ScoreType: Debug + PartialOrd + Ord + Copy,
-    GameType: YouDeterminableGame + VictorDeterminableGame,
+    GameType: YouDeterminableGame + VictorDeterminableGame + HealthGettableGame,
     ScorableType: Scorable<GameType, ScoreType> + 'static + Sized + Send + Sync + Clone,
 {
     fn score(&self, node: &GameType) -> ScoreType {

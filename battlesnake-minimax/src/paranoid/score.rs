@@ -1,6 +1,6 @@
 use std::{cmp::Reverse, fmt::Debug};
 
-use types::types::{VictorDeterminableGame, YouDeterminableGame};
+use types::types::{HealthGettableGame, VictorDeterminableGame, YouDeterminableGame};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 /// The wrapped score type. This takes into account the score provided by the score function, but
@@ -10,10 +10,16 @@ pub enum WrappedScore<ScoreType>
 where
     ScoreType: PartialOrd + Ord + Debug + Clone + Copy,
 {
-    /// We lost, the depth is recorded because we prefer surviving longer
-    Lose(i64),
-    /// We tied, the depth is recorded because we prefer surviving longer
-    Tie(i64),
+    /// We lost
+    /// The first value is the number of snakes left alive
+    /// And then the depth
+    /// Such that we prefer where less snales are alive, and deeper depths
+    Lose(Reverse<u8>, i64),
+    /// We tied
+    /// The first value is the number of snakes left alive
+    /// And then the depth
+    /// Such that we prefer where less snales are alive, and deeper depths
+    Tie(Reverse<u8>, i64),
     /// We order this based on the score provided by the score function
     Scored(ScoreType),
     /// We won, the depth is recorded because we prefer winning sooner
@@ -39,14 +45,14 @@ where
     /// This is a Lost with the depth set as the minimum i64 such that no WrappedScore can be higher
     /// than this given the Ord
     pub fn worst_possible_score() -> Self {
-        WrappedScore::Lose(LOWEST_DEPTH)
+        WrappedScore::Lose(Reverse(u8::MAX), LOWEST_DEPTH)
     }
 
     /// Returns the depth from this score IFF the score is a terminal node. Otherwise returns None
     pub fn terminal_depth(&self) -> Option<i64> {
         match &self {
             Self::Win(Reverse(d)) => Some(*d),
-            Self::Tie(d) | Self::Lose(d) => Some(*d),
+            Self::Tie(_, d) | Self::Lose(_, d) => Some(*d),
             _ => None,
         }
     }
@@ -76,7 +82,7 @@ impl<GameType, ScoreType, FnLike: Fn(&GameType) -> ScoreType> Scorable<GameType,
 pub trait WrappedScorable<GameType, ScoreType>
 where
     ScoreType: PartialOrd + Ord + Copy + Debug,
-    GameType: YouDeterminableGame + VictorDeterminableGame,
+    GameType: YouDeterminableGame + VictorDeterminableGame + HealthGettableGame,
 {
     /// This is the the scoring function for your Minimax snake
     ///
@@ -101,15 +107,21 @@ where
         let you_id = node.you_id();
 
         if node.is_over() {
+            let alive_count = node
+                .get_snake_ids()
+                .iter()
+                .filter(|id| node.is_alive(id))
+                .count() as u8;
+
             let score = match node.get_winner() {
                 Some(s) => {
                     if s == *you_id {
                         WrappedScore::Win(Reverse(depth))
                     } else {
-                        WrappedScore::Lose(depth)
+                        WrappedScore::Lose(Reverse(alive_count), depth)
                     }
                 }
-                None => WrappedScore::Tie(depth),
+                None => WrappedScore::Tie(Reverse(alive_count), depth),
             };
 
             return Some(score);

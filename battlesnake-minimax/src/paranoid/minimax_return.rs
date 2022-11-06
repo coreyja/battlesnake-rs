@@ -107,7 +107,7 @@ where
                     .iter()
                     .find(|(move_, _)| *move_ == potential_move)
                     .map(|(_, r)| r.score()),
-                Some(WrappedScore::Lose(_)) | None,
+                Some(WrappedScore::Lose(..)) | None,
             )
         } else {
             false
