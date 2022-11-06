@@ -278,6 +278,7 @@ mod tests {
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     #[test]
+    #[ignore]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_5() {
         let fixture = include_str!("../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_5.json");
         let next_move = move_for_wrapped_fixture(fixture);
@@ -301,6 +302,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_6d9cd0b1_6829_4430_926c_562918397774_turn_101() {
         let fixture = include_str!("../../fixtures/6d9cd0b1-6829-4430-926c-562918397774_101.json");
 
