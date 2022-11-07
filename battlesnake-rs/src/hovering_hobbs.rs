@@ -274,7 +274,7 @@ mod tests {
         wire_representation::Game,
     };
 
-    use crate::{hovering_hobbs::standard_score, BoxedSnake};
+    use crate::hovering_hobbs::standard_score;
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     #[test]
@@ -306,12 +306,16 @@ mod tests {
     fn test_6d9cd0b1_6829_4430_926c_562918397774_turn_101() {
         let fixture = include_str!("../../fixtures/6d9cd0b1-6829-4430-926c-562918397774_101.json");
 
-        let next_move = move_for_best_fixture(fixture);
+        let next_move = move_for_wrapped_fixture(fixture);
 
         let allowed_moves = vec!["left", "right"];
 
-        // I think right actually can result in a win. While left is a lose
-        // Definitely don't want to go left
+        // Down leads into certain death
+        // But left or right allow a tial chase possibility
+        // The scores here indicate that down is just getting a better flood score
+        // But thats weird cause visually it looks like I should control a LOT less of the board
+        // TODO: Figure out what board state we are scoring with `Down` here. And see if there is
+        // a scoring bug that is giving it a higher score than we want
         assert!(
             allowed_moves.contains(&next_move.as_str()),
             "{next_move} not in {allowed_moves:?}"
@@ -321,6 +325,8 @@ mod tests {
     fn move_for_wrapped_fixture(fixture: &str) -> String {
         let game = serde_json::from_str::<Game>(fixture).unwrap();
         let id_map = build_snake_id_map(&game);
+
+        // game.game.timeout = 5000;
 
         let game_info = game.game.clone();
         let turn = game.turn;
@@ -344,19 +350,5 @@ mod tests {
         dbg!(depth, &scores);
 
         scored_options.first().unwrap().0.to_string()
-    }
-
-    fn move_for_best_fixture(fixture: &str) -> String {
-        let game = serde_json::from_str::<Game>(fixture).unwrap();
-
-        let game_info = game.game.clone();
-        let turn = game.turn;
-        let name = "hovering-hobbs";
-        let options = Default::default();
-
-        let hobbs: BoxedSnake =
-            build_from_best_cell_board!(game, game_info, turn, standard_score, name, options);
-
-        hobbs.make_move().unwrap().r#move
     }
 }
