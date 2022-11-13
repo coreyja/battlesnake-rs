@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, marker::PhantomData};
 
 use super::*;
 
@@ -75,30 +75,24 @@ fn score<
 }
 
 pub struct AmphibiousArthur<T> {
-    game: T,
+    _phantom: PhantomData<T>,
 }
 
-impl<
-        T: NeighborDeterminableGame
-            + SnakeIDGettableGame
-            + HeadGettableGame
-            + YouDeterminableGame
-            + MoveToAndSpawn
-            + HealthGettableGame,
-    > BattlesnakeAI for AmphibiousArthur<T>
-{
+impl BattlesnakeAI for AmphibiousArthur<Game> {
     type State = ();
 
-    fn make_move(&self, _: Option<Self::State>) -> Result<MoveOutput> {
-        let you_id = self.game.you_id();
-        let possible = self
-            .game
-            .possible_moves(&self.game.get_head_as_native_position(you_id));
+    fn make_move(
+        &self,
+        game: wire_representation::Game,
+        _: Option<Self::State>,
+    ) -> Result<MoveOutput> {
+        let you_id = game.you_id();
+        let possible = game.possible_moves(&game.get_head_as_native_position(you_id));
         let recursion_limit: u8 = match std::env::var("RECURSION_LIMIT").map(|x| x.parse()) {
             Ok(Ok(x)) => x,
             _ => 5,
         };
-        let next_move = possible.max_by_key(|(_mv, coor)| score(&self.game, coor, recursion_limit));
+        let next_move = possible.max_by_key(|(_mv, coor)| score(&game, coor, recursion_limit));
 
         let stuck_response: MoveOutput = MoveOutput {
             r#move: format!("{}", Move::Up),
@@ -123,8 +117,10 @@ impl BattlesnakeFactory for AmphibiousArthurFactory {
         "amphibious-arthur".to_owned()
     }
 
-    fn create_from_wire_game(&self, game: Game) -> Self::Snake {
-        AmphibiousArthur { game }
+    fn create_from_wire_game(&self, _game: Game) -> Self::Snake {
+        AmphibiousArthur {
+            _phantom: Default::default(),
+        }
     }
 
     fn about(&self) -> AboutMe {

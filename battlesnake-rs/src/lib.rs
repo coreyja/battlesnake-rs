@@ -50,7 +50,7 @@ impl Default for AboutMe {
 
 use types::{
     types::{PositionGettableGame, SnakeIDGettableGame, YouDeterminableGame},
-    wire_representation::Position,
+    wire_representation::{self, Position},
 };
 
 // use crate::{
@@ -192,9 +192,16 @@ pub trait BattlesnakeAI {
     type State: SnakeState;
 
     fn end(&self) {}
-    fn make_move(&self, state: Option<Self::State>) -> Result<MoveOutput>;
+    fn make_move(
+        &self,
+        game: wire_representation::Game,
+        state: Option<Self::State>,
+    ) -> Result<MoveOutput>;
 }
 
+mod tmp;
+
+// TODO: DO I need this at all?
 impl<T: BattlesnakeAI> BattlesnakeAI for Box<T> {
     type State = T::State;
 
@@ -202,8 +209,12 @@ impl<T: BattlesnakeAI> BattlesnakeAI for Box<T> {
         self.as_ref().end()
     }
 
-    fn make_move(&self, state: Option<Self::State>) -> Result<MoveOutput> {
-        self.as_ref().make_move(state)
+    fn make_move(
+        &self,
+        game: wire_representation::Game,
+        state: Option<Self::State>,
+    ) -> Result<MoveOutput> {
+        self.as_ref().make_move(game, state)
     }
 }
 

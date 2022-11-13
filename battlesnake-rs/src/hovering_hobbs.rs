@@ -10,6 +10,7 @@ use battlesnake_minimax::{
     ParanoidMinimaxSnake,
 };
 use decorum::N64;
+use types::compact_representation::WrappedCellBoard4Snakes11x11;
 use types::types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -232,7 +233,12 @@ macro_rules! build_from_best_cell_board_inner {
 }
 
 impl BattlesnakeFactory for Factory {
-    type Snake = ParanoidMinimaxSnake<_, N64, &'static (dyn Fn(&_) -> N64 + Sync + Send), _>;
+    type Snake = ParanoidMinimaxSnake<
+        WrappedCellBoard4Snakes11x11,
+        N64,
+        &'static (dyn Fn(&WrappedCellBoard4Snakes11x11) -> N64 + Sync + Send),
+        4,
+    >;
 
     fn name(&self) -> String {
         "hovering-hobbs".to_owned()
