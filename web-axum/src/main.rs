@@ -17,7 +17,7 @@ use battlesnake_rs::{
     all_factories, build_snake_id_map,
     hovering_hobbs::{standard_score, Factory},
     improbable_irene::{Arena, ImprobableIrene},
-    BoxedFactory, Game, StandardCellBoard4Snakes11x11,
+    BoxedFactory, Game, Move, MoveOutput, StandardCellBoard4Snakes11x11,
 };
 
 use tokio::task::JoinHandle;
@@ -234,11 +234,16 @@ async fn route_hobbs_move(Json(game): Json<Game>) -> impl IntoResponse {
     let game: WrappedCellBoard4Snakes11x11 =
         WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map)
             .expect("TODO: We need to work on our error handling");
-    let a = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+    let snake = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
 
-    let output = spawn_blocking_with_tracing(move || a.choose_move())
+    let output: Move = spawn_blocking_with_tracing(move || snake.choose_move().0)
         .await
         .unwrap();
+
+    let output: MoveOutput = MoveOutput {
+        r#move: format!("{output}"),
+        shout: None,
+    };
 
     Json(output)
 }

@@ -182,8 +182,8 @@ impl MoveableGame for Game {
 
 #[derive(Serialize, Debug)]
 pub struct MoveOutput {
-    r#move: String,
-    shout: Option<String>,
+    pub r#move: String,
+    pub shout: Option<String>,
 }
 
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
