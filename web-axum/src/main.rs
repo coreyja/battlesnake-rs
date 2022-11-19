@@ -2,10 +2,8 @@
 
 use axum::{
     async_trait,
-    body::Body,
-    extract::{FromRequest, Path, RequestParts},
-    http::{Request, StatusCode},
-    middleware::Next,
+    extract::{FromRequestParts, Path},
+    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -22,13 +20,11 @@ use battlesnake_rs::{
     BoxedFactory, Game, StandardCellBoard4Snakes11x11,
 };
 
-use tokio::{task::JoinHandle, time::Instant};
+use tokio::task::JoinHandle;
 
+use tower_http::trace::TraceLayer;
 use tracing::{span, Instrument};
-use tracing_honeycomb::{
-    libhoney, new_blackhole_telemetry_layer, new_honeycomb_telemetry_layer,
-    register_dist_tracing_root, TraceId,
-};
+use tracing_honeycomb::{libhoney, new_blackhole_telemetry_layer, new_honeycomb_telemetry_layer};
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
@@ -38,14 +34,14 @@ use std::{net::SocketAddr, time::Duration};
 struct ExtractSnakeFactory(BoxedFactory);
 
 #[async_trait]
-impl<B> FromRequest<B> for ExtractSnakeFactory
-where
-    B: Send,
-{
+impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
     type Rejection = (StatusCode, &'static str);
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let Path(snake_name) = Path::<String>::from_request(req)
+    async fn from_request_parts(
+        req: &mut axum::http::request::Parts,
+        state: &State,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(snake_name) = Path::<String>::from_request_parts(req, state)
             .await
             .map_err(|_err| (StatusCode::NOT_FOUND, "Couldn't extract snake name"))?;
 
@@ -123,7 +119,7 @@ async fn main() {
         .route("/:snake_name/move", post(route_move))
         .route("/improbable-irene/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
-        .layer(axum::middleware::from_fn(log_request));
+        .layer(TraceLayer::new_for_http());
 
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
@@ -212,50 +208,6 @@ async fn route_end(
     snake.end();
 
     StatusCode::NO_CONTENT
-}
-
-#[tracing::instrument(
-  level = "info",
-  skip_all,
-  fields(
-    http.uri =? req.uri().path(),
-    http.method =? req.method(),
-    factory_name,
-    request_duration_ms,
-  ),
-)]
-async fn log_request(
-    req: Request<Body>,
-    next: Next<Body>,
-) -> Result<impl IntoResponse, (StatusCode, &'static str)> {
-    register_dist_tracing_root(TraceId::new(), None).unwrap();
-    let current_span = tracing::Span::current();
-
-    let mut req_parts = RequestParts::new(req);
-    let factory: Option<ExtractSnakeFactory> = req_parts
-        .extract()
-        .await
-        .expect("This has an infallible error type so this unwrap is always safe");
-
-    if let Some(f) = factory {
-        let factory_name = f.0.name();
-        current_span.record("factory_name", format!("{:?}", &factory_name).as_str());
-    }
-
-    let req = req_parts
-        .try_into_request()
-        .map_err(|_err| (StatusCode::BAD_REQUEST, "Couldn't parse request"))?;
-
-    let start = Instant::now();
-
-    let root = span!(tracing::Level::INFO, "axum request");
-    let res = next.run(req).instrument(root).await;
-
-    let duration = start.elapsed();
-
-    current_span.record("request_duration_ms", duration.as_millis() as u64);
-
-    Ok(res)
 }
 
 async fn route_hobbs_info() -> impl IntoResponse {
