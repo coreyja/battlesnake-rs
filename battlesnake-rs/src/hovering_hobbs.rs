@@ -231,12 +231,8 @@ macro_rules! build_from_best_cell_board_inner {
     }};
 }
 
-impl BattlesnakeFactory for Factory {
-    fn name(&self) -> String {
-        "hovering-hobbs".to_owned()
-    }
-
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+impl Factory {
+    pub fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let turn = game.turn;
 
@@ -254,7 +250,7 @@ impl BattlesnakeFactory for Factory {
         }
     }
 
-    fn about(&self) -> AboutMe {
+    pub fn about(&self) -> AboutMe {
         AboutMe {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),

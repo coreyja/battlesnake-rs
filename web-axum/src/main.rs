@@ -10,8 +10,14 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use battlesnake_minimax::{
+    paranoid::{move_ordering::MoveOrdering, SnakeOptions},
+    types::compact_representation::WrappedCellBoard4Snakes11x11,
+    ParanoidMinimaxSnake,
+};
 use battlesnake_rs::{
     all_factories, build_snake_id_map,
+    hovering_hobbs::{standard_score, Factory},
     improbable_irene::{Arena, ImprobableIrene},
     BoxedFactory, Game, StandardCellBoard4Snakes11x11,
 };
@@ -27,7 +33,7 @@ use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 struct ExtractSnakeFactory(BoxedFactory);
 
@@ -108,6 +114,10 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(root))
+        .route("/hovering-hobbs", post(route_hobbs_info))
+        .route("/hovering-hobbs/start", post(route_hobbs_start))
+        .route("/hovering-hobbs/move", post(route_hobbs_move))
+        .route("/hovering-hobbs/end", post(route_hobbs_end))
         .route("/:snake_name", get(route_info))
         .route("/:snake_name/start", post(route_start))
         .route("/:snake_name/move", post(route_move))
@@ -246,4 +256,37 @@ async fn log_request(
     current_span.record("request_duration_ms", duration.as_millis() as u64);
 
     Ok(res)
+}
+
+async fn route_hobbs_info() -> impl IntoResponse {
+    Json(Factory {}.about())
+}
+async fn route_hobbs_start() -> impl IntoResponse {
+    // TODO: I need to build the id_map here and store it
+    StatusCode::NO_CONTENT
+}
+async fn route_hobbs_end() -> impl IntoResponse {
+    StatusCode::NO_CONTENT
+}
+async fn route_hobbs_move(Json(game): Json<Game>) -> impl IntoResponse {
+    let game_info = game.game.clone();
+    let turn = game.turn;
+
+    let name = "hovering-hobbs";
+
+    let options: SnakeOptions = SnakeOptions {
+        network_latency_padding: Duration::from_millis(50),
+        move_ordering: MoveOrdering::BestFirst,
+    };
+    let id_map = build_snake_id_map(&game);
+    let game: WrappedCellBoard4Snakes11x11 =
+        WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map)
+            .expect("TODO: We need to work on our error handling");
+    let a = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+
+    let output = spawn_blocking_with_tracing(move || a.choose_move())
+        .await
+        .unwrap();
+
+    Json(output)
 }
