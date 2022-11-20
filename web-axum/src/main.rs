@@ -17,7 +17,7 @@ use battlesnake_rs::{
     all_factories, build_snake_id_map,
     hovering_hobbs::{standard_score, Factory, Score},
     improbable_irene::{Arena, ImprobableIrene},
-    BoxedFactory, Game, MoveOutput, StandardCellBoard4Snakes11x11,
+    BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11,
 };
 
 use tokio::task::JoinHandle;
@@ -63,7 +63,22 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 #[derive(Debug)]
 #[allow(dead_code)]
 struct AppState {
-    pub hobbs_last_move_return: HashMap<String, MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>>,
+    pub game_states: HashMap<String, GameState>,
+}
+
+#[derive(Debug, Clone)]
+struct GameState {
+    pub last_move: Option<MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>>,
+    pub id_map: HashMap<String, SnakeId>,
+}
+
+impl GameState {
+    pub fn new(id_map: HashMap<String, SnakeId>) -> Self {
+        Self {
+            last_move: None,
+            id_map,
+        }
+    }
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
@@ -120,7 +135,7 @@ async fn main() {
     };
 
     let state = AppState {
-        hobbs_last_move_return: HashMap::new(),
+        game_states: HashMap::new(),
     };
     let state = Mutex::new(state);
     let state = Arc::new(state);
@@ -231,8 +246,15 @@ async fn route_end(
 async fn route_hobbs_info() -> impl IntoResponse {
     Json(Factory {}.about())
 }
-async fn route_hobbs_start() -> impl IntoResponse {
-    // TODO: I need to build the id_map here and store it
+async fn route_hobbs_start(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Json(game): Json<Game>,
+) -> impl IntoResponse {
+    let id_map = build_snake_id_map(&game);
+    let mut state = state.lock().unwrap();
+    state
+        .game_states
+        .insert(game.game.id, GameState::new(id_map));
     StatusCode::NO_CONTENT
 }
 async fn route_hobbs_end() -> impl IntoResponse {
@@ -254,22 +276,27 @@ async fn route_hobbs_move(
         move_ordering: MoveOrdering::BestFirst,
     };
 
-    {
+    let game_state = {
         let state = state.lock().unwrap();
 
-        let last_return = state.hobbs_last_move_return.get(&game_id);
+        let game_state = state
+            .game_states
+            .get(&game_id)
+            .expect("If we hit the start endpoint we should have a game state already");
+        let last_return = &game_state.last_move;
 
         if let Some(r) = last_return {
             dbg!("We found a last return");
-            dbg!(r);
+            dbg!(r.score());
         } else {
             dbg!("What this the first turn of the game? No last return found");
         }
-    }
 
-    let id_map = build_snake_id_map(&game);
+        game_state.clone()
+    };
+
     let game: WrappedCellBoard4Snakes11x11 =
-        WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map)
+        WrappedCellBoard4Snakes11x11::convert_from_game(game, &game_state.id_map)
             .expect("TODO: We need to work on our error handling");
     let my_id = game.you_id();
     let snake = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
@@ -283,8 +310,12 @@ async fn route_hobbs_move(
 
     {
         let mut state = state.lock().unwrap();
+        let mut game_state = state
+            .game_states
+            .get_mut(&game_id)
+            .expect("If we hit the start endpoint we should have a game state already");
 
-        state.hobbs_last_move_return.insert(game_id, scored);
+        game_state.last_move = Some(scored);
     }
 
     let output: MoveOutput = MoveOutput {
