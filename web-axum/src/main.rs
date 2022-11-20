@@ -64,7 +64,7 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info,libhoney=warn");
+        std::env::set_var("RUST_LOG", "info,libhoney=warn,tower_http=debug");
     }
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
