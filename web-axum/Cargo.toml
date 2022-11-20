@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 battlesnake-rs = { path = "../battlesnake-rs" }
+battlesnake-minimax = { path = "../battlesnake-minimax" }
 
-axum = { version = "0.5.1"  }
+axum = { version = "0.6.0-rc.4"  }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.68"
 tokio = { version = "1.0", features = ["full", "macros"] }
@@ -17,4 +18,7 @@ tower = "0.4.12"
 tracing-opentelemetry = "0.17.2"
 tracing-honeycomb = { git = "https://github.com/coreyja/tracing-honeycomb", rev = "862dade", features = ["use_parking_lot"] }
 tracing-tree = "0.2.1"
+tower-http = { version = "0.3.4", features = ["tracing", "trace"] }
+axum-macros = "0.3.0-rc.3"
+itertools = "0.10.5"
 # tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }

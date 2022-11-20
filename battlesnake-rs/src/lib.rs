@@ -182,8 +182,8 @@ impl MoveableGame for Game {
 
 #[derive(Serialize, Debug)]
 pub struct MoveOutput {
-    r#move: String,
-    shout: Option<String>,
+    pub r#move: String,
+    pub shout: Option<String>,
 }
 
 pub type BoxedSnake = Box<dyn BattlesnakeAI + Send + Sync>;
@@ -306,7 +306,7 @@ pub fn all_factories() -> Vec<BoxedFactory> {
         Box::new(FamishedFrankFactory {}),
         Box::new(GiganticGeorgeFactory {}),
         Box::new(JumpFloodingSnakeFactory {}),
-        Box::new(hovering_hobbs::Factory {}),
+        // Box::new(hovering_hobbs::Factory {}),
         Box::new(ImprobableIreneFactory {}),
     ]
 }

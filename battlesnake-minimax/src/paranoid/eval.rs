@@ -288,6 +288,19 @@ where
     /// [MinimaxSnake::deepened_minimax_until_timelimit()]
     pub fn choose_move(&self) -> (Move, usize) {
         let my_id = self.game.you_id();
+        let (depth, scored) = self.choose_move_inner(None);
+
+        let scored_options = scored.first_options_for_snake(my_id).unwrap();
+
+        (scored_options.first().unwrap().0, depth)
+    }
+
+    #[allow(missing_docs)]
+    pub fn choose_move_inner(
+        &self,
+        initial_return: Option<MinMaxReturn<GameType, ScoreType>>,
+    ) -> (usize, MinMaxReturn<GameType, ScoreType>) {
+        let my_id = self.game.you_id();
         let mut sorted_ids = self.game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
@@ -303,14 +316,14 @@ where
           depth = tracing::field::Empty,
         )
         .in_scope(|| {
-            let (depth, scored) = self.clone().deepened_minimax_until_timelimit(sorted_ids);
+            let (depth, scored) = self
+                .clone()
+                .deepened_minimax_until_timelimit(sorted_ids, initial_return);
 
             let current_span = tracing::Span::current();
             current_span.record("scored_depth", depth);
 
-            let scored_options = scored.first_options_for_snake(my_id).unwrap();
-
-            (scored_options.first().unwrap().0, depth)
+            (depth, scored)
         })
     }
 
@@ -553,6 +566,7 @@ where
     pub fn deepened_minimax_until_timelimit(
         self,
         players: Vec<GameType::SnakeIDType>,
+        initial_return: Option<MinMaxReturn<GameType, ScoreType>>,
     ) -> (usize, MinMaxReturn<GameType, ScoreType>) {
         let current_span = tracing::Span::current();
 
@@ -569,7 +583,7 @@ where
         thread::spawn(move || {
             let you_id = threads_you_id;
             let mut current_depth = players.len();
-            let mut current_return = None;
+            let mut current_return = initial_return;
             let copy = self.clone();
 
             loop {

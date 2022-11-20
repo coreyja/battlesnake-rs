@@ -61,6 +61,16 @@ where
         }
     }
 
+    /// Returns the score for this node
+    pub fn moving_snake_id(&self) -> std::option::Option<&GameType::SnakeIDType> {
+        match self {
+            MinMaxReturn::Node {
+                moving_snake_id, ..
+            } => Some(moving_snake_id),
+            MinMaxReturn::Leaf { .. } => None,
+        }
+    }
+
     /// Returns the direction you should move to maximize the score
     /// If we are a leaf node, this will return None
     ///
@@ -96,6 +106,18 @@ where
                     chosen.1.first_options_for_snake(sid)
                 }
             }
+        }
+    }
+
+    /// Return the option that matches the given move
+    /// Returns None if we are at a leaf or the move does not exist
+    pub fn option_for_move(&self, chosen_move: Move) -> Option<&Self> {
+        match self {
+            MinMaxReturn::Leaf { .. } => None,
+            MinMaxReturn::Node { options, .. } => options
+                .iter()
+                .find(|(m, _ret)| m == &chosen_move)
+                .map(|x| &x.1),
         }
     }
 

@@ -231,12 +231,8 @@ macro_rules! build_from_best_cell_board_inner {
     }};
 }
 
-impl BattlesnakeFactory for Factory {
-    fn name(&self) -> String {
-        "hovering-hobbs".to_owned()
-    }
-
-    fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
+impl Factory {
+    pub fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let turn = game.turn;
 
@@ -254,7 +250,7 @@ impl BattlesnakeFactory for Factory {
         }
     }
 
-    fn about(&self) -> AboutMe {
+    pub fn about(&self) -> AboutMe {
         AboutMe {
             apiversion: "1".to_owned(),
             author: Some("coreyja".to_owned()),
@@ -340,7 +336,7 @@ mod tests {
         let mut sorted_ids = game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        let (depth, scored) = hobbs.deepened_minimax_until_timelimit(sorted_ids);
+        let (depth, scored) = hobbs.deepened_minimax_until_timelimit(sorted_ids, None);
         let scored_options = scored.first_options_for_snake(my_id).unwrap();
         let scores = scored_options
             .iter()
