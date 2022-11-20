@@ -8,8 +8,15 @@ pub(crate) struct AppState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct GameState {
-    pub last_move: Option<MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>>,
+    pub last_move: Option<LastMoveState>,
     pub id_map: HashMap<String, SnakeId>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LastMoveState {
+    pub last_return: MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>,
+    #[allow(dead_code)]
+    pub last_board: WrappedCellBoard4Snakes11x11,
 }
 
 impl GameState {
@@ -60,11 +67,11 @@ pub(crate) async fn route_hobbs_move(
             .game_states
             .get(&game_id)
             .expect("If we hit the start endpoint we should have a game state already");
-        let last_return = &game_state.last_move;
+        let last_move = &game_state.last_move;
 
-        if let Some(r) = last_return {
+        if let Some(r) = last_move {
             dbg!("We found a last return");
-            dbg!(r.score());
+            dbg!(r.last_return.score());
         } else {
             dbg!("What this the first turn of the game? No last return found");
         }
@@ -92,7 +99,11 @@ pub(crate) async fn route_hobbs_move(
             .get_mut(&game_id)
             .expect("If we hit the start endpoint we should have a game state already");
 
-        game_state.last_move = Some(scored);
+        let last_move = LastMoveState {
+            last_return: scored,
+            last_board: game,
+        };
+        game_state.last_move = Some(last_move);
     }
 
     let output: MoveOutput = MoveOutput {
