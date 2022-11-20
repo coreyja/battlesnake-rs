@@ -19,4 +19,5 @@ tracing-opentelemetry = "0.17.2"
 tracing-honeycomb = { git = "https://github.com/coreyja/tracing-honeycomb", rev = "862dade", features = ["use_parking_lot"] }
 tracing-tree = "0.2.1"
 tower-http = { version = "0.3.4", features = ["tracing", "trace"] }
+axum-macros = "0.3.0-rc.3"
 # tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }

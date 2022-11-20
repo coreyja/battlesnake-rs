@@ -2,22 +2,22 @@
 
 use axum::{
     async_trait,
-    extract::{FromRequestParts, Path},
+    extract::{FromRequestParts, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use battlesnake_minimax::{
-    paranoid::{move_ordering::MoveOrdering, SnakeOptions},
-    types::compact_representation::WrappedCellBoard4Snakes11x11,
+    paranoid::{move_ordering::MoveOrdering, MinMaxReturn, SnakeOptions},
+    types::{compact_representation::WrappedCellBoard4Snakes11x11, types::YouDeterminableGame},
     ParanoidMinimaxSnake,
 };
 use battlesnake_rs::{
     all_factories, build_snake_id_map,
-    hovering_hobbs::{standard_score, Factory},
+    hovering_hobbs::{standard_score, Factory, Score},
     improbable_irene::{Arena, ImprobableIrene},
-    BoxedFactory, Game, Move, MoveOutput, StandardCellBoard4Snakes11x11,
+    BoxedFactory, Game, MoveOutput, StandardCellBoard4Snakes11x11,
 };
 
 use tokio::task::JoinHandle;
@@ -29,7 +29,12 @@ use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 struct ExtractSnakeFactory(BoxedFactory);
 
@@ -53,6 +58,12 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 
         Ok(Self(factory))
     }
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+struct AppState {
+    pub hobbs_last_move_return: HashMap<String, MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>>,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
@@ -108,6 +119,12 @@ async fn main() {
             .expect("Failed to initialize tracing");
     };
 
+    let state = AppState {
+        hobbs_last_move_return: HashMap::new(),
+    };
+    let state = Mutex::new(state);
+    let state = Arc::new(state);
+
     let app = Router::new()
         .route("/", get(root))
         .route("/hovering-hobbs", post(route_hobbs_info))
@@ -119,7 +136,8 @@ async fn main() {
         .route("/:snake_name/move", post(route_move))
         .route("/improbable-irene/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
 
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
@@ -220,8 +238,13 @@ async fn route_hobbs_start() -> impl IntoResponse {
 async fn route_hobbs_end() -> impl IntoResponse {
     StatusCode::NO_CONTENT
 }
-async fn route_hobbs_move(Json(game): Json<Game>) -> impl IntoResponse {
+
+async fn route_hobbs_move(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Json(game): Json<Game>,
+) -> impl IntoResponse {
     let game_info = game.game.clone();
+    let game_id = game_info.id.to_string();
     let turn = game.turn;
 
     let name = "hovering-hobbs";
@@ -230,15 +253,39 @@ async fn route_hobbs_move(Json(game): Json<Game>) -> impl IntoResponse {
         network_latency_padding: Duration::from_millis(50),
         move_ordering: MoveOrdering::BestFirst,
     };
+
+    {
+        let state = state.lock().unwrap();
+
+        let last_return = state.hobbs_last_move_return.get(&game_id);
+
+        if let Some(r) = last_return {
+            dbg!("We found a last return");
+            dbg!(r);
+        } else {
+            dbg!("What this the first turn of the game? No last return found");
+        }
+    }
+
     let id_map = build_snake_id_map(&game);
     let game: WrappedCellBoard4Snakes11x11 =
         WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map)
             .expect("TODO: We need to work on our error handling");
+    let my_id = game.you_id();
     let snake = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
 
-    let output: Move = spawn_blocking_with_tracing(move || snake.choose_move().0)
+    let (_depth, scored) = spawn_blocking_with_tracing(move || snake.choose_move_inner())
         .await
         .unwrap();
+
+    let scored_options = scored.first_options_for_snake(my_id).unwrap();
+    let output = scored_options.first().unwrap().0;
+
+    {
+        let mut state = state.lock().unwrap();
+
+        state.hobbs_last_move_return.insert(game_id, scored);
+    }
 
     let output: MoveOutput = MoveOutput {
         r#move: format!("{output}"),
