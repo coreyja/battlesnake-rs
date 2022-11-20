@@ -336,7 +336,7 @@ mod tests {
         let mut sorted_ids = game.get_snake_ids();
         sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
 
-        let (depth, scored) = hobbs.deepened_minimax_until_timelimit(sorted_ids);
+        let (depth, scored) = hobbs.deepened_minimax_until_timelimit(sorted_ids, None);
         let scored_options = scored.first_options_for_snake(my_id).unwrap();
         let scores = scored_options
             .iter()

@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 #![deny(warnings)]
 
 use axum::{
@@ -224,4 +225,3 @@ async fn route_end(
 
 mod hobbs;
 use hobbs::*;
-
