@@ -21,4 +21,5 @@ tracing-tree = "0.2.1"
 tower-http = { version = "0.3.4", features = ["tracing", "trace"] }
 axum-macros = "0.3.0-rc.3"
 itertools = "0.10.5"
+parking_lot = "0.12.1"
 # tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }

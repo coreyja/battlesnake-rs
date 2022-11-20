@@ -1,5 +1,6 @@
 use battlesnake_minimax::types::types::SnakeIDGettableGame;
 use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Move, Vector};
+use parking_lot::Mutex;
 
 use crate::*;
 
@@ -38,7 +39,7 @@ pub(crate) async fn route_hobbs_start(
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
     let id_map = build_snake_id_map(&game);
-    let mut state = state.lock().unwrap();
+    let mut state = state.lock();
     state
         .game_states
         .insert(game.game.id, GameState::new(id_map));
@@ -64,7 +65,7 @@ pub(crate) async fn route_hobbs_move(
     };
 
     let game_state = {
-        let state_guard = state.lock().unwrap();
+        let state_guard = state.lock();
 
         state_guard
             .game_states
@@ -161,7 +162,7 @@ pub(crate) async fn route_hobbs_move(
     let output = scored_options.first().unwrap().0;
 
     {
-        let mut state = state.lock().unwrap();
+        let mut state = state.lock();
 
         let mut game_state = state
             .game_states

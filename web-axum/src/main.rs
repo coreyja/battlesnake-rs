@@ -21,6 +21,7 @@ use battlesnake_rs::{
     BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11,
 };
 
+use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 
 use tower_http::trace::TraceLayer;
@@ -30,12 +31,7 @@ use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 struct ExtractSnakeFactory(BoxedFactory);
 

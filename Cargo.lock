@@ -3870,6 +3870,7 @@ dependencies = [
  "battlesnake-minimax",
  "battlesnake-rs",
  "itertools 0.10.5",
+ "parking_lot 0.12.1",
  "serde",
  "serde_json",
  "tokio",
