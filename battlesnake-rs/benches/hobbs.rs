@@ -1,3 +1,4 @@
+use battlesnake_minimax::paranoid::CachedScore;
 use battlesnake_rs::{MinimaxSnake, StandardCellBoard4Snakes11x11};
 
 use types::{
@@ -26,11 +27,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let id_map = build_snake_id_map(&game);
 
                 let name = "hovering-hobbs";
+                let score_map = Default::default();
+                let cached_score = CachedScore::new(&standard_score::<_, _, 4>, score_map);
 
                 let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-                let snake =
-                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
+                let snake = MinimaxSnake::new(
+                    black_box(game),
+                    game_info,
+                    turn,
+                    cached_score,
+                    name,
+                    Default::default(),
+                );
 
                 snake.deepend_minimax_to_turn(3)
             })
@@ -49,11 +58,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let id_map = build_snake_id_map(&game);
 
                 let name = "hovering-hobbs";
+                let score_map = Default::default();
+                let cached_score = CachedScore::new(&standard_score::<_, _, 4>, score_map);
 
                 let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-                let snake =
-                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
+                let snake = MinimaxSnake::new(
+                    black_box(game),
+                    game_info,
+                    turn,
+                    cached_score,
+                    name,
+                    Default::default(),
+                );
 
                 snake.deepend_minimax_to_turn(3)
             });
@@ -77,14 +94,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let id_map = build_snake_id_map(&game);
 
                 let name = "hovering-hobbs";
+                let score_map = Default::default();
+                let cached_score = CachedScore::new(&standard_score::<_, _, 4>, score_map);
 
                 let game = WrappedCellBoard::<u16, ArcadeMaze, { 19 * 21 }, 4>::convert_from_game(
                     game, &id_map,
                 )
                 .unwrap();
 
-                let snake =
-                    MinimaxSnake::from_fn(black_box(game), game_info, turn, &standard_score, name);
+                let snake = MinimaxSnake::new(
+                    black_box(game),
+                    game_info,
+                    turn,
+                    cached_score,
+                    name,
+                    Default::default(),
+                );
 
                 snake.deepend_minimax_to_turn(6)
             });
