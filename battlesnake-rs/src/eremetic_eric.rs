@@ -144,7 +144,7 @@ where
                 .unwrap();
 
             return Ok(MoveOutput {
-                r#move: format!("{}", d),
+                r#move: format!("{d}"),
                 shout: None,
             });
         }
@@ -178,7 +178,7 @@ where
             .unwrap();
 
         Ok(MoveOutput {
-            r#move: format!("{}", dir),
+            r#move: format!("{dir}"),
             shout: None,
         })
     }

@@ -255,7 +255,7 @@ where
         let m: Move = self.choose_move().0;
 
         Ok(MoveOutput {
-            r#move: format!("{}", m),
+            r#move: format!("{m}"),
             shout: None,
         })
     }
@@ -290,7 +290,7 @@ where
         let m: Move = self.choose_move();
 
         Ok(MoveOutput {
-            r#move: format!("{}", m),
+            r#move: format!("{m}"),
             shout: None,
         })
     }

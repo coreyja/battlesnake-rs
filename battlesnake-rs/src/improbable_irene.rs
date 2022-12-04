@@ -631,9 +631,9 @@ where
 
     // Takes in a builder and adds itself and all children as nodes in the graph
     // Returns a string that corresponds to the name of the current node
-    fn graph_with<'a>(
+    fn graph_with(
         &self,
-        builder: &mut GraphBuilder<'a>,
+        builder: &mut GraphBuilder,
         depth: usize,
         child_id: Vec<usize>,
         total_number_of_iterations: usize,

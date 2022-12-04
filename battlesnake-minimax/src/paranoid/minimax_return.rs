@@ -188,7 +188,7 @@ where
             MinMaxReturn::Leaf { score, .. } => {
                 let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let me_id = format!("{id}");
-                let me_label = format!("{:?}", score);
+                let me_label = format!("{score:?}");
                 let node = NodeBuilder::new(&*me_id)
                     .add_attribute("label", me_label.into())
                     .add_attribute("style", "filled".into())
@@ -213,11 +213,6 @@ where
                 let me_id = format!("{id}");
                 let me_label = format!(
                     "{depth}\n{score:?}\n{alpha_beta_cutoff}\nAlpha: {alpha:?}\nBeta: {beta:?}",
-                    depth = depth,
-                    score = score,
-                    alpha_beta_cutoff = alpha_beta_cutoff,
-                    alpha = alpha,
-                    beta = beta,
                 );
                 let color = if moving_snake_id == you_id {
                     "lightblue"
@@ -251,7 +246,7 @@ where
     /// It shows the chosen score, the moving snake and the chosen move at each level
     pub fn to_text_tree(&self) -> Option<String> {
         let tree_node = self.to_text_tree_node("".to_owned())?;
-        Some(format!("{}", tree_node))
+        Some(format!("{tree_node}"))
     }
 
     fn to_text_tree_node(&self, label: String) -> Option<StringTreeNode> {
@@ -263,10 +258,10 @@ where
                 score,
                 ..
             } => {
-                let mut node = StringTreeNode::new(format!("{} {:?}", label, score));
+                let mut node = StringTreeNode::new(format!("{label} {score:?}"));
                 for (m, result) in options {
                     if let Some(next_node) =
-                        result.to_text_tree_node(format!("{} {:?}", m, moving_snake_id))
+                        result.to_text_tree_node(format!("{m} {moving_snake_id:?}"))
                     {
                         node.push_node(next_node);
                     }

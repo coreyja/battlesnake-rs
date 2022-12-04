@@ -104,7 +104,7 @@ impl<
         };
 
         let output = next_move.map_or(stuck_response, |(dir, _coor)| MoveOutput {
-            r#move: format!("{}", dir),
+            r#move: format!("{dir}"),
             shout: None,
         });
 

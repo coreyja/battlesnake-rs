@@ -178,11 +178,8 @@ pub(crate) fn frame_to_game(frame: &Value, game: &Value, you_name: &str) -> Resu
 
 pub(crate) fn get_frame_for_turn(game_id: &str, turn: i32) -> Result<Value> {
     let body: Value = ureq::get(
-        format!(
-            "https://engine.battlesnake.com/games/{}/frames?offset={}&limit=1",
-            game_id, turn
-        )
-        .as_str(),
+        format!("https://engine.battlesnake.com/games/{game_id}/frames?offset={turn}&limit=1",)
+            .as_str(),
     )
     .call()?
     .into_json()?;
