@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc, thread};
 
 use dashmap::DashMap;
 use derivative::Derivative;
+use fxhash::FxBuildHasher;
 use tracing::info_span;
 use types::{types::*, wire_representation::NestedGame};
 
@@ -20,7 +21,7 @@ where
     ScorableType: Scorable<GameType, ScoreType> + Sized + Send + Sync + 'static + Clone,
     CachedScore<ScorableType, GameType, ScoreType>: Scorable<GameType, ScoreType>,
 {
-    cache: Arc<DashMap<GameType, ScoreType>>,
+    cache: Arc<DashMap<GameType, ScoreType, FxBuildHasher>>,
     main_snake: ParanoidMinimaxSnake<
         GameType,
         ScoreType,
@@ -68,7 +69,7 @@ where
         name: &'static str,
         options: SnakeOptions,
     ) -> Self {
-        let cache: DashMap<GameType, ScoreType> = DashMap::new();
+        let cache: DashMap<GameType, ScoreType, FxBuildHasher> = Default::default();
         let cache = Arc::new(cache);
         let cached_score = CachedScore::new(score_function, cache.clone());
 

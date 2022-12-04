@@ -1,5 +1,8 @@
-use battlesnake_minimax::types::types::SnakeIDGettableGame;
+use battlesnake_minimax::{
+    dashmap::DashMap, paranoid::CachedScore, types::types::SnakeIDGettableGame,
+};
 use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Move, Vector};
+use fxhash::FxBuildHasher;
 use parking_lot::Mutex;
 
 use crate::*;
@@ -14,6 +17,7 @@ pub(crate) struct AppState {
 pub(crate) struct GameState {
     pub last_move: Option<LastMoveState>,
     pub id_map: HashMap<String, SnakeId>,
+    pub score_map: Arc<DashMap<WrappedCellBoard4Snakes11x11, Score, FxBuildHasher>>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +32,7 @@ impl GameState {
         Self {
             last_move: None,
             id_map,
+            score_map: Default::default(),
         }
     }
 }
@@ -150,8 +155,13 @@ pub(crate) async fn route_hobbs_move(
         None
     };
 
+    let caching_score = CachedScore::new(
+        &standard_score::<WrappedCellBoard4Snakes11x11, _, 4>,
+        game_state.score_map,
+    );
+
     let my_id = game.you_id();
-    let snake = ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+    let snake = ParanoidMinimaxSnake::new(game, game_info, turn, caching_score, name, options);
 
     let (_depth, scored) =
         spawn_blocking_with_tracing(move || snake.choose_move_inner(initial_return))
