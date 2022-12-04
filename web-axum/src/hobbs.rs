@@ -50,7 +50,12 @@ pub(crate) async fn route_hobbs_start(
         .insert(game.game.id, GameState::new(id_map));
     StatusCode::NO_CONTENT
 }
-pub(crate) async fn route_hobbs_end() -> impl IntoResponse {
+pub(crate) async fn route_hobbs_end(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Json(game): Json<Game>,
+) -> impl IntoResponse {
+    let mut state = state.lock();
+    state.game_states.remove(&game.game.id);
     StatusCode::NO_CONTENT
 }
 
