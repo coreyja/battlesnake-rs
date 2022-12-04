@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use fxhash::FxBuildHasher;
 
 use super::Scorable;
 
@@ -12,7 +13,7 @@ where
     GameType: Eq + Hash + Copy,
 {
     scorable: ScorableType,
-    cache: Arc<DashMap<GameType, ScoreType>>,
+    cache: Arc<DashMap<GameType, ScoreType, FxBuildHasher>>,
     _phantom: std::marker::PhantomData<(ScoreType, GameType)>,
 }
 
@@ -23,7 +24,10 @@ where
 {
     /// Wrap the given scorable with a cache. We pass in a reference to the cache so that we can
     /// create multiple wrappers with a shared cache
-    pub fn new(scorable: ScorableType, cache: Arc<DashMap<GameType, ScoreType>>) -> Self {
+    pub fn new(
+        scorable: ScorableType,
+        cache: Arc<DashMap<GameType, ScoreType, FxBuildHasher>>,
+    ) -> Self {
         Self {
             scorable,
             cache,

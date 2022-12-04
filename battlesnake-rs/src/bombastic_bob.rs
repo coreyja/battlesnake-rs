@@ -21,7 +21,7 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> B
         let dir = chosen.unwrap_or(Move::Right);
 
         Ok(MoveOutput {
-            r#move: format!("{}", dir),
+            r#move: format!("{dir}"),
             shout: None,
         })
     }

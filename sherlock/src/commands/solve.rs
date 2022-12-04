@@ -86,9 +86,9 @@ impl Solve {
             let score = *result.score();
 
             if matches!(score, WrappedScore::Lose(..) | WrappedScore::Tie(..)) {
-                println!("At turn {}, there were no safe options", current_turn);
+                println!("At turn {current_turn}, there were no safe options");
             } else if matches!(score, WrappedScore::Win(_)) {
-                println!("At turn {}, you could have won!", current_turn);
+                println!("At turn {current_turn}, you could have won!");
                 if let MinMaxReturn::Node { options, .. } = &result {
                     let winning_moves = options
                         .iter()
@@ -96,10 +96,7 @@ impl Solve {
                         .map(|(m, _)| *m)
                         .collect_vec();
 
-                    println!(
-                        "At turn {}, the winning moves were {:?}",
-                        current_turn, winning_moves
-                    );
+                    println!("At turn {current_turn}, the winning moves were {winning_moves:?}",);
                     print_moves(&result, current_turn, winning_moves[0]);
                 }
                 break;
@@ -116,11 +113,8 @@ impl Solve {
                     .collect_vec();
                 let safe_moves = safe_options.iter().map(|(m, _)| *m).collect_vec();
 
-                println!(
-                    "At turn {}, the safe options were {:?}",
-                    current_turn, safe_moves
-                );
-                println!("Turn {} is the decision point", current_turn);
+                println!("At turn {current_turn}, the safe options were {safe_moves:?}",);
+                println!("Turn {current_turn} is the decision point");
 
                 for m in safe_moves {
                     print_moves(&result, current_turn, m);

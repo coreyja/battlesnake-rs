@@ -93,7 +93,7 @@ where
 
                 if let Some(d) = dir {
                     return Ok(MoveOutput {
-                        r#move: format!("{}", d),
+                        r#move: format!("{d}"),
                         shout: Some(format!("PATH:{}", &path[..path.len() - 1])),
                     });
                 }
@@ -114,7 +114,7 @@ where
                 let new = path.pop();
                 let path_string: String = path
                     .iter()
-                    .map(|(d, _)| format!("{}", d).chars().next().unwrap())
+                    .map(|(d, _)| format!("{d}").chars().next().unwrap())
                     .collect();
                 return Ok(MoveOutput {
                     r#move: format!("{}", new.unwrap().0),

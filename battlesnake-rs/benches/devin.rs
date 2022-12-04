@@ -31,7 +31,7 @@ fn create_snake(
 fn bench_minmax_to_turn(c: &mut Criterion, max_turns: usize) {
     let game_json = include_str!("../fixtures/start_of_game.json");
 
-    let mut group = c.benchmark_group(format!("Devin: Turns {}", max_turns));
+    let mut group = c.benchmark_group(format!("Devin: Turns {max_turns}"));
 
     group.bench_function("compact eval-minmax", |b| {
         b.iter(|| {

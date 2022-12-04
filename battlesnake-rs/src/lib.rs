@@ -249,13 +249,13 @@ where
         + Send,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
+    ScoreableType: Scorable<T, ScoreType> + Sized + Send + Sync + Clone,
 {
     fn make_move(&self) -> Result<MoveOutput> {
         let m: Move = self.choose_move().0;
 
         Ok(MoveOutput {
-            r#move: format!("{}", m),
+            r#move: format!("{m}"),
             shout: None,
         })
     }
@@ -284,13 +284,13 @@ where
         + Hash,
     T::SnakeIDType: Copy + Send + Sync,
     ScoreType: Clone + Debug + PartialOrd + Ord + Send + Sync + Copy,
-    ScoreableType: Scorable<T, ScoreType> + 'static + Sized + Send + Sync + Clone,
+    ScoreableType: Scorable<T, ScoreType> + Sized + Send + Sync + Clone,
 {
     fn make_move(&self) -> Result<MoveOutput> {
         let m: Move = self.choose_move();
 
         Ok(MoveOutput {
-            r#move: format!("{}", m),
+            r#move: format!("{m}"),
             shout: None,
         })
     }

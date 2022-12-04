@@ -88,7 +88,7 @@ where
         };
 
         Ok(MoveOutput {
-            r#move: format!("{}", dir),
+            r#move: format!("{dir}"),
             shout: None,
         })
     }
