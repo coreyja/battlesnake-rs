@@ -32,7 +32,10 @@ impl GameState {
         Self {
             last_move: None,
             id_map,
-            score_map: Default::default(),
+            score_map: Arc::new(DashMap::with_capacity_and_hasher(
+                1_000_000_000,
+                Default::default(),
+            )),
         }
     }
 }
