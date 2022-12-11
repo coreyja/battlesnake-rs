@@ -25,11 +25,8 @@ use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 
-use tower_http::{
-    trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
-    LatencyUnit,
-};
-use tracing::{span, Instrument, Level};
+use tower_http::trace::TraceLayer;
+use tracing::{span, Instrument};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
