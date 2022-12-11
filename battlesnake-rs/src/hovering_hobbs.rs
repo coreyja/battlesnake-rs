@@ -33,7 +33,7 @@ where
 {
     let scores = if node.get_hazard_damage().is_positive() {
         Scores {
-            food: 5,
+            food: 20,
             hazard: 1,
             empty: 5,
         }
@@ -51,7 +51,7 @@ where
     let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
-    if node.get_health_i64(me) < 40 {
+    if node.get_health_i64(me) < 60 {
         let dist = node
             .shortest_distance(
                 &node.get_head_as_native_position(me),
