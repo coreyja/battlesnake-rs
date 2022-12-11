@@ -21,6 +21,7 @@ use battlesnake_rs::{
     BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11,
 };
 
+use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 
@@ -29,7 +30,7 @@ use tower_http::{
     LatencyUnit,
 };
 use tracing::{span, Instrument, Level};
-use tracing_honeycomb::{libhoney, new_blackhole_telemetry_layer, new_honeycomb_telemetry_layer};
+use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
@@ -72,46 +73,53 @@ async fn main() {
     };
     let env_filter = tracing_subscriber::EnvFilter::from_default_env();
 
-    let honeycomb_api_key = std::env::var("HONEYCOMB_API_KEY");
-    if let Ok(honeycomb_api_key) = honeycomb_api_key {
-        let honeycomb_config = libhoney::Config {
-            options: libhoney::client::Options {
-                api_key: honeycomb_api_key,
-                dataset: "battlesnakes".to_string(),
-                ..libhoney::client::Options::default()
-            },
-            transmission_options: libhoney::transmission::Options::default(),
-        };
+    let opentelemetry_layer = if let Ok(honeycomb_key) = std::env::var("HONEYCOMB_API_KEY") {
+        let mut map = HashMap::<String, String>::new();
+        map.insert("x-honeycomb-team".to_string(), honeycomb_key);
+        map.insert("x-honeycomb-dataset".to_string(), "web-axum".to_string());
 
-        let telemetry_layer = new_honeycomb_telemetry_layer("web-axum", honeycomb_config);
-        println!("Sending traces to Honeycomb");
-
-        Registry::default()
-            .with(logging)
-            .with(telemetry_layer)
-            .with(env_filter)
-            .try_init()
-            .expect("Failed to initialize tracing");
-    } else {
-        let telemetry_layer = new_blackhole_telemetry_layer();
-        Registry::default()
-            .with(logging)
-            .with(
-                HierarchicalLayer::default()
-                    .with_writer(std::io::stdout)
-                    .with_indent_lines(true)
-                    .with_indent_amount(2)
-                    .with_thread_names(true)
-                    .with_thread_ids(true)
-                    .with_verbose_exit(true)
-                    .with_verbose_entry(true)
-                    .with_targets(true),
+        let tracer = opentelemetry_otlp::new_pipeline()
+            .tracing()
+            .with_exporter(
+                opentelemetry_otlp::new_exporter()
+                    .http()
+                    .with_endpoint("https://api.honeycomb.io/v1/traces")
+                    .with_timeout(Duration::from_secs(3))
+                    .with_headers(map),
             )
-            .with(telemetry_layer)
-            .with(env_filter)
-            .try_init()
-            .expect("Failed to initialize tracing");
+            .install_batch(opentelemetry::runtime::Tokio)
+            .unwrap();
+
+        let opentelemetry_layer = OpenTelemetryLayer::new(tracer);
+
+        Some(opentelemetry_layer)
+    } else {
+        None
     };
+
+    let heirarchical = if opentelemetry_layer.is_none() {
+        let heirarchical = HierarchicalLayer::default()
+            .with_writer(std::io::stdout)
+            .with_indent_lines(true)
+            .with_indent_amount(2)
+            .with_thread_names(true)
+            .with_thread_ids(true)
+            .with_verbose_exit(true)
+            .with_verbose_entry(true)
+            .with_targets(true);
+
+        Some(heirarchical)
+    } else {
+        None
+    };
+
+    Registry::default()
+        .with(logging)
+        .with(heirarchical)
+        .with(opentelemetry_layer)
+        .with(env_filter)
+        .try_init()
+        .expect("Failed to initialize tracing");
 
     let state = AppState {
         game_states: HashMap::new(),

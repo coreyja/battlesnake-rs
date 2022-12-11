@@ -15,12 +15,12 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1.0.56"
 tower = "0.4.12"
-tracing-opentelemetry = "0.17.2"
-tracing-honeycomb = { git = "https://github.com/coreyja/tracing-honeycomb", rev = "862dade", features = ["use_parking_lot"] }
 tracing-tree = "0.2.1"
 tower-http = { version = "0.3.4", features = ["tracing", "trace"] }
 axum-macros = "0.3.0-rc.3"
 itertools = "0.10.5"
 parking_lot = "0.12.1"
 fxhash = "0.2.1"
-# tracing-honeycomb = { path = "../../tracing-honeycomb/tracing-honeycomb" }
+opentelemetry = { version = "0.18.0", features = ["rt-tokio"], default-features = false }
+opentelemetry-otlp = { version = "0.11.0", features = ["http-proto", "reqwest-rustls", "reqwest-client"], default-features = false }
+tracing-opentelemetry = "0.18.0"
