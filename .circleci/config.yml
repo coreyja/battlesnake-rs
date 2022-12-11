@@ -41,6 +41,8 @@ commands: # a reusable command with parameters
     steps:
       # - setup-sccache
       # - restore-sccache-cache
+      
+      - run: apt update && apt-get install -y protobuf-compiler
 
       - run:
           name: Set Cargo Parallel Jobs Setting
