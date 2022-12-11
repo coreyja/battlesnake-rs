@@ -59,21 +59,23 @@ jobs:
     steps:
       - checkout
 
-      - run:
-          name: Print Rust Versions
-          command: rustc --version; cargo --version; rustup --version
+      - with-rust-setup:
+          do:
+            - run:
+                name: Print Rust Versions
+                command: rustc --version; cargo --version; rustup --version
 
-      - run:
-          name: Install Rust Format
-          command: rustup component add rustfmt
+            - run:
+                name: Install Rust Format
+                command: rustup component add rustfmt
 
-      - run:
-          name: Test Formatting
-          command: cargo fmt -- --check
+            - run:
+                name: Test Formatting
+                command: cargo fmt -- --check
 
-      - run:
-          name: Clippy
-          command: rustup component add clippy && cargo clippy --workspace --no-deps
+            - run:
+                name: Clippy
+                command: rustup component add clippy && cargo clippy --workspace --no-deps
   test-rust:
     docker:
       - image: rust:latest
