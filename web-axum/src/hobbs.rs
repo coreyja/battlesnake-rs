@@ -1,6 +1,4 @@
-use battlesnake_minimax::{
-    dashmap::DashMap, paranoid::CachedScore, types::types::SnakeIDGettableGame,
-};
+use battlesnake_minimax::{dashmap::DashMap, types::types::SnakeIDGettableGame};
 use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Move, Vector};
 use fxhash::FxBuildHasher;
 use parking_lot::Mutex;
@@ -17,6 +15,7 @@ pub(crate) struct AppState {
 pub(crate) struct GameState {
     pub last_move: Option<LastMoveState>,
     pub id_map: HashMap<String, SnakeId>,
+    #[allow(dead_code)]
     pub score_map: Arc<DashMap<WrappedCellBoard4Snakes11x11, Score, FxBuildHasher>>,
 }
 
