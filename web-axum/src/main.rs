@@ -25,8 +25,11 @@ use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 
-use tower_http::trace::TraceLayer;
-use tracing::{span, Instrument};
+use tower_http::{
+    trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    LatencyUnit,
+};
+use tracing::{span, Instrument, Level};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
@@ -61,7 +64,7 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info,tower_http=debug");
+        std::env::set_var("RUST_LOG", "info,libhoney=warn");
     }
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
@@ -135,7 +138,15 @@ async fn main() {
         .route("/:snake_name/move", post(route_move))
         .route("/improbable-irene/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(
+                    DefaultOnResponse::new()
+                        .level(Level::INFO)
+                        .latency_unit(LatencyUnit::Millis),
+                ),
+        )
         .with_state(state);
 
     let port = std::env::var("PORT")
