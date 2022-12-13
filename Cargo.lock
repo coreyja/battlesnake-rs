@@ -221,12 +221,12 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.6.0-rc.5"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b6b56b1bdef08d4d50e63683d79c797dbf2ae467586c7502b283241b5e2b8a"
+checksum = "08b108ad2665fa3f6e6a517c3d80ec3e77d224c47d605167aefaa5d7ef97fa48"
 dependencies = [
  "async-trait",
- "axum-core 0.3.0-rc.3",
+ "axum-core 0.3.0",
  "bitflags",
  "bytes",
  "futures-util",
@@ -234,11 +234,12 @@ dependencies = [
  "http-body",
  "hyper 0.14.20",
  "itoa 1.0.2",
- "matchit 0.6.0",
+ "matchit 0.7.0",
  "memchr",
  "mime 0.3.16",
  "percent-encoding 2.2.0",
  "pin-project-lite",
+ "rustversion",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -269,9 +270,9 @@ dependencies = [
 
 [[package]]
 name = "axum-core"
-version = "0.3.0-rc.3"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d1aa274f0599e5100cbc24e1f184d437d8086ea0bba0b5f68326e2ad5a48567"
+checksum = "79b8558f5a0581152dc94dcd289132a1d377494bdeafcd41869b3258e3e2ad92"
 dependencies = [
  "async-trait",
  "bytes",
@@ -279,15 +280,16 @@ dependencies = [
  "http",
  "http-body",
  "mime 0.3.16",
+ "rustversion",
  "tower-layer",
  "tower-service",
 ]
 
 [[package]]
 name = "axum-macros"
-version = "0.3.0-rc.3"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2185fff4d6f14de84dcc01b0ff8eee2ac5331a962cf85e60e080ce7db724cc9"
+checksum = "e4df0fc33ada14a338b799002f7e8657711422b25d4e16afb032708d6b185621"
 dependencies = [
  "heck",
  "proc-macro2 1.0.42",
@@ -1717,9 +1719,9 @@ checksum = "73cbba799671b762df5a175adf59ce145165747bb891505c43d09aefbbf38beb"
 
 [[package]]
 name = "matchit"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dfc802da7b1cf80aefffa0c7b2f77247c8b32206cc83c270b61264f5b360a80"
+checksum = "b87248edafb776e59e6ee64a79086f65890d3510f2c656c000bf2a7e8a0aea40"
 
 [[package]]
 name = "memchr"
@@ -4006,7 +4008,7 @@ name = "web-axum"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.6.0-rc.5",
+ "axum 0.6.1",
  "axum-macros",
  "battlesnake-minimax",
  "battlesnake-rs",
