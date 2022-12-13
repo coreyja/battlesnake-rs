@@ -163,13 +163,11 @@ pub(crate) async fn route_hobbs_move(
         None
     };
 
-    let caching_score = CachedScore::new(
-        &standard_score::<WrappedCellBoard4Snakes11x11, _, 4>,
-        game_state.score_map,
-    );
+    let score = &standard_score::<WrappedCellBoard4Snakes11x11, _, 4>;
+    // let score = CachedScore::new(score, game_state.score_map);
 
     let my_id = game.you_id();
-    let snake = ParanoidMinimaxSnake::new(game, game_info, turn, caching_score, name, options);
+    let snake = ParanoidMinimaxSnake::new(game, game_info, turn, score, name, options);
 
     let (_depth, scored) =
         spawn_blocking_with_tracing(move || snake.choose_move_inner(initial_return))
