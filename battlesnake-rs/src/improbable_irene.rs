@@ -1124,6 +1124,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_mojave_12_18_12_34() {
         let fixture = include_str!("../../fixtures/mojave_12_18_12_34.json");
 

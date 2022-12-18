@@ -6,4 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "d8566b5" }
+battlesnake-game-types = { git = "https://github.com/coreyja/battlesnake-game-types.git", rev = "535ed31a72a27e773d5394f1eaa88415956356fd" }
