@@ -22,13 +22,13 @@ use crate::flood_fill::spread_from_head_arcade_maze::{Scores, SpreadFromHead};
 
 use super::*;
 
-pub struct ImprobableIrene<T> {
-    game: T,
+pub struct ImprobableIrene<BoardType> {
+    game: BoardType,
     game_info: NestedGame,
 }
 
-impl<T> ImprobableIrene<T> {
-    pub fn new(game: T, game_info: NestedGame) -> Self {
+impl<BoardType> ImprobableIrene<BoardType> {
+    pub fn new(game: BoardType, game_info: NestedGame) -> Self {
         Self { game, game_info }
     }
 }
@@ -460,7 +460,7 @@ where
         // TODO: Future Optimization
         // We could re-work the surrounding code to do this eagerly so that we don't waste time on
         // doing the rest of the math if we find a branch that matches this
-        if number_of_visits <= 8.0 * (total_number_of_iterations as f64).ln() {
+        if number_of_visits <= 8.0 * ((total_number_of_iterations) as f64).ln() {
             return N64::INFINITY;
         }
 
@@ -517,6 +517,7 @@ where
         total_number_of_iterations: usize,
     ) -> Option<&'arena Node<BoardType>> {
         debug_assert!(self.has_been_expanded());
+
         let borrowed = self.children.borrow();
         let children = borrowed
             .as_ref()
@@ -1120,5 +1121,12 @@ mod test {
         let fixture = include_str!("../../fixtures/7a02e19b-f658-4639-8ace-ece46629a6ed_192.json");
 
         test_fixture(fixture, vec![Move::Up, Move::Right]);
+    }
+
+    #[test]
+    fn test_move_mojave_12_18_12_34() {
+        let fixture = include_str!("../../fixtures/mojave_12_18_12_34.json");
+
+        test_fixture_wrapped(fixture, vec![Move::Up]);
     }
 }

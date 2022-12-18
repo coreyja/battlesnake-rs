@@ -1,0 +1,155 @@
+{
+  "you": {
+    "latency": "404.926",
+    "id": "26debd4e-99fe-4e6f-90f0-4e812792cb17",
+    "health": 68,
+    "length": 3,
+    "shout": "",
+    "head": {
+      "y": 10,
+      "x": 2
+    },
+    "customizations": {
+      "color": "#5a25a8",
+      "tail": "default",
+      "head": "default"
+    },
+    "body": [
+      {
+        "y": 10,
+        "x": 2
+      },
+      {
+        "y": 10,
+        "x": 1
+      },
+      {
+        "y": 10,
+        "x": 0
+      }
+    ],
+    "name": "Local Irene",
+    "squad": ""
+  },
+  "turn": 32,
+  "board": {
+    "snakes": [
+      {
+        "latency": "456.403",
+        "id": "76487538-d195-4e1c-97da-c091e02d4372",
+        "health": 85,
+        "length": 4,
+        "shout": "",
+        "head": {
+          "y": 9,
+          "x": 3
+        },
+        "customizations": {
+          "color": "#da8a1a",
+          "tail": "flame",
+          "head": "trans-rights-scarf"
+        },
+        "body": [
+          {
+            "y": 9,
+            "x": 3
+          },
+          {
+            "y": 10,
+            "x": 3
+          },
+          {
+            "y": 0,
+            "x": 3
+          },
+          {
+            "y": 0,
+            "x": 2
+          }
+        ],
+        "name": "Local Hobbs",
+        "squad": ""
+      },
+      {
+        "latency": "404.926",
+        "id": "26debd4e-99fe-4e6f-90f0-4e812792cb17",
+        "health": 68,
+        "length": 3,
+        "shout": "",
+        "head": {
+          "y": 10,
+          "x": 2
+        },
+        "customizations": {
+          "color": "#5a25a8",
+          "tail": "default",
+          "head": "default"
+        },
+        "body": [
+          {
+            "y": 10,
+            "x": 2
+          },
+          {
+            "y": 10,
+            "x": 1
+          },
+          {
+            "y": 10,
+            "x": 0
+          }
+        ],
+        "name": "Local Irene",
+        "squad": ""
+      }
+    ],
+    "width": 11,
+    "hazards": [],
+    "height": 11,
+    "food": [
+      {
+        "y": 2,
+        "x": 10
+      },
+      {
+        "y": 5,
+        "x": 5
+      },
+      {
+        "y": 9,
+        "x": 10
+      },
+      {
+        "y": 9,
+        "x": 2
+      },
+      {
+        "y": 8,
+        "x": 3
+      }
+    ]
+  },
+  "game": {
+    "source": "custom",
+    "ruleset": {
+      "version": "Mojave/3.5.2",
+      "name": "wrapped",
+      "settings": {
+        "hazardDamagePerTurn": 14,
+        "royale": {
+          "shrinkEveryNTurns": 25
+        },
+        "squad": {
+          "sharedHealth": true,
+          "sharedLength": true,
+          "allowBodyCollisions": true,
+          "sharedElimination": true
+        },
+        "minimumFood": 1,
+        "foodSpawnChance": 15
+      }
+    },
+    "timeout": 500,
+    "id": "669d88a7-d7b6-4e67-987f-1eea43ec58de"
+  }
+}
