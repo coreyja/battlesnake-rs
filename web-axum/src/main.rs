@@ -23,6 +23,7 @@ use battlesnake_rs::{
 
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
+use sentry_tower::NewSentryLayer;
 use tokio::task::JoinHandle;
 
 use tower_http::{
@@ -153,6 +154,8 @@ async fn main() {
         .route("/:snake_name/move", post(route_move))
         .route("/improbable-irene/graph", post(route_graph))
         .route("/:snake_name/end", post(route_end))
+        .layer(NewSentryLayer::new_from_top())
+        .layer(sentry_tower::SentryHttpLayer::with_transaction())
         .layer(
             TraceLayer::new_for_http()
                 .on_request(DefaultOnRequest::new().level(Level::INFO))

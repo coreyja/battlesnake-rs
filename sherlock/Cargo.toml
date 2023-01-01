@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 serde_json = "1.0.85"
 ureq = { version = "2.4.0", features = ["json"] }
-clap = { version = "3.2.8", features = ["derive"] }
+clap = { version = "4.0.32", features = ["derive"] }
 
 types = { path = "../types" }
 
@@ -16,11 +16,11 @@ battlesnake-minimax = { path = "../battlesnake-minimax" }
 itertools = "0.10.3"
 serde = { version = "1.0.144", features = ["derive"] }
 color-eyre = "0.6.2"
-axum = { version = "0.5.16", features = ["ws"] }
+axum = { version = "0.6.1", features = ["ws"] }
 tokio = { version = "1.21.0", features = ["full"] }
-tungstenite = { version = "0.17.3", features = ["rustls-tls-native-roots"] }
+tungstenite = { version = "0.18.0", features = ["rustls-tls-native-roots"] }
 url = { version = "2.3.1", features = ["serde"] }
 tower-http = { version = "0.3.4", features = ["cors"] }
-scraper = "0.13.0"
+scraper = "0.14.0"
 colored = "2.0.0"
 term = "0.7.0"
