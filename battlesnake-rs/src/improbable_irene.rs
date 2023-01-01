@@ -12,7 +12,7 @@ use decorum::{Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
 use rand::prelude::ThreadRng;
-use tracing::info;
+use tracing::{info, info_span};
 pub use typed_arena::Arena;
 use types::{
     compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
@@ -25,11 +25,16 @@ use super::*;
 pub struct ImprobableIrene<BoardType> {
     game: BoardType,
     game_info: NestedGame,
+    turn: i32,
 }
 
 impl<BoardType> ImprobableIrene<BoardType> {
-    pub fn new(game: BoardType, game_info: NestedGame) -> Self {
-        Self { game, game_info }
+    pub fn new(game: BoardType, game_info: NestedGame, turn: i32) -> Self {
+        Self {
+            game,
+            game_info,
+            turn,
+        }
     }
 }
 
@@ -43,17 +48,18 @@ impl BattlesnakeFactory for ImprobableIreneFactory {
     fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
         let game_info = game.game.clone();
         let id_map = build_snake_id_map(&game);
+        let turn = game.turn;
 
         if game_info.ruleset.name == "wrapped" {
             let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = ImprobableIrene::new(game, game_info);
+            let snake = ImprobableIrene::new(game, game_info, turn);
 
             Box::new(snake)
         } else {
             let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = ImprobableIrene::new(game, game_info);
+            let snake = ImprobableIrene::new(game, game_info, turn);
 
             Box::new(snake)
         }
@@ -89,7 +95,7 @@ where
     #[tracing::instrument(
         level = "info",
         skip_all,
-        fields(total_number_of_iterations, total_score, average_score, game_id)
+        fields(total_number_of_iterations, total_score, average_score, game_id, turn)
     )]
     fn mcts<'arena>(
         &self,
@@ -136,6 +142,7 @@ where
         current_span.record("total_score", root_node.total_score.load(Ordering::Relaxed));
         current_span.record("average_score", root_node.average_score());
         current_span.record("game_id", &self.game_info.id);
+        current_span.record("turn", &self.turn);
 
         root_node
     }
@@ -217,30 +224,46 @@ where
         + YouDeterminableGame,
 {
     fn make_move(&self) -> Result<MoveOutput> {
-        let start = std::time::Instant::now();
+        info_span!(
+            "improbable_irene_make_move",
+            chosen_move = tracing::field::Empty,
+            best_child_average_score = tracing::field::Empty,
+        )
+        .in_scope(|| {
+            let current_span = tracing::Span::current();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
-        let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
+            let start = std::time::Instant::now();
 
-        let while_condition = |_root_node: &Node<BoardType>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
-        };
+            const NETWORK_LATENCY_PADDING: i64 = 100;
+            let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
-        let mut arena = Arena::new();
-        let root_node = self.mcts(&while_condition, &mut arena);
+            let while_condition =
+                |_root_node: &Node<BoardType>, _total_number_of_iterations: usize| {
+                    start.elapsed().as_millis() < max_duration.try_into().unwrap()
+                };
 
-        let best_child = root_node
-            .highest_average_score_child()
-            .expect("The root should have a child");
-        let chosen_move = &best_child
-            .tree_context
-            .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
-            .snake_move;
+            let mut arena = Arena::new();
+            let root_node = self.mcts(&while_condition, &mut arena);
 
-        Ok(MoveOutput {
-            r#move: format!("{}", chosen_move.my_move()),
-            shout: None,
+            let best_child = root_node
+                .highest_average_score_child()
+                .expect("The root should have a child");
+            let chosen_move = &best_child
+                .tree_context
+                .as_ref()
+                .expect(
+                    "We found the best child of the root node, so it _should_ have a tree_context",
+                )
+                .snake_move;
+            let chosen_move = format!("{}", chosen_move.my_move());
+
+            current_span.record("chosen_move", &chosen_move);
+            current_span.record("best_child_average_score", best_child.average_score());
+
+            Ok(MoveOutput {
+                r#move: chosen_move,
+                shout: None,
+            })
         })
     }
 
@@ -960,7 +983,7 @@ mod test {
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = ImprobableIrene::new(game, game_info);
+        let snake = ImprobableIrene::new(game, game_info, 0);
 
         let start = std::time::Instant::now();
 
@@ -1023,7 +1046,7 @@ mod test {
 
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        let snake = ImprobableIrene::new(game, game_info);
+        let snake = ImprobableIrene::new(game, game_info, 0);
 
         let start = std::time::Instant::now();
 
