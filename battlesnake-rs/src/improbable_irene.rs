@@ -1055,18 +1055,18 @@ mod test {
                 n.ucb1_normal_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
                 n.tree_context.as_ref().unwrap().snake_move.clone(),
-                n.children
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|n| (
-                        n.average_score(),
-                        n.ucb1_normal_score(total_iterations),
-                        n.number_of_visits.load(Ordering::Relaxed),
-                        n.tree_context.as_ref().unwrap().snake_move.clone(),
-                    ))
-                    .collect_vec()
+                // n.children
+                //     .borrow()
+                //     .as_ref()
+                //     .unwrap()
+                //     .iter()
+                //     .map(|n| (
+                //         n.average_score(),
+                //         n.ucb1_normal_score(total_iterations),
+                //         n.number_of_visits.load(Ordering::Relaxed),
+                //         n.tree_context.as_ref().unwrap().snake_move.clone(),
+                //     ))
+                //     .collect_vec()
             ))
             .collect_vec());
 
@@ -1129,5 +1129,12 @@ mod test {
         let fixture = include_str!("../../fixtures/mojave_12_18_12_34.json");
 
         test_fixture_wrapped(fixture, vec![Move::Up]);
+    }
+
+    #[test]
+    fn test_move_c2aee0d9_30dc_47ee_bd25_38e67e0fee9d_96() {
+        let fixture = include_str!("../../fixtures/c2aee0d9-30dc-47ee-bd25-38e67e0fee9d_96.json");
+
+        test_fixture_wrapped(fixture, vec![Move::Up, Move::Right]);
     }
 }
