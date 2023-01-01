@@ -79,7 +79,6 @@ where
                     let next_move = self
                         .game
                         .random_reasonable_move_for_each_snake(&mut rng)
-                        .into_iter()
                         .find(|(s, _)| s == you_id)
                         .map(|x| x.1)
                         .unwrap_or(Move::Right);

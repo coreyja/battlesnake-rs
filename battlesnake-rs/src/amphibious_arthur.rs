@@ -61,7 +61,6 @@ fn score<
 
     let recursed_score: i64 = game_state
         .neighbors(coor)
-        .into_iter()
         .map(|c| {
             score(
                 &game_state.move_to_and_opponent_sprawl(coor),

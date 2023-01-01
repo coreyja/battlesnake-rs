@@ -142,7 +142,7 @@ where
         current_span.record("total_score", root_node.total_score.load(Ordering::Relaxed));
         current_span.record("average_score", root_node.average_score());
         current_span.record("game_id", &self.game_info.id);
-        current_span.record("turn", &self.turn);
+        current_span.record("turn", self.turn);
 
         root_node
     }

@@ -15,7 +15,6 @@ impl<T: RandomReasonableMovesGame + SnakeIDGettableGame + YouDeterminableGame> B
         let chosen = self
             .game
             .random_reasonable_move_for_each_snake(&mut rng)
-            .into_iter()
             .find(|(s, _)| s == self.game.you_id())
             .map(|x| x.1);
         let dir = chosen.unwrap_or(Move::Right);

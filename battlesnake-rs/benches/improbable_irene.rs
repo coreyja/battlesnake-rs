@@ -22,7 +22,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = ImprobableIrene::new(black_box(game), game_info);
+            let snake = ImprobableIrene::new(black_box(game), game_info, 0);
 
             let mut arena = Arena::new();
             snake.mcts_bench(10000, &mut arena);
@@ -42,7 +42,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-            let snake = ImprobableIrene::new(black_box(game), game_info);
+            let snake = ImprobableIrene::new(black_box(game), game_info, 0);
 
             let mut arena = Arena::new();
             snake.mcts_bench(10000, &mut arena);

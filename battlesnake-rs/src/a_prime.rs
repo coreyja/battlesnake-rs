@@ -409,7 +409,7 @@ impl APrimeCalculable for Game {
             };
 
             let tentative = known_score.get(&coordinate).unwrap_or(&i32::MAX) + neighbor_distance;
-            for neighbor in self.neighbors(&coordinate).into_iter().filter(|n| {
+            for neighbor in self.neighbors(&coordinate).filter(|n| {
                 targets.contains(n)
                     || self
                         .board

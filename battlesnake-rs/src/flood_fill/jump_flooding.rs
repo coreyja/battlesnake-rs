@@ -45,7 +45,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
         let steps = [6, 3, 1];
 
         for neighbor_distance in steps {
-            (0..(11 * 11)).into_iter().for_each(|i| {
+            (0..(11 * 11)).for_each(|i| {
                 let neighbor_options = [-neighbor_distance, 0, neighbor_distance];
                 let neighbors = neighbor_options
                     .iter()
