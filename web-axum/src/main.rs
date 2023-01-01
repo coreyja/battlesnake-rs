@@ -62,7 +62,22 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
+#[allow(unreachable_code)]
 async fn main() {
+    let _guard = if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
+        Some(sentry::init((
+            sentry_dsn,
+            sentry::ClientOptions {
+                release: sentry::release_name!(),
+                ..Default::default()
+            },
+        )))
+    } else {
+        None
+    };
+
+    panic!("test sentry");
+
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info,libhoney=warn");
     }
