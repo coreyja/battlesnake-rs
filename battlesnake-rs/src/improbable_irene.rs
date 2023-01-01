@@ -1156,8 +1156,17 @@ mod test {
 
     #[test]
     fn test_move_c2aee0d9_30dc_47ee_bd25_38e67e0fee9d_96() {
+        // This failed in a game but passes every time in the test
         let fixture = include_str!("../../fixtures/c2aee0d9-30dc-47ee-bd25-38e67e0fee9d_96.json");
 
         test_fixture_wrapped(fixture, vec![Move::Up, Move::Right]);
+    }
+
+    #[test]
+    fn test_move_7311099d_b98a_4589_9b05_32dc80362bcc_135() {
+        // This failed in a game but passes every time in the test
+        let fixture = include_str!("../../fixtures/7311099d-b98a-4589-9b05-32dc80362bcc_135.json");
+
+        test_fixture_wrapped(fixture, vec![Move::Left, Move::Down]);
     }
 }
