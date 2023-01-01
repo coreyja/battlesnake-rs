@@ -26,3 +26,4 @@ opentelemetry-otlp = { version = "0.11.0", features = ["http-proto", "reqwest-ru
 tracing-opentelemetry = "0.18.0"
 sentry = { version ="0.29.1", default-features = false, features = ["rustls", "backtrace", "contexts", "panic", "tower", "reqwest"] }
 sentry-tower = { version = "0.29.1", features = ["http"] }
+sentry-tracing = "0.29.1"

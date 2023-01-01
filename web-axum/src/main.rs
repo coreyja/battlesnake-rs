@@ -133,6 +133,7 @@ async fn main() {
         .with(heirarchical)
         .with(opentelemetry_layer)
         .with(env_filter)
+        .with(sentry_tracing::layer())
         .try_init()
         .expect("Failed to initialize tracing");
 
