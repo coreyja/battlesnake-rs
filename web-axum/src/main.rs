@@ -71,6 +71,14 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
+    let git_commit = std::env::var("CIRCLE_SHA1");
+    let release_name = sentry::release_name!().unwrap_or_else(|| "dev".into());
+    let release_name = if let Ok(git_commit) = git_commit {
+        format!("{release_name}-{git_commit}").into()
+    } else {
+        release_name
+    };
+
     let _guard = if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
         println!("Sentry enabled");
 
@@ -78,7 +86,7 @@ async fn main() -> Result<()> {
             sentry_dsn,
             sentry::ClientOptions {
                 traces_sample_rate: 1.0,
-                release: sentry::release_name!(),
+                release: Some(release_name),
                 ..Default::default()
             },
         )))
