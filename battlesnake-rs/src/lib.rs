@@ -6,7 +6,7 @@ extern crate serde_derive;
 
 use std::{fmt::Debug, hash::Hash};
 
-use anyhow::Result;
+use color_eyre::eyre::Result;
 
 pub use types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::*, wire_representation::Game,
@@ -252,7 +252,10 @@ where
     ScoreableType: Scorable<T, ScoreType> + Sized + Send + Sync + Clone,
 {
     fn make_move(&self) -> Result<MoveOutput> {
-        let m: Move = self.choose_move().0;
+        let m: Move = self
+            .choose_move()
+            .ok_or_else(|| color_eyre::eyre::eyre!("We couldn't find a move"))?
+            .0;
 
         Ok(MoveOutput {
             r#move: format!("{m}"),

@@ -1,3 +1,5 @@
+use color_eyre::eyre::eyre;
+
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -230,6 +232,16 @@ where
             best_child_average_score = tracing::field::Empty,
         )
         .in_scope(|| {
+            let ids = self.game.get_snake_ids();
+            if ids.len() == 1 {
+                info!("We are the only snake left, lets go Right");
+
+                return Ok(MoveOutput {
+                    r#move: format!("{}", Move::Right),
+                    shout: None,
+                });
+            }
+
             let current_span = tracing::Span::current();
 
             let start = std::time::Instant::now();
@@ -247,7 +259,7 @@ where
 
             let best_child = root_node
                 .highest_average_score_child()
-                .expect("The root should have a child");
+                .ok_or_else(|| eyre!("The root should have a child"))?;
             let chosen_move = &best_child
                 .tree_context
                 .as_ref()

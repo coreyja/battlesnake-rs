@@ -133,7 +133,7 @@ where
                 });
             }
 
-            let (m, depth) = self.main_snake.choose_move();
+            let (m, depth) = self.main_snake.choose_move().unwrap();
             let current_span = tracing::Span::current();
             current_span.record("depth", depth);
 
