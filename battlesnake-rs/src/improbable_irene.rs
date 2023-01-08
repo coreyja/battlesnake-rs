@@ -975,11 +975,15 @@ mod test {
     // ----------------- FIXTURE TESTS DOWN BELOW -----------------
 
     fn test_fixture(fixture: &'static str, allowed_moves: Vec<Move>) {
+        const NETWORK_LATENCY_PADDING: i64 = 50;
+
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();
         let id_map = build_snake_id_map(&game);
         let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+        let max_duration = max_duration.try_into().unwrap();
+        // let max_duration = Duration::from_secs(5).as_millis();
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
@@ -987,10 +991,8 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 400;
-
         let while_condition = |_root_node: &Node<_>, _total_number_of_iterations: usize| {
-            start.elapsed().as_millis() < max_duration.try_into().unwrap()
+            start.elapsed().as_millis() < max_duration
         };
         let mut arena = Arena::new();
         let root_node = snake.mcts(&while_condition, &mut arena);
@@ -1015,18 +1017,18 @@ mod test {
                 n.ucb1_normal_score(total_iterations),
                 n.number_of_visits.load(Ordering::Relaxed),
                 n.tree_context.as_ref().unwrap().snake_move.clone(),
-                n.children
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|n| (
-                        n.average_score(),
-                        n.ucb1_normal_score(total_iterations),
-                        n.number_of_visits.load(Ordering::Relaxed),
-                        n.tree_context.as_ref().unwrap().snake_move.clone(),
-                    ))
-                    .collect_vec()
+                // n.children
+                //     .borrow()
+                //     .as_ref()
+                //     .unwrap()
+                //     .iter()
+                //     .map(|n| (
+                //         n.average_score(),
+                //         n.ucb1_normal_score(total_iterations),
+                //         n.number_of_visits.load(Ordering::Relaxed),
+                //         n.tree_context.as_ref().unwrap().snake_move.clone(),
+                //     ))
+                //     .collect_vec()
             ))
             .collect_vec());
 
@@ -1168,5 +1170,13 @@ mod test {
         let fixture = include_str!("../../fixtures/7311099d-b98a-4589-9b05-32dc80362bcc_135.json");
 
         test_fixture_wrapped(fixture, vec![Move::Left, Move::Down]);
+    }
+
+    #[test]
+    fn test_move_95d72d73_352b_4ad5_83e4_86139fa556a9_54() {
+        // This failed in a game but passes every time in the test
+        let fixture = include_str!("../../fixtures/95d72d73-352b-4ad5-83e4-86139fa556a9_54.json");
+
+        test_fixture(fixture, vec![Move::Down]);
     }
 }
