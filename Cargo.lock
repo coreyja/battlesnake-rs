@@ -4333,6 +4333,7 @@ dependencies = [
  "axum-macros",
  "battlesnake-minimax",
  "battlesnake-rs",
+ "color-eyre",
  "fxhash",
  "itertools",
  "opentelemetry",

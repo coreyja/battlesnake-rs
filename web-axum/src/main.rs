@@ -20,10 +20,12 @@ use battlesnake_rs::{
     improbable_irene::{Arena, ImprobableIrene},
     BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11,
 };
+use color_eyre::{eyre::Result, Report};
 
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use sentry_tower::NewSentryLayer;
+use serde_json::json;
 use tokio::task::JoinHandle;
 
 use tower_http::{
@@ -63,7 +65,9 @@ impl<State: Send + Sync> FromRequestParts<State> for ExtractSnakeFactory {
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
-async fn main() {
+async fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let _guard = if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
         println!("Sentry enabled");
 
@@ -103,8 +107,7 @@ async fn main() {
                     .with_timeout(Duration::from_secs(3))
                     .with_headers(map),
             )
-            .install_batch(opentelemetry::runtime::Tokio)
-            .unwrap();
+            .install_batch(opentelemetry::runtime::Tokio)?;
 
         let opentelemetry_layer = OpenTelemetryLayer::new(tracer);
 
@@ -135,8 +138,7 @@ async fn main() {
         .with(opentelemetry_layer)
         .with(env_filter)
         .with(sentry_tracing::layer())
-        .try_init()
-        .expect("Failed to initialize tracing");
+        .try_init()?;
 
     let state = AppState {
         game_states: HashMap::new(),
@@ -170,16 +172,37 @@ async fn main() {
 
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
-        .parse()
-        .expect("PORT must be a number");
+        .parse()?;
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
 }
+
+struct HttpError(color_eyre::eyre::Report);
+
+impl From<Report> for HttpError {
+    fn from(value: Report) -> Self {
+        Self(value)
+    }
+}
+
+impl IntoResponse for HttpError {
+    fn into_response(self) -> axum::response::Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "Things Broke"})),
+        )
+            .into_response()
+    }
+}
+
+type HttpResponse<T> = Result<T, HttpError>;
+type JsonResponse<JsonType> = HttpResponse<Json<JsonType>>;
 
 async fn root() -> &'static str {
     "Hello, World!"
@@ -203,7 +226,7 @@ where
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
-) -> impl IntoResponse {
+) -> JsonResponse<MoveOutput> {
     let snake = factory.create_from_wire_game(game);
 
     let output = spawn_blocking_with_tracing(move || {
@@ -214,7 +237,7 @@ async fn route_move(
     .await
     .unwrap();
 
-    Json(output)
+    Ok(Json(output))
 }
 
 async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
