@@ -342,6 +342,7 @@ dependencies = [
 name = "battlesnake-minimax"
 version = "0.1.0"
 dependencies = [
+ "color-eyre",
  "dashmap",
  "debug_print",
  "derivative",

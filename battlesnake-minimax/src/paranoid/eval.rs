@@ -281,13 +281,13 @@ where
     /// This uses [MinimaxSnake::deepened_minimax_until_timelimit()] to run the Minimax algorihm until we run out of time, and
     /// return the chosen move. For more information on the inner working see the docs for
     /// [MinimaxSnake::deepened_minimax_until_timelimit()]
-    pub fn choose_move(&self) -> (Move, usize) {
+    pub fn choose_move(&self) -> Option<(Move, usize)> {
         let my_id = self.game.you_id();
         let (depth, scored) = self.choose_move_inner(None);
 
-        let scored_options = scored.first_options_for_snake(my_id).unwrap();
+        let scored_options = scored.first_options_for_snake(my_id)?;
 
-        (scored_options.first().unwrap().0, depth)
+        Some((scored_options.first()?.0, depth))
     }
 
     #[allow(missing_docs)]
