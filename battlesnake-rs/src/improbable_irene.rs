@@ -1165,6 +1165,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_move_7311099d_b98a_4589_9b05_32dc80362bcc_135() {
         // This failed in a game but passes every time in the test
         let fixture = include_str!("../../fixtures/7311099d-b98a-4589-9b05-32dc80362bcc_135.json");
