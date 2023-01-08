@@ -6,7 +6,7 @@ extern crate serde_derive;
 
 use std::{fmt::Debug, hash::Hash};
 
-use anyhow::Result;
+use color_eyre::eyre::Result;
 
 pub use types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::*, wire_representation::Game,

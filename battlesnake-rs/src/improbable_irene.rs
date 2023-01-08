@@ -1,3 +1,5 @@
+use color_eyre::eyre::eyre;
+
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -247,7 +249,7 @@ where
 
             let best_child = root_node
                 .highest_average_score_child()
-                .expect("The root should have a child");
+                .ok_or_else(|| eyre!("The root should have a child"))?;
             let chosen_move = &best_child
                 .tree_context
                 .as_ref()

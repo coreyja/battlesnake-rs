@@ -359,9 +359,9 @@ dependencies = [
 name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "atomic_float",
  "battlesnake-minimax",
+ "color-eyre",
  "criterion",
  "debug_print",
  "decorum",
@@ -4328,7 +4328,6 @@ checksum = "6598dd0bd3c7d51095ff6531a5b23e02acdc81804e30d8f07afb77b7215a140a"
 name = "web-axum"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "axum 0.6.1",
  "axum-macros",
  "battlesnake-minimax",

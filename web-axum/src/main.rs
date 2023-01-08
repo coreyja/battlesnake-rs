@@ -20,13 +20,16 @@ use battlesnake_rs::{
     improbable_irene::{Arena, ImprobableIrene},
     BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11,
 };
-use color_eyre::{eyre::Result, Report};
+use color_eyre::{
+    eyre::{eyre, Result},
+    Report,
+};
 
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use sentry_tower::NewSentryLayer;
 use serde_json::json;
-use tokio::task::JoinHandle;
+use tokio::task::{JoinError, JoinHandle};
 
 use tower_http::{
     trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
@@ -191,6 +194,12 @@ impl From<Report> for HttpError {
     }
 }
 
+impl From<JoinError> for HttpError {
+    fn from(value: JoinError) -> Self {
+        Self(eyre!(value).wrap_err("Join Error"))
+    }
+}
+
 impl IntoResponse for HttpError {
     fn into_response(self) -> axum::response::Response {
         (
@@ -229,13 +238,7 @@ async fn route_move(
 ) -> JsonResponse<MoveOutput> {
     let snake = factory.create_from_wire_game(game);
 
-    let output = spawn_blocking_with_tracing(move || {
-        snake
-            .make_move()
-            .expect("TODO: We need to work on our error handling")
-    })
-    .await
-    .unwrap();
+    let output = spawn_blocking_with_tracing(move || snake.make_move()).await??;
 
     Ok(Json(output))
 }
