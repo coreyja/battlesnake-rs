@@ -232,6 +232,16 @@ where
             best_child_average_score = tracing::field::Empty,
         )
         .in_scope(|| {
+            let ids = self.game.get_snake_ids();
+            if ids.len() == 1 {
+                info!("We are the only snake left, lets go Right");
+
+                return Ok(MoveOutput {
+                    r#move: format!("{}", Move::Right),
+                    shout: None,
+                });
+            }
+
             let current_span = tracing::Span::current();
 
             let start = std::time::Instant::now();

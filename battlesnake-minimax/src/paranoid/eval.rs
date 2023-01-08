@@ -287,6 +287,13 @@ where
 
         let scored_options = scored.first_options_for_snake(my_id)?;
 
+        let ids = self.game.get_snake_ids();
+        if ids.len() == 1 {
+            info!("We are the only snake left on the board, lets go Right");
+
+            return Some((Move::Right, 0));
+        }
+
         Some((scored_options.first()?.0, depth))
     }
 
