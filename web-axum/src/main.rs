@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
         Some(sentry::init((
             sentry_dsn,
             sentry::ClientOptions {
-                traces_sample_rate: 1.0,
+                traces_sample_rate: 0.0,
                 release: Some(release_name),
                 ..Default::default()
             },
