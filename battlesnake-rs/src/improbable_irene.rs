@@ -1,19 +1,18 @@
-use color_eyre::eyre::eyre;
-
 use std::{
     borrow::Cow,
     cell::RefCell,
     convert::TryInto,
-    fs::OpenOptions,
+    fs::{create_dir, remove_dir_all, OpenOptions},
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use atomic_float::AtomicF64;
-use decorum::{Infinite, Real, N64};
+use color_eyre::eyre::eyre;
+use decorum::{Encoding, Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
-use rand::prelude::ThreadRng;
+use rand::{prelude::ThreadRng, seq::SliceRandom};
 use tracing::{info, info_span};
 pub use typed_arena::Arena;
 use types::{
@@ -122,7 +121,7 @@ where
 
             next_leaf_node = {
                 // If next_leaf_node HAS been visited, then we expand it
-                if next_leaf_node.number_of_visits.load(Ordering::Relaxed) > 0
+                if next_leaf_node.number_of_visits.load(Ordering::SeqCst) > 0
                     && !next_leaf_node.has_been_expanded()
                 {
                     next_leaf_node.expand(arena);
@@ -141,7 +140,7 @@ where
         }
 
         current_span.record("total_number_of_iterations", total_number_of_iterations);
-        current_span.record("total_score", root_node.total_score.load(Ordering::Relaxed));
+        current_span.record("total_score", root_node.total_score.load(Ordering::SeqCst));
         current_span.record("average_score", root_node.average_score());
         current_span.record("game_id", &self.game_info.id);
         current_span.record("turn", self.turn);
@@ -168,14 +167,18 @@ where
         info!(player_count =? self.game.get_snake_ids(), "Graphing MCTS");
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 000;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
+        remove_dir_all("/Users/coreyja/Projects/battlesnake-rs/tmp/")?;
+        create_dir("/Users/coreyja/Projects/battlesnake-rs/tmp/")?;
+
         let while_condition = |root_node: &Node<BoardType>, total_number_of_iterations: usize| {
-            if total_number_of_iterations % 64 == 0 {
+            if total_number_of_iterations % 64 == 0 && total_number_of_iterations != 0 {
                 let mut file = OpenOptions::new()
                     .write(true)
-                    .create_new(true)
+                    .create(true)
+                    .truncate(true)
                     .open(format!("/Users/coreyja/Projects/battlesnake-rs/tmp/iteration_{total_number_of_iterations}.dot"))
                     .unwrap();
                 file.write_all(
@@ -191,11 +194,15 @@ where
 
         let best_child = root_node
             .highest_average_score_child()
-            .expect("The root should have a child");
+            .ok_or_else(|| eyre!("The root should have a child"))?;
         let chosen_move = &best_child
             .tree_context
             .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .ok_or_else(|| {
+                eyre!(
+                    "We found the best child of the root node, so it _should_ have a tree_context",
+                )
+            })?
             .snake_move;
 
         Ok(MoveOutput {
@@ -461,8 +468,8 @@ where
         // But if/when we get to multi-threaded, we might want to think about if this wants
         // to use the same visits value like this.
         // Or do we need to re-load it for each usage?
-        let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
-        let total_score = self.total_score.load(Ordering::Relaxed);
+        let number_of_visits = self.number_of_visits.load(Ordering::SeqCst);
+        let total_score = self.total_score.load(Ordering::SeqCst);
         let total_score: N64 = total_score.into();
 
         if number_of_visits == 0 {
@@ -485,19 +492,17 @@ where
     fn ucb1_normal_score(&self, total_number_of_iterations: usize) -> N64 {
         let constant: N64 = 16.0.into();
 
-        let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
-        let total_score = self.total_score.load(Ordering::Relaxed);
+        let number_of_visits = self.number_of_visits.load(Ordering::SeqCst);
+        let total_score = self.total_score.load(Ordering::SeqCst);
         let total_score: N64 = total_score.into();
-        let some_of_squares: N64 = self.sum_of_square_scores.load(Ordering::Relaxed).into();
+        let some_of_squares: N64 = self.sum_of_square_scores.load(Ordering::SeqCst).into();
 
         let number_of_visits = number_of_visits as f64;
 
-        // TODO: Future Optimization
-        // We could re-work the surrounding code to do this eagerly so that we don't waste time on
-        // doing the rest of the math if we find a branch that matches this
-        if number_of_visits <= 8.0 * ((total_number_of_iterations) as f64).ln() {
-            return N64::INFINITY;
-        }
+        // This was extracted out of here, and into the function that calls for this score
+        // if number_of_visits <= 8.0 * ((total_number_of_iterations) as f64).ln() {
+        //     return N64::INFINITY;
+        // }
 
         let number_of_visits: N64 = number_of_visits.into();
 
@@ -517,8 +522,8 @@ where
     }
 
     fn average_score(&self) -> Option<f64> {
-        let number_of_visits = self.number_of_visits.load(Ordering::Relaxed);
-        let total_score = self.total_score.load(Ordering::Relaxed);
+        let number_of_visits = self.number_of_visits.load(Ordering::SeqCst);
+        let total_score = self.total_score.load(Ordering::SeqCst);
 
         if number_of_visits == 0 {
             return None;
@@ -558,10 +563,23 @@ where
             .as_ref()
             .expect("We debug asserts that we are expanded already");
 
-        children
-            .iter()
-            .cloned()
-            .max_by_key(|child| child.ucb1_normal_score(total_number_of_iterations))
+        let mut max_ucb1_norm = (N64::MIN, None);
+        let min_number_of_visits = 8.0 * ((total_number_of_iterations) as f64).ln();
+
+        for c in children.iter() {
+            let number_of_visits = c.number_of_visits.load(Ordering::SeqCst);
+
+            if number_of_visits as f64 <= min_number_of_visits {
+                return Some(c);
+            }
+
+            let ucb1_normal = c.ucb1_normal_score(total_number_of_iterations);
+            if ucb1_normal > max_ucb1_norm.0 {
+                max_ucb1_norm = (ucb1_normal, Some(c));
+            }
+        }
+
+        max_ucb1_norm.1.copied()
     }
 
     fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
@@ -587,10 +605,12 @@ where
         }
 
         let moves_to_sim = self.game_state.reasonable_moves_for_each_snake();
-        let next_states = self
+        let mut next_states = self
             .game_state
             .simulate_with_moves(&Instrument {}, moves_to_sim)
             .collect_vec();
+
+        next_states.shuffle(&mut rand::thread_rng());
 
         let mut opponent_moves: [Option<Vec<(Action<4>, BoardType)>>; 4] = Default::default();
         for (actions, game_state) in next_states {
@@ -644,12 +664,12 @@ where
     }
 
     fn backpropagate(&self, score: N64) {
-        self.number_of_visits.fetch_add(1, Ordering::Relaxed);
+        self.number_of_visits.fetch_add(1, Ordering::SeqCst);
         {
             let score: f64 = score.into();
-            self.total_score.fetch_add(score, Ordering::Relaxed);
+            self.total_score.fetch_add(score, Ordering::SeqCst);
             self.sum_of_square_scores
-                .fetch_add(score.powi(2), Ordering::Relaxed);
+                .fetch_add(score.powi(2), Ordering::SeqCst);
         }
 
         if let Some(tree_context) = &self.tree_context {
@@ -675,13 +695,14 @@ where
         total_number_of_iterations: usize,
     ) -> String {
         let me_id: String = format!(
-            "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}",
+            "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}\nIs Over: {:?}",
             child_id,
             self.tree_context.as_ref().map(|t| t.snake_move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_normal_score(total_number_of_iterations),
             self.average_score(),
+            self.game_state.is_over()
         );
 
         builder.add_node(dotavious::Node::new(me_id.as_str()));
@@ -706,6 +727,8 @@ where
 
 #[cfg(test)]
 mod test {
+
+    use std::time::Duration;
 
     use decorum::Infinite;
     use itertools::Itertools;
@@ -733,8 +756,8 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         let n = Node::new(game);
-        n.number_of_visits.store(1, Ordering::Relaxed);
-        n.total_score.store(10.0, Ordering::Relaxed);
+        n.number_of_visits.store(1, Ordering::SeqCst);
+        n.total_score.store(10.0, Ordering::SeqCst);
 
         assert_eq!(n.ucb1_score(1), 10.0);
         assert!(n.ucb1_score(2) > 11.6);
@@ -760,13 +783,13 @@ mod test {
         let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
         let n = Node::new(game);
-        n.number_of_visits.store(1, Ordering::Relaxed);
-        n.total_score.store(10.0, Ordering::Relaxed);
+        n.number_of_visits.store(1, Ordering::SeqCst);
+        n.total_score.store(10.0, Ordering::SeqCst);
 
         assert_eq!(n.average_score(), Some(10.0));
 
-        n.number_of_visits.store(2, Ordering::Relaxed);
-        n.total_score.store(25.0, Ordering::Relaxed);
+        n.number_of_visits.store(2, Ordering::SeqCst);
+        n.total_score.store(25.0, Ordering::SeqCst);
 
         assert_eq!(n.average_score(), Some(12.5));
     }
@@ -781,8 +804,8 @@ mod test {
 
         n.backpropagate(10.0.into());
 
-        assert_eq!(n.number_of_visits.load(Ordering::Relaxed), 1);
-        assert_eq!(n.total_score.load(Ordering::Relaxed), 10.0);
+        assert_eq!(n.number_of_visits.load(Ordering::SeqCst), 1);
+        assert_eq!(n.total_score.load(Ordering::SeqCst), 10.0);
     }
 
     #[test]
@@ -798,20 +821,20 @@ mod test {
 
         child.backpropagate(10.0.into());
 
-        assert_eq!(child.number_of_visits.load(Ordering::Relaxed), 1);
-        assert_eq!(child.total_score.load(Ordering::Relaxed), 10.0);
+        assert_eq!(child.number_of_visits.load(Ordering::SeqCst), 1);
+        assert_eq!(child.total_score.load(Ordering::SeqCst), 10.0);
 
-        assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 1);
-        assert_eq!(root.total_score.load(Ordering::Relaxed), 10.0);
+        assert_eq!(root.number_of_visits.load(Ordering::SeqCst), 1);
+        assert_eq!(root.total_score.load(Ordering::SeqCst), 10.0);
 
         let other_child = Node::new_with_parent(game, &root, SomeonesMove::MyMove(Move::Down));
         other_child.backpropagate(20.0.into());
 
-        assert_eq!(other_child.number_of_visits.load(Ordering::Relaxed), 1);
-        assert_eq!(other_child.total_score.load(Ordering::Relaxed), 20.0);
+        assert_eq!(other_child.number_of_visits.load(Ordering::SeqCst), 1);
+        assert_eq!(other_child.total_score.load(Ordering::SeqCst), 20.0);
 
-        assert_eq!(root.number_of_visits.load(Ordering::Relaxed), 2);
-        assert_eq!(root.total_score.load(Ordering::Relaxed), 30.0);
+        assert_eq!(root.number_of_visits.load(Ordering::SeqCst), 2);
+        assert_eq!(root.total_score.load(Ordering::SeqCst), 30.0);
     }
 
     #[test]
@@ -987,15 +1010,15 @@ mod test {
     // ----------------- FIXTURE TESTS DOWN BELOW -----------------
 
     fn test_fixture(fixture: &'static str, allowed_moves: Vec<Move>) {
-        const NETWORK_LATENCY_PADDING: i64 = 50;
+        // const NETWORK_LATENCY_PADDING: i64 = 50;
 
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();
         let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
-        let max_duration = max_duration.try_into().unwrap();
-        // let max_duration = Duration::from_secs(5).as_millis();
+        // let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+        // let max_duration = max_duration.try_into().unwrap();
+        let max_duration = Duration::from_secs(5).as_millis();
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
@@ -1018,7 +1041,7 @@ mod test {
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
             .snake_move;
 
-        let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
+        let total_iterations = root_node.number_of_visits.load(Ordering::SeqCst);
 
         let borrowed = root_node.children.borrow();
         let children = borrowed.as_ref().unwrap();
@@ -1027,7 +1050,7 @@ mod test {
             .map(|n| (
                 n.average_score(),
                 n.ucb1_normal_score(total_iterations),
-                n.number_of_visits.load(Ordering::Relaxed),
+                n.number_of_visits.load(Ordering::SeqCst),
                 n.tree_context.as_ref().unwrap().snake_move.clone(),
                 // n.children
                 //     .borrow()
@@ -1037,7 +1060,7 @@ mod test {
                 //     .map(|n| (
                 //         n.average_score(),
                 //         n.ucb1_normal_score(total_iterations),
-                //         n.number_of_visits.load(Ordering::Relaxed),
+                //         n.number_of_visits.load(Ordering::SeqCst),
                 //         n.tree_context.as_ref().unwrap().snake_move.clone(),
                 //     ))
                 //     .collect_vec()
@@ -1081,7 +1104,7 @@ mod test {
             .expect("We found the best child of the root node, so it _should_ have a tree_context")
             .snake_move;
 
-        let total_iterations = root_node.number_of_visits.load(Ordering::Relaxed);
+        let total_iterations = root_node.number_of_visits.load(Ordering::SeqCst);
 
         let borrowed = root_node.children.borrow();
         let children = borrowed.as_ref().unwrap();
@@ -1090,7 +1113,7 @@ mod test {
             .map(|n| (
                 n.average_score(),
                 n.ucb1_normal_score(total_iterations),
-                n.number_of_visits.load(Ordering::Relaxed),
+                n.number_of_visits.load(Ordering::SeqCst),
                 n.tree_context.as_ref().unwrap().snake_move.clone(),
                 // n.children
                 //     .borrow()
@@ -1100,7 +1123,7 @@ mod test {
                 //     .map(|n| (
                 //         n.average_score(),
                 //         n.ucb1_normal_score(total_iterations),
-                //         n.number_of_visits.load(Ordering::Relaxed),
+                //         n.number_of_visits.load(Ordering::SeqCst),
                 //         n.tree_context.as_ref().unwrap().snake_move.clone(),
                 //     ))
                 //     .collect_vec()

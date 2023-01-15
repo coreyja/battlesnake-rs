@@ -251,7 +251,7 @@ async fn route_move(
     Ok(Json(output))
 }
 
-async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
+async fn route_graph(Json(game): Json<Game>) -> JsonResponse<MoveOutput> {
     let game_info = game.game.clone();
     let id_map = build_snake_id_map(&game);
     let turn = game.turn;
@@ -272,10 +272,9 @@ async fn route_graph(Json(game): Json<Game>) -> impl IntoResponse {
             .expect("TODO: We need to work on our error handling")
     })
     .instrument(root)
-    .await
-    .unwrap();
+    .await?;
 
-    Json(output)
+    Ok(Json(output))
 }
 
 async fn route_start() -> impl IntoResponse {
