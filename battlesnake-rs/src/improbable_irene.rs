@@ -10,7 +10,7 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
-use decorum::{Infinite, Real, N64};
+use decorum::{Encoding, Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
 use rand::prelude::ThreadRng;
@@ -500,12 +500,10 @@ where
 
         let number_of_visits = number_of_visits as f64;
 
-        // TODO: Future Optimization
-        // We could re-work the surrounding code to do this eagerly so that we don't waste time on
-        // doing the rest of the math if we find a branch that matches this
-        if number_of_visits <= 8.0 * ((total_number_of_iterations) as f64).ln() {
-            return N64::INFINITY;
-        }
+        // This was extracted out of here, and into the function that calls for this score
+        // if number_of_visits <= 8.0 * ((total_number_of_iterations) as f64).ln() {
+        //     return N64::INFINITY;
+        // }
 
         let number_of_visits: N64 = number_of_visits.into();
 
@@ -566,10 +564,23 @@ where
             .as_ref()
             .expect("We debug asserts that we are expanded already");
 
-        children
-            .iter()
-            .cloned()
-            .max_by_key(|child| child.ucb1_normal_score(total_number_of_iterations))
+        let mut max_ucb1_norm = (N64::MIN, None);
+        let min_number_of_visits = 8.0 * ((total_number_of_iterations) as f64).ln();
+
+        for c in children.iter() {
+            let number_of_visits = c.number_of_visits.load(Ordering::Relaxed);
+
+            if number_of_visits as f64 <= min_number_of_visits {
+                return Some(c);
+            }
+
+            let ucb1_normal = c.ucb1_normal_score(total_number_of_iterations);
+            if ucb1_normal > max_ucb1_norm.0 {
+                max_ucb1_norm = (ucb1_normal, Some(c));
+            }
+        }
+
+        max_ucb1_norm.1.copied()
     }
 
     fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
