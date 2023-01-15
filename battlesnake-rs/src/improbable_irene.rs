@@ -1,5 +1,3 @@
-use color_eyre::eyre::eyre;
-
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -10,6 +8,7 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
+use color_eyre::eyre::eyre;
 use decorum::{Encoding, Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
@@ -1015,7 +1014,6 @@ mod test {
         let id_map = build_snake_id_map(&game);
         let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
         let max_duration = max_duration.try_into().unwrap();
-        // let max_duration = Duration::from_secs(5).as_millis();
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
