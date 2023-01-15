@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::TryInto,
-    fs::OpenOptions,
+    fs::{create_dir, remove_dir_all, OpenOptions},
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -168,14 +168,18 @@ where
         info!(player_count =? self.game.get_snake_ids(), "Graphing MCTS");
         let start = std::time::Instant::now();
 
-        const NETWORK_LATENCY_PADDING: i64 = 100;
+        const NETWORK_LATENCY_PADDING: i64 = 000;
         let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
+        remove_dir_all("/Users/coreyja/Projects/battlesnake-rs/tmp/")?;
+        create_dir("/Users/coreyja/Projects/battlesnake-rs/tmp/")?;
+
         let while_condition = |root_node: &Node<BoardType>, total_number_of_iterations: usize| {
-            if total_number_of_iterations % 64 == 0 {
+            if total_number_of_iterations % 64 == 0 && total_number_of_iterations != 0 {
                 let mut file = OpenOptions::new()
                     .write(true)
-                    .create_new(true)
+                    .create(true)
+                    .truncate(true)
                     .open(format!("/Users/coreyja/Projects/battlesnake-rs/tmp/iteration_{total_number_of_iterations}.dot"))
                     .unwrap();
                 file.write_all(
@@ -191,11 +195,15 @@ where
 
         let best_child = root_node
             .highest_average_score_child()
-            .expect("The root should have a child");
+            .ok_or_else(|| eyre!("The root should have a child"))?;
         let chosen_move = &best_child
             .tree_context
             .as_ref()
-            .expect("We found the best child of the root node, so it _should_ have a tree_context")
+            .ok_or_else(|| {
+                eyre!(
+                    "We found the best child of the root node, so it _should_ have a tree_context",
+                )
+            })?
             .snake_move;
 
         Ok(MoveOutput {
@@ -675,13 +683,14 @@ where
         total_number_of_iterations: usize,
     ) -> String {
         let me_id: String = format!(
-            "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}",
+            "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}\nIs Over: {:?}",
             child_id,
             self.tree_context.as_ref().map(|t| t.snake_move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_normal_score(total_number_of_iterations),
             self.average_score(),
+            self.game_state.is_over()
         );
 
         builder.add_node(dotavious::Node::new(me_id.as_str()));
