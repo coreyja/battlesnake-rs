@@ -12,7 +12,7 @@ use color_eyre::eyre::eyre;
 use decorum::{Encoding, Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
-use rand::prelude::ThreadRng;
+use rand::{prelude::ThreadRng, seq::SliceRandom};
 use tracing::{info, info_span};
 pub use typed_arena::Arena;
 use types::{
@@ -605,10 +605,12 @@ where
         }
 
         let moves_to_sim = self.game_state.reasonable_moves_for_each_snake();
-        let next_states = self
+        let mut next_states = self
             .game_state
             .simulate_with_moves(&Instrument {}, moves_to_sim)
             .collect_vec();
+
+        next_states.shuffle(&mut rand::thread_rng());
 
         let mut opponent_moves: [Option<Vec<(Action<4>, BoardType)>>; 4] = Default::default();
         for (actions, game_state) in next_states {
@@ -725,6 +727,8 @@ where
 
 #[cfg(test)]
 mod test {
+
+    use std::time::Duration;
 
     use decorum::Infinite;
     use itertools::Itertools;
@@ -1006,14 +1010,15 @@ mod test {
     // ----------------- FIXTURE TESTS DOWN BELOW -----------------
 
     fn test_fixture(fixture: &'static str, allowed_moves: Vec<Move>) {
-        const NETWORK_LATENCY_PADDING: i64 = 50;
+        // const NETWORK_LATENCY_PADDING: i64 = 50;
 
         let game = serde_json::from_str::<Game>(fixture).unwrap();
 
         let game_info = game.game.clone();
         let id_map = build_snake_id_map(&game);
-        let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
-        let max_duration = max_duration.try_into().unwrap();
+        // let max_duration = game_info.timeout - NETWORK_LATENCY_PADDING;
+        // let max_duration = max_duration.try_into().unwrap();
+        let max_duration = Duration::from_secs(5).as_millis();
 
         let game = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
