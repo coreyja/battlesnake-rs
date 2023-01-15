@@ -186,7 +186,7 @@ where
 
         match self {
             MinMaxReturn::Leaf { score, .. } => {
-                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let me_id = format!("{id}");
                 let me_label = format!("{score:?}");
                 let node = NodeBuilder::new(&*me_id)
@@ -209,7 +209,7 @@ where
                 beta,
                 ..
             } => {
-                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let me_id = format!("{id}");
                 let me_label = format!(
                     "{depth}\n{score:?}\n{alpha_beta_cutoff}\nAlpha: {alpha:?}\nBeta: {beta:?}",
