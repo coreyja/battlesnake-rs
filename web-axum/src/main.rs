@@ -95,7 +95,10 @@ async fn main() -> Result<()> {
     };
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info,libhoney=warn");
+        std::env::set_var(
+            "RUST_LOG",
+            "info,battlesnake-minimax=info,battlesnake-rs=info",
+        );
     }
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
