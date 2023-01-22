@@ -381,18 +381,10 @@ where
     type ScoreType = N64;
 
     fn score(node: &BoardType) -> N64 {
-        let scores = if node.get_hazard_damage().is_positive() {
-            Scores {
-                food: 5,
-                hazard: 1,
-                empty: 5,
-            }
-        } else {
-            Scores {
-                food: 5,
-                hazard: 5,
-                empty: 1,
-            }
+        let scores = Scores {
+            food: 5,
+            hazard: 1,
+            empty: 5,
         };
 
         let me = node.you_id();

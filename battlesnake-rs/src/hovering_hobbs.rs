@@ -31,18 +31,10 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    let scores = if node.get_hazard_damage().is_positive() {
-        Scores {
-            food: 20,
-            hazard: 1,
-            empty: 5,
-        }
-    } else {
-        Scores {
-            food: 5,
-            hazard: 5,
-            empty: 1,
-        }
+    let scores = Scores {
+        food: 20,
+        hazard: 1,
+        empty: 5,
     };
     let square_counts = node.squares_per_snake_with_scores(5, scores);
 

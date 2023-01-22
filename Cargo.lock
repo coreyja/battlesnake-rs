@@ -328,14 +328,16 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "battlesnake-game-types"
-version = "0.15.0"
-source = "git+https://github.com/coreyja/battlesnake-game-types.git?rev=535ed31a72a27e773d5394f1eaa88415956356fd#535ed31a72a27e773d5394f1eaa88415956356fd"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "370d3e9c1067908a33bb29721a19f0658eb3b923d046d6ad38f30494658b4659"
 dependencies = [
  "fxhash",
  "itertools",
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -3827,9 +3829,9 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.36"
+version = "0.1.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fce9567bd60a67d08a16488756721ba392f24f29006402881e43b19aac64307"
+checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
 dependencies = [
  "cfg-if 1.0.0",
  "log 0.4.17",
@@ -3840,9 +3842,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11c75893af559bc8e10716548bdef5cb2b983f8e637db9d0e15126b61b484ee2"
+checksum = "4017f8f45139870ca7e672686113917c71c7a6e02d4924eda67186083c03081a"
 dependencies = [
  "proc-macro2 1.0.42",
  "quote 1.0.20",
