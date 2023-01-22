@@ -11,7 +11,7 @@ use axum::{
 };
 use battlesnake_minimax::{
     paranoid::{move_ordering::MoveOrdering, MinMaxReturn, SnakeOptions},
-    types::{compact_representation::WrappedCellBoard4Snakes11x11, types::YouDeterminableGame},
+    types::types::YouDeterminableGame,
     ParanoidMinimaxSnake,
 };
 use battlesnake_rs::{

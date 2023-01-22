@@ -16,13 +16,13 @@ pub(crate) struct GameState {
     pub last_move: Option<LastMoveState>,
     pub id_map: HashMap<String, SnakeId>,
     #[allow(dead_code)]
-    pub score_map: Arc<DashMap<WrappedCellBoard4Snakes11x11, Score, FxBuildHasher>>,
+    pub score_map: Arc<DashMap<StandardCellBoard4Snakes11x11, Score, FxBuildHasher>>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct LastMoveState {
-    pub last_return: MinMaxReturn<WrappedCellBoard4Snakes11x11, Score>,
-    pub last_board: WrappedCellBoard4Snakes11x11,
+    pub last_return: MinMaxReturn<StandardCellBoard4Snakes11x11, Score>,
+    pub last_board: StandardCellBoard4Snakes11x11,
     pub turn: i32,
 }
 
@@ -87,7 +87,7 @@ pub(crate) async fn route_hobbs_move(
     };
     let last_move = &game_state.last_move;
 
-    let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &game_state.id_map)
+    let game = StandardCellBoard4Snakes11x11::convert_from_game(game, &game_state.id_map)
         .expect("TODO: We need to work on our error handling");
 
     let you_id = game.you_id();
@@ -162,7 +162,7 @@ pub(crate) async fn route_hobbs_move(
         None
     };
 
-    let score = &standard_score::<WrappedCellBoard4Snakes11x11, _, 4>;
+    let score = &standard_score::<StandardCellBoard4Snakes11x11, _, 4>;
     // let score = CachedScore::new(score, game_state.score_map);
 
     let my_id = game.you_id();
