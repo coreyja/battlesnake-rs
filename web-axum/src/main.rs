@@ -161,7 +161,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .route("/", get(root))
-        .route("/hovering-hobbs", post(route_hobbs_info))
+        .route("/hovering-hobbs", get(route_hobbs_info))
         .route("/hovering-hobbs/start", post(route_hobbs_start))
         .route("/hovering-hobbs/move", post(route_hobbs_move))
         .route("/hovering-hobbs/end", post(route_hobbs_end))
