@@ -2,7 +2,10 @@ use battlesnake_rs::{Game, Move, RandomReasonableMovesGame, VictorDeterminableGa
 use serde::{Deserialize, Serialize};
 
 use color_eyre::Result;
-use types::wire_representation::{BattleSnake, Board};
+use types::{
+    types::YouDeterminableGame,
+    wire_representation::{BattleSnake, Board},
+};
 
 mod fuzz;
 
@@ -68,6 +71,8 @@ async fn main() -> Result<()> {
     let mut turns = 0;
     let mut rng = rand::thread_rng();
 
+    let you_id = game.you_id().to_owned();
+
     let client = reqwest::Client::new();
 
     while !game.is_over() {
@@ -81,6 +86,14 @@ async fn main() -> Result<()> {
 
         turns += 1;
         game.board = official_result;
+
+        let you = game.board.snakes.iter().find(|s| s.id == you_id);
+
+        if let Some(you) = you {
+            game.you = you.clone();
+        } else {
+            game.you.health = 0;
+        }
     }
 
     Ok(())
