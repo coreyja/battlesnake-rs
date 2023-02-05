@@ -13,3 +13,4 @@ rand = "0.8.5"
 
 serde_json = "1.0.82"
 ureq = { version = "2.4.0", features = ["json"] }
+tokio = { version = "1.25.0", features = ["full"] }
