@@ -2,7 +2,7 @@ use battlesnake_rs::{Game, Move, RandomReasonableMovesGame, VictorDeterminableGa
 use serde::{Deserialize, Serialize};
 
 use color_eyre::Result;
-use types::wire_representation::BattleSnake;
+use types::wire_representation::{BattleSnake, Board};
 
 mod fuzz;
 
@@ -42,7 +42,7 @@ async fn official_simulate_moves(
     client: &reqwest::Client,
     orig: &Game,
     moves: Vec<(String, Move)>,
-) -> Result<Game> {
+) -> Result<Board> {
     let moves = moves
         .into_iter()
         .map(|(id, r#move)| SimulateMove { id, r#move })
@@ -56,7 +56,7 @@ async fn official_simulate_moves(
         .json(&body)
         .send()
         .await?
-        .json::<Game>()
+        .json::<Board>()
         .await?;
 
     Ok(res)
@@ -80,7 +80,7 @@ async fn main() -> Result<()> {
         let official_result = official_simulate_moves(&client, &game, moves.clone()).await?;
 
         turns += 1;
-        game = official_result;
+        game.board = official_result;
     }
 
     Ok(())
