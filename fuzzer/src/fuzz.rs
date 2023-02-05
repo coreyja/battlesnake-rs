@@ -100,7 +100,7 @@ pub fn random_game() -> Game {
     };
 
     // TODO: Maybe choose more snakes if the board is bigger?
-    let number_of_snakes: i8 = rng.gen_range(2..=4);
+    let number_of_snakes: i8 = rng.gen_range(2..=2);
 
     for i in 0..number_of_snakes {
         // TODO: Would it be better to build all snakes at once? Not sure it matters if we run
