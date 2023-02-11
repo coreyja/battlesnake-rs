@@ -72,7 +72,7 @@ pub(crate) async fn route_hobbs_move(
     let name = "hovering-hobbs";
 
     let options: SnakeOptions = SnakeOptions {
-        network_latency_padding: Duration::from_millis(50),
+        network_latency_padding: Duration::from_millis(150),
         move_ordering: MoveOrdering::BestFirst,
     };
 

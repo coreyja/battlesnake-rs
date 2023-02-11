@@ -231,7 +231,7 @@ impl Factory {
         let name = "hovering-hobbs";
 
         let options: SnakeOptions = SnakeOptions {
-            network_latency_padding: Duration::from_millis(50),
+            network_latency_padding: Duration::from_millis(120),
             move_ordering: MoveOrdering::BestFirst,
         };
 

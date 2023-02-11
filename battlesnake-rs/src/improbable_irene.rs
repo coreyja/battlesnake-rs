@@ -254,7 +254,7 @@ where
 
             let start = std::time::Instant::now();
 
-            const NETWORK_LATENCY_PADDING: i64 = 100;
+            const NETWORK_LATENCY_PADDING: i64 = 120;
             let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
             let while_condition =
