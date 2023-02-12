@@ -1,10 +1,10 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc, thread};
 
+use battlesnake_game_types::{types::*, wire_representation::NestedGame};
 use dashmap::DashMap;
 use derivative::Derivative;
 use fxhash::FxBuildHasher;
 use tracing::info_span;
-use types::{types::*, wire_representation::NestedGame};
 
 use crate::{
     paranoid::{move_ordering::MoveOrdering, CachedScore, Scorable, SnakeOptions},

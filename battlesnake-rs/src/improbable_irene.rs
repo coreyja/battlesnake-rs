@@ -10,15 +10,15 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
+use battlesnake_game_types::{
+    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
+};
 use decorum::{Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
 use rand::prelude::ThreadRng;
 use tracing::{info, info_span};
 pub use typed_arena::Arena;
-use types::{
-    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
-};
 
 use crate::flood_fill::spread_from_head_arcade_maze::{Scores, SpreadFromHead};
 

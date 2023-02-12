@@ -3,7 +3,7 @@ use color_eyre::eyre::{eyre, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use types::wire_representation::{
+use battlesnake_game_types::wire_representation::{
     BattleSnake, Board, Game, NestedGame, Position, Ruleset, Settings,
 };
 

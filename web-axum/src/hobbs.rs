@@ -1,5 +1,6 @@
+use battlesnake_game_types::types::Move;
 use battlesnake_minimax::{dashmap::DashMap, types::types::SnakeIDGettableGame};
-use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Move, Vector};
+use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Vector};
 use fxhash::FxBuildHasher;
 use parking_lot::Mutex;
 

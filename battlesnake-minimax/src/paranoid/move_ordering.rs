@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-use types::types::{Move, SnakeIDGettableGame};
+use battlesnake_game_types::types::{Move, SnakeIDGettableGame};
 
 use super::MinMaxReturn;
 

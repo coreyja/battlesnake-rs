@@ -1,11 +1,11 @@
+use battlesnake_game_types::{
+    types::SizeDeterminableGame,
+    wire_representation::{BattleSnake, Game, NestedGame, Position},
+};
 use color_eyre::eyre::Result;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tungstenite::{connect, Message};
-use types::{
-    types::SizeDeterminableGame,
-    wire_representation::{BattleSnake, Game, NestedGame, Position},
-};
 use url::Url;
 
 #[derive(Serialize, Deserialize, Debug)]

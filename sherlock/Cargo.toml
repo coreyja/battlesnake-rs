@@ -10,9 +10,8 @@ serde_json = "1.0.85"
 ureq = { version = "2.4.0", features = ["json"] }
 clap = { version = "4.0.32", features = ["derive"] }
 
-types = { path = "../types" }
-
 battlesnake-minimax = { path = "../battlesnake-minimax" }
+battlesnake-game-types = { workspace = true }
 itertools = "0.10.3"
 serde = { version = "1.0.144", features = ["derive"] }
 color-eyre = "0.6.2"

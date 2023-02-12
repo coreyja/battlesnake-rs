@@ -60,7 +60,7 @@
 //! let result: MinMaxReturn<_, _> = minimax_snake.deepened_minimax_until_timelimit(snake_id_map.values().cloned().collect(), None).1;
 //! ```
 
-pub use types;
+pub use battlesnake_game_types as types;
 
 pub mod paranoid;
 

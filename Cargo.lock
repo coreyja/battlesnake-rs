@@ -344,6 +344,7 @@ dependencies = [
 name = "battlesnake-minimax"
 version = "0.1.0"
 dependencies = [
+ "battlesnake-game-types",
  "color-eyre",
  "dashmap",
  "debug_print",
@@ -355,7 +356,6 @@ dependencies = [
  "serde_json",
  "text_trees",
  "tracing",
- "types",
 ]
 
 [[package]]
@@ -363,6 +363,7 @@ name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
  "atomic_float",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "color-eyre",
  "criterion",
@@ -381,7 +382,6 @@ dependencies = [
  "tinyvec",
  "tracing",
  "typed-arena",
- "types",
 ]
 
 [[package]]
@@ -3306,6 +3306,7 @@ name = "sherlock"
 version = "0.1.0"
 dependencies = [
  "axum 0.6.1",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "clap 4.0.32",
  "color-eyre",
@@ -3318,7 +3319,6 @@ dependencies = [
  "tokio",
  "tower-http",
  "tungstenite 0.18.0",
- "types",
  "ureq",
  "url 2.3.1",
 ]
@@ -4054,13 +4054,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
-name = "types"
-version = "0.1.0"
-dependencies = [
- "battlesnake-game-types",
-]
-
-[[package]]
 name = "uname"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4333,6 +4326,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.6.1",
  "axum-macros",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "battlesnake-rs",
  "color-eyre",

@@ -1,7 +1,6 @@
 [workspace]
 
 members = [
-  "types",
     "battlesnake-rs",
     "battlesnake-minimax",
     "web-lambda",
@@ -9,3 +8,6 @@ members = [
     "web-axum",
     "sherlock",
 ]
+
+[workspace.dependencies]
+battlesnake-game-types = { version = "0.17.0" }

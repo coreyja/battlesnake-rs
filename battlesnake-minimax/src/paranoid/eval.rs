@@ -7,10 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use derivative::Derivative;
-use itertools::Itertools;
-use tracing::{info, info_span};
-use types::{
+use battlesnake_game_types::{
     types::{
         HeadGettableGame, HealthGettableGame, Move, NeckQueryableGame, NeighborDeterminableGame,
         PositionGettableGame, SimulableGame, SimulatorInstruments, SnakeIDGettableGame,
@@ -18,6 +15,9 @@ use types::{
     },
     wire_representation::NestedGame,
 };
+use derivative::Derivative;
+use itertools::Itertools;
+use tracing::{info, info_span};
 
 use crate::{paranoid::move_ordering::MoveOrdering, Instruments};
 

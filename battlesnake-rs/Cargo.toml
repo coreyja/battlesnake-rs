@@ -14,7 +14,6 @@ rand = "0.8"
 itertools = "0.10.0"
 debug_print = "1.0.0"
 tracing = "0.1.26"
-types = { path = "../types" }
 
 rustc-hash = "1.1.0"
 text_trees = "0.1.2"
@@ -26,6 +25,8 @@ typed-arena = "2.0.1"
 atomic_float = "0.1.0"
 dotavious = "0.2.1"
 color-eyre = "0.6.2"
+
+battlesnake-game-types = { workspace = true }
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }

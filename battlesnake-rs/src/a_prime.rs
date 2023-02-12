@@ -1,4 +1,4 @@
-use types::{
+use battlesnake_game_types::{
     compact_representation::{
         dimensions::Dimensions, CellNum, StandardCellBoard, StandardCellBoard4Snakes11x11,
         WrappedCellBoard,
@@ -201,12 +201,8 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
     }
 }
 
-impl<
-        T: types::compact_representation::CellNum,
-        D: Dimensions,
-        const BOARD_SIZE: usize,
-        const MAX_SNAKES: usize,
-    > APrimeCalculable for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
+impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize> APrimeCalculable
+    for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn a_prime_inner(
         &self,
@@ -302,12 +298,8 @@ pub trait HueristicAble: PositionGettableGame {
     ) -> i32;
 }
 
-impl<
-        T: types::compact_representation::CellNum,
-        D: Dimensions,
-        const BOARD_SIZE: usize,
-        const MAX_SNAKES: usize,
-    > HueristicAble for StandardCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
+impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize> HueristicAble
+    for StandardCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn hueristic(
         start: &Self::NativePositionType,
@@ -332,12 +324,8 @@ impl<
     }
 }
 
-impl<
-        T: types::compact_representation::CellNum,
-        D: Dimensions,
-        const BOARD_SIZE: usize,
-        const MAX_SNAKES: usize,
-    > HueristicAble for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
+impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize> HueristicAble
+    for WrappedCellBoard<T, D, BOARD_SIZE, MAX_SNAKES>
 {
     fn hueristic(
         start: &Self::NativePositionType,
@@ -444,7 +432,7 @@ pub trait ClosestFoodCalculable: PositionGettableGame {
 impl<T: APrimeCalculable + FoodGettableGame> ClosestFoodCalculable for T {
     default fn dist_to_closest_food(
         &self,
-        start: &<Self as types::types::PositionGettableGame>::NativePositionType,
+        start: &<Self as PositionGettableGame>::NativePositionType,
         options: std::option::Option<APrimeOptions>,
     ) -> std::option::Option<i32> {
         self.shortest_distance(start, &self.get_all_food_as_native_positions(), options)
@@ -517,7 +505,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::compact_representation::{
+    use battlesnake_game_types::compact_representation::{
         CellIndex, StandardCellBoard4Snakes11x11 as CellBoard4Snakes11x11,
     };
 

@@ -6,11 +6,11 @@ pub trait MoveToAndSpawn: NeighborDeterminableGame + PositionGettableGame {
     fn move_to_and_opponent_sprawl(&self, coor: &Self::NativePositionType) -> Self;
 }
 
-use rand::seq::SliceRandom;
-use types::types::{
+use battlesnake_game_types::types::{
     HeadGettableGame, HealthGettableGame, NeighborDeterminableGame, PositionGettableGame,
     YouDeterminableGame,
 };
+use rand::seq::SliceRandom;
 
 impl MoveToAndSpawn for Game {
     fn move_to_and_opponent_sprawl(&self, coor: &Position) -> Self {
