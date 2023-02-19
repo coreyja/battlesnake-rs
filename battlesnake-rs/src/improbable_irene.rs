@@ -708,9 +708,9 @@ where
 #[cfg(test)]
 mod test {
 
+    use battlesnake_game_types::compact_representation::standard::CellBoard4Snakes11x11;
     use decorum::Infinite;
     use itertools::Itertools;
-    use types::compact_representation::standard::CellBoard4Snakes11x11;
 
     use super::*;
 

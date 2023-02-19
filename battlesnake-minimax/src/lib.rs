@@ -87,12 +87,12 @@ pub struct Instruments {}
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
-    use types::{
+    use battlesnake_game_types::{
         compact_representation::{dimensions::Custom, WrappedCellBoard},
         types::{build_snake_id_map, Move, SimulableGame, SnakeIDGettableGame},
         wire_representation::Game,
     };
+    use itertools::Itertools;
 
     use crate::{
         paranoid::{MinMaxReturn, MinimaxSnake, SnakeOptions, WrappedScore},

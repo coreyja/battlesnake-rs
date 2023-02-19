@@ -1,8 +1,8 @@
-use battlesnake_minimax::paranoid::Scorable;
-use types::{
+use battlesnake_game_types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::build_snake_id_map,
     wire_representation::Game,
 };
+use battlesnake_minimax::paranoid::Scorable;
 
 use battlesnake_rs::{
     devious_devin_eval::{score, ScoreEndState},

@@ -1,7 +1,7 @@
 use battlesnake_minimax::paranoid::CachedScore;
 use battlesnake_rs::{MinimaxSnake, StandardCellBoard4Snakes11x11};
 
-use types::{
+use battlesnake_game_types::{
     compact_representation::{
         dimensions::ArcadeMaze, WrappedCellBoard, WrappedCellBoard4Snakes11x11,
     },

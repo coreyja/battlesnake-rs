@@ -256,7 +256,7 @@ impl Factory {
 
 #[cfg(test)]
 mod tests {
-    use types::{
+    use battlesnake_game_types::{
         compact_representation::WrappedCellBoard4Snakes11x11,
         types::{build_snake_id_map, SnakeIDGettableGame, YouDeterminableGame},
         wire_representation::Game,
