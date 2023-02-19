@@ -1,0 +1,37 @@
+name: Deploy Terrarium
+
+on:
+  workflow_run:
+    workflows: ["Rust CI/CD"]
+    types: [completed]
+    branches: "main"
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v3
+      - name: Setup | Rust
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: nightly
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: v0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+      - name: Build
+        run: cargo build --release --all-targets
+      - name: Upload Releases
+        uses: actions/upload-artifact@v3
+        with:
+          name: releases
+          path: |
+            target/release/web-axum
+            target/release/web-rocket
+            target/release/web-lambda
+            target/release/sherlock
