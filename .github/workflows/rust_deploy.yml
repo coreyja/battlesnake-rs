@@ -1,8 +1,9 @@
 name: Deploy Terrarium
+concurrency: deploy
 
 on:
   workflow_run:
-    workflows: ["Rust CI/CD"]
+    workflows: ["Rust Test"]
     types: [completed]
     branches: "main"
 
@@ -11,6 +12,7 @@ jobs:
     name: Build Release
     runs-on: ubuntu-latest
     steps:
+      - run: echo "${{ github.event.workflow_run.head_sha }}"
       - name: Setup | Checkout
         uses: actions/checkout@v3
       - name: Setup | Rust
