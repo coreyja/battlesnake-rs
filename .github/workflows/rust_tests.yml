@@ -48,20 +48,14 @@ jobs:
         run: cargo doc --workspace --no-deps --locked
   test:
     name: Test
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        rust:
-          - nightly
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v2
       - name: Setup | Rust
         uses: ATiltedTree/setup-rust@v1
         with:
-          rust-version: ${{ matrix.rust }}
+          rust-version: nightly
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: protobuf-compiler
@@ -73,20 +67,14 @@ jobs:
         run: cargo test --locked
   bench:
     name: Bench
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        rust:
-          - nightly
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v2
       - name: Setup | Rust
         uses: ATiltedTree/setup-rust@v1
         with:
-          rust-version: ${{ matrix.rust }}
+          rust-version: nightly
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: protobuf-compiler
@@ -103,20 +91,14 @@ jobs:
           path: target/criterion
   profile:
     name: Profile
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        rust:
-          - nightly
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v2
       - name: Setup | Rust
         uses: ATiltedTree/setup-rust@v1
         with:
-          rust-version: ${{ matrix.rust }}
+          rust-version: nightly
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: protobuf-compiler
