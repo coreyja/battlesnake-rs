@@ -96,6 +96,11 @@ jobs:
           prefix-key: "v0-rust"
       - name: Bench
         run: cargo bench --locked
+      - name: Archive Bench Statistics
+        uses: actions/upload-artifact@v3
+        with:
+          name: criterion-bench
+          path: target/criterion
   profile:
     name: Profile
     strategy:
@@ -123,3 +128,8 @@ jobs:
         run: cargo bench --bench hovering_hobbs -- --profile-time 60
       - name: Profile Irene
         run: cargo bench --bench improbable_irene -- --profile-time 60
+      - name: Archive Profile Statistics
+        uses: actions/upload-artifact@v3
+        with:
+          name: criterion-bench
+          path: target/criterion
