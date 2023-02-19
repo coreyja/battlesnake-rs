@@ -14,7 +14,7 @@ jobs:
     name: Build Release
     runs-on: ubuntu-latest
     steps:
-      - name: Fail Deploy is Tests Failed
+      - name: Fail Deploy if Tests Failed
         run: exit 1
         if: ${{ github.event.workflow_run.conclusion == 'failure' }}
       - name: Setup | Checkout
