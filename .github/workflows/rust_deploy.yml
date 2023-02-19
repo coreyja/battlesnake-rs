@@ -1,6 +1,8 @@
 name: Deploy Terrarium
 concurrency: deploy
 
+run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha }}
+
 on:
   workflow_run:
     workflows: ["Rust Test"]
@@ -12,6 +14,8 @@ jobs:
     name: Build Release
     runs-on: ubuntu-latest
     steps:
+      - run: exit 1
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
       - name: Setup | Checkout
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
