@@ -26,7 +26,7 @@ jobs:
         with:
           prefix-key: "v0-rust"
       - name: Build | Lint
-        run: cargo clippy --all-targets --no-deps
+        run: cargo clippy --all-targets --no-deps --locked
   doc:
     name: Doc
     runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
         with:
           prefix-key: "v0-rust"
       - name: Cargo Doc
-        run: cargo doc --workspace --no-deps
+        run: cargo doc --workspace --no-deps --locked
   test:
     name: Test
     strategy:
@@ -70,4 +70,56 @@ jobs:
         with:
           prefix-key: "v0-rust"
       - name: Test
-        run: cargo test --all-targets
+        run: cargo test --locked
+  bench:
+    name: Bench
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        rust:
+          - nightly
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+      - name: Setup | Rust
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: v0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+      - name: Bench
+        run: cargo bench --locked
+  profile:
+    name: Profile
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        rust:
+          - nightly
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+      - name: Setup | Rust
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: v0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+      - name: Profile Hobbs
+        run: cargo bench --bench hovering_hobbs -- --profile-time 60
+      - name: Profile Irene
+        run: cargo bench --bench improbable_irene -- --profile-time 60
