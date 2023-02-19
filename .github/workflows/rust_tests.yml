@@ -125,7 +125,7 @@ jobs:
         with:
           prefix-key: "v0-rust"
       - name: Profile Hobbs
-        run: cargo bench --bench hovering_hobbs -- --profile-time 60
+        run: cargo bench --bench hobbs -- --profile-time 60
       - name: Profile Irene
         run: cargo bench --bench improbable_irene -- --profile-time 60
       - name: Archive Profile Statistics
