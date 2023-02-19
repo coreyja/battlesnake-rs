@@ -100,6 +100,11 @@ mod tests {
     };
 
     #[test]
+    fn failing_test() {
+        assert!(false);
+    }
+
+    #[test]
     fn it_finds_that_this_move_is_a_win() {
         let fixture = include_str!("../../fixtures/arcade_maze_should_win.json");
         let wire_game: Game = serde_json::from_str(fixture).unwrap();
