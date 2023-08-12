@@ -2,8 +2,6 @@ use crate::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use crate::*;
 use battlesnake_minimax::paranoid::MinimaxSnake;
 
-use battlesnake_game_types::types::*;
-
 pub struct Factory;
 
 #[derive(Serialize, PartialEq, PartialOrd, Ord, Eq, Debug, Copy, Clone)]

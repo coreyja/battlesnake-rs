@@ -50,10 +50,7 @@ impl Default for AboutMe {
     }
 }
 
-use battlesnake_game_types::{
-    types::{Move, PositionGettableGame, SnakeIDGettableGame, YouDeterminableGame},
-    wire_representation::Position,
-};
+use battlesnake_game_types::wire_representation::Position;
 
 // use crate::{
 //     bombastic_bob::BombasticBobFactory, constant_carter::ConstantCarterFactory,

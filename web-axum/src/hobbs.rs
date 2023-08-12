@@ -180,7 +180,7 @@ pub(crate) async fn route_hobbs_move(
     {
         let mut state = state.lock();
 
-        let mut game_state = state
+        let game_state = state
             .game_states
             .get_mut(&game_id)
             .expect("If we hit the start endpoint we should have a game state already");

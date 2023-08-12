@@ -5,7 +5,6 @@ use crate::flood_fill::spread_from_head::{Scores, SpreadFromHead};
 use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::*;
 
-use battlesnake_game_types::types::*;
 use battlesnake_minimax::{
     paranoid::{move_ordering::MoveOrdering, SnakeOptions},
     ParanoidMinimaxSnake,
