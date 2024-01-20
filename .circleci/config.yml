@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  tailscale: orbiously/tailscale@1.0.0
+
 commands: # a reusable command with parameters
   setup-sccache:
     steps:
@@ -133,22 +136,7 @@ jobs:
       - add_ssh_keys
       - attach_workspace:
           at: target
-      # Copied from
-      # Changes from source:
-      #  - removed `sudo` usage in mv since its not needed/in the container
-      - run:
-          name: "Download tailscale if not installed"
-          command: |
-            if ! command -v tailscale --version >/dev/null 2>&1; then
-              echo "Tailscale is not installed, installing..."
-              wget https://pkgs.tailscale.com/stable/tailscale_1.24.2_amd64.tgz
-              tar -xzf tailscale_1.24.2_amd64.tgz
-              rm tailscale_1.24.2_amd64.tgz
-              TSPATH=tailscale_1.24.2_amd64
-              mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
-            else
-              echo "Tailscale is already installed"
-            fi
+      - tailscale/install
       - run:
           name: "Run tailscale"
           background: true
