@@ -93,7 +93,9 @@ pub(crate) async fn route_hobbs_move(
 
     let you_id = game.you_id();
 
-    let initial_return = if let Some(last_move) = last_move && last_move.turn == turn - 1 {
+    let initial_return = if let Some(last_move) = last_move
+        && last_move.turn == turn - 1
+    {
         let last_board = &last_move.last_board;
         let previously_alive_snakes = game_state
             .id_map
@@ -142,24 +144,26 @@ pub(crate) async fn route_hobbs_move(
 
         let mut current_return = last_move.last_return.clone();
 
-        while
-            let Some(moving_snake_id) = current_return.moving_snake_id() &&
-            let Some(m) = snake_moves.remove(moving_snake_id) &&
-            let Some(next_return) = current_return.option_for_move(m)
-            {
+        while let Some(moving_snake_id) = current_return.moving_snake_id()
+            && let Some(m) = snake_moves.remove(moving_snake_id)
+            && let Some(next_return) = current_return.option_for_move(m)
+        {
             current_return = next_return.clone();
         }
 
-        while
-            let MinMaxReturn::Node { ref options, moving_snake_id, .. } = current_return &&
-            moving_snake_id == *you_id {
-                let new_return = options[0].1.clone();
-                current_return = new_return;
+        while let MinMaxReturn::Node {
+            ref options,
+            moving_snake_id,
+            ..
+        } = current_return
+            && moving_snake_id == *you_id
+        {
+            let new_return = options[0].1.clone();
+            current_return = new_return;
         }
 
         Some(current_return)
     } else {
-
         None
     };
 

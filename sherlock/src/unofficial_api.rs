@@ -212,7 +212,8 @@ pub(crate) fn get_frames_for_game(game_id: &str, end_turn: usize) -> Result<Vec<
 
     let mut all_frames: Vec<Value> = Vec::with_capacity(end_turn);
 
-    while let Some(frames) = get_batch_of_frames_for_games(game_id, offset, LIMIT)? && !frames.is_empty()
+    while let Some(frames) = get_batch_of_frames_for_games(game_id, offset, LIMIT)?
+        && !frames.is_empty()
     {
         all_frames.extend(frames.iter().cloned());
         offset += LIMIT;
