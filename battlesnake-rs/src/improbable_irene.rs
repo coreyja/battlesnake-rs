@@ -674,10 +674,12 @@ where
         child_id: Vec<usize>,
         total_number_of_iterations: usize,
     ) -> String {
+        // TODO: Submit a clippy bug report for this
+        #[allow(clippy::useless_asref)]
         let me_id: String = format!(
             "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}\nIs Over: {:?}",
             child_id,
-            self.tree_context.as_ref().map(|t| t.snake_move.clone()),
+            &self.tree_context.as_ref().map(|t| t.snake_move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_normal_score(total_number_of_iterations),
