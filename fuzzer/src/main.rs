@@ -1,17 +1,15 @@
 use std::collections::HashMap;
 
+use battlesnake_game_types::wire_representation::{BattleSnake, Board, Position};
 use battlesnake_rs::{
-    build_snake_id_map, improbable_irene::Instrument, Game, HeadGettableGame, HealthGettableGame,
-    Move, RandomReasonableMovesGame, SimulableGame, SizeDeterminableGame, SnakeBodyGettableGame,
-    SnakeId, StandardCellBoard4Snakes11x11, VictorDeterminableGame,
+    build_snake_id_map, improbable_irene::Instrument, Game, HealthGettableGame, Move,
+    RandomReasonableMovesGame, SimulableGame, SizeDeterminableGame, SnakeBodyGettableGame,
+    SnakeIDGettableGame, SnakeId, StandardCellBoard4Snakes11x11, VictorDeterminableGame,
+    YouDeterminableGame,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use color_eyre::Result;
-use types::{
-    types::{SnakeIDGettableGame, YouDeterminableGame},
-    wire_representation::{BattleSnake, Board, Position},
-};
 
 mod fuzz;
 
@@ -23,7 +21,7 @@ fn about_equal_snake(
     let id = this.id.clone();
     let compact_id = id_map.get(&id).unwrap();
     let other: Vec<Position> = compact
-        .get_snake_body_vec(&compact_id)
+        .get_snake_body_vec(compact_id)
         .into_iter()
         .map(|c| c.into_position(11))
         .collect();
@@ -62,8 +60,8 @@ fn assert_about_equal(
     for snake in &this.board.snakes {
         let snake_id = id_map.get(&snake.id).unwrap();
 
-        assert_eq!(snake.health, other.get_health(&snake_id) as i32);
-        about_equal_snake(&snake, &other, &id_map);
+        assert_eq!(snake.health, other.get_health(snake_id) as i32);
+        about_equal_snake(snake, other, id_map);
     }
 }
 
@@ -159,6 +157,4 @@ async fn main() -> Result<()> {
             }
         }
     }
-
-    Ok(())
 }

@@ -1,14 +1,11 @@
 use std::collections::VecDeque;
 
-use battlesnake_rs::SizeDeterminableGame;
+use battlesnake_game_types::wire_representation::*;
+use battlesnake_rs::*;
 use itertools::Itertools;
 use rand::{
     prelude::{IteratorRandom, ThreadRng},
     thread_rng, Rng,
-};
-use types::{
-    types::*,
-    wire_representation::{BattleSnake, Board, Game, NestedGame, Position, Ruleset},
 };
 
 fn random_square_for_head(rng: &mut ThreadRng, g: &Game) -> Option<Position> {
@@ -37,7 +34,6 @@ fn random_snake(rng: &mut ThreadRng, id: &str, g: &Game) -> Option<BattleSnake> 
     while body.len() < length as usize {
         if let Some(next_body) = g
             .neighbors(body.back().unwrap())
-            .into_iter()
             .filter(|p| !body.contains(p) && !g.position_is_snake_body(*p))
             .choose(rng)
         {
@@ -116,7 +112,7 @@ pub fn random_game() -> Game {
     // TODO: Choose a max number of foods and try to add them to the board
     // TODO: Choose a max number of hazards squares and add them to the board
 
-    if let Some(you) = game.board.snakes.get(0) {
+    if let Some(you) = game.board.snakes.first() {
         game.you = you.clone();
     }
 
