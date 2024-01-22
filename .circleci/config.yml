@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  tailscale: orbiously/tailscale@1.0.0
+
 commands: # a reusable command with parameters
   setup-sccache:
     steps:
@@ -133,41 +136,11 @@ jobs:
       - add_ssh_keys
       - attach_workspace:
           at: target
-      # Copied from
-      # Changes from source:
-      #  - removed `sudo` usage in mv since its not needed/in the container
-      - run:
-          name: "Download tailscale if not installed"
-          command: |
-            if ! command -v tailscale --version >/dev/null 2>&1; then
-              echo "Tailscale is not installed, installing..."
-              wget https://pkgs.tailscale.com/stable/tailscale_1.24.2_amd64.tgz
-              tar -xzf tailscale_1.24.2_amd64.tgz
-              rm tailscale_1.24.2_amd64.tgz
-              TSPATH=tailscale_1.24.2_amd64
-              mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
-            else
-              echo "Tailscale is already installed"
-            fi
-      - run:
-          name: "Run tailscale"
-          background: true
-          command: |
-            tailscaled --tun=userspace-networking --outbound-http-proxy-listen=localhost:1054 --socks5-server=localhost:1055
-      - run:
-          name: "Auth tailscale"
-          command: |
-            HOSTNAME="circleci-$(cat /etc/hostname)"
-            until tailscale up --authkey $TAILSCALE_AUTH_KEY --hostname=${HOSTNAME} --accept-routes --accept-dns
-            do
-              sleep 1
-            done
-            echo "export ALL_PROXY=socks5h://localhost:1055/" >> $BASH_ENV
-            echo "export HTTP_PROXY=http://localhost:1054/" >> $BASH_ENV
-            echo "export HTTPS_PROXY=http://localhost:1054/" >> $BASH_ENV
-            echo "export http_proxy=http://localhost:1054/" >> $BASH_ENV
-            echo "export https_proxy=http://localhost:1054/" >> $BASH_ENV
-      - run: apt update && apt-get install netcat -y
+      - tailscale/install
+      - tailscale/connect:
+          ts-auth-key: TAILSCALE_AUTH_KEY
+          ts-dst-host: terrarium
+      - run: apt update && apt-get install netcat-openbsd -y
       - run: scp -o "ProxyCommand nc -x localhost:1055 %h %p" -o StrictHostKeyChecking=no target/release/web-axum www@terrarium.coreyja.gmail.com.beta.tailscale.net:~/server/web-axum.new
       - run: ssh -o "ProxyCommand nc -x localhost:1055 %h %p" www@terrarium.coreyja.gmail.com.beta.tailscale.net "mv server/web-axum.new server/web-axum"
       - run: ssh -o "ProxyCommand nc -x localhost:1055 %h %p" circle@terrarium.coreyja.gmail.com.beta.tailscale.net "sudo systemctl restart terrarium.coreyja.com.service"

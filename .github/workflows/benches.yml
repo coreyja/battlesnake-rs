@@ -1,0 +1,55 @@
+name: Rust Benchmarks and Profiles
+
+on: workflow_dispatch
+
+jobs:
+  bench:
+    name: Bench
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v3
+      - name: Setup | Rust
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: nightly
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: v0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+      - name: Bench
+        run: cargo bench --locked
+      - name: Archive Bench Statistics
+        uses: actions/upload-artifact@v3
+        with:
+          name: criterion-bench
+          path: target/criterion
+  profile:
+    name: Profile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v3
+      - name: Setup | Rust
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: nightly
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: v0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+      - name: Profile Hobbs
+        run: cargo bench --bench hobbs -- --profile-time 60
+      - name: Profile Irene
+        run: cargo bench --bench improbable_irene -- --profile-time 60
+      - name: Archive Profile Statistics
+        uses: actions/upload-artifact@v3
+        with:
+          name: criterion-profile
+          path: target/criterion

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 battlesnake-rs = { path = "../battlesnake-rs" }
 battlesnake-minimax = { path = "../battlesnake-minimax" }
+battlesnake-game-types = { workspace = true }
 
 axum = { version = "0.6.0"  }
 serde = { version = "1.0", features = ["derive"] }

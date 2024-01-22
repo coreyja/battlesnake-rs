@@ -1,4 +1,4 @@
-use types::types::*;
+use battlesnake_game_types::types::*;
 
 use battlesnake_rs::a_prime::{APrimeCalculable, ClosestFoodCalculable};
 use battlesnake_rs::*;

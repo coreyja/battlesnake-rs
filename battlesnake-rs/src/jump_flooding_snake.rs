@@ -3,7 +3,7 @@ use crate::*;
 
 use battlesnake_minimax::paranoid::MinimaxSnake;
 
-use types::{compact_representation::WrappedCellBoard4Snakes11x11, types::*};
+use battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11;
 
 use decorum::N64;
 

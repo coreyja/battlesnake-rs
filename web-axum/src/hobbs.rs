@@ -1,5 +1,6 @@
+use battlesnake_game_types::types::Move;
 use battlesnake_minimax::{dashmap::DashMap, types::types::SnakeIDGettableGame};
-use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Move, Vector};
+use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Vector};
 use fxhash::FxBuildHasher;
 use parking_lot::Mutex;
 
@@ -72,7 +73,7 @@ pub(crate) async fn route_hobbs_move(
     let name = "hovering-hobbs";
 
     let options: SnakeOptions = SnakeOptions {
-        network_latency_padding: Duration::from_millis(50),
+        network_latency_padding: Duration::from_millis(150),
         move_ordering: MoveOrdering::BestFirst,
     };
 
@@ -92,7 +93,9 @@ pub(crate) async fn route_hobbs_move(
 
     let you_id = game.you_id();
 
-    let initial_return = if let Some(last_move) = last_move && last_move.turn == turn - 1 {
+    let initial_return = if let Some(last_move) = last_move
+        && last_move.turn == turn - 1
+    {
         let last_board = &last_move.last_board;
         let previously_alive_snakes = game_state
             .id_map
@@ -141,24 +144,26 @@ pub(crate) async fn route_hobbs_move(
 
         let mut current_return = last_move.last_return.clone();
 
-        while
-            let Some(moving_snake_id) = current_return.moving_snake_id() &&
-            let Some(m) = snake_moves.remove(moving_snake_id) &&
-            let Some(next_return) = current_return.option_for_move(m)
-            {
+        while let Some(moving_snake_id) = current_return.moving_snake_id()
+            && let Some(m) = snake_moves.remove(moving_snake_id)
+            && let Some(next_return) = current_return.option_for_move(m)
+        {
             current_return = next_return.clone();
         }
 
-        while
-            let MinMaxReturn::Node { ref options, moving_snake_id, .. } = current_return &&
-            moving_snake_id == *you_id {
-                let new_return = options[0].1.clone();
-                current_return = new_return;
+        while let MinMaxReturn::Node {
+            ref options,
+            moving_snake_id,
+            ..
+        } = current_return
+            && moving_snake_id == *you_id
+        {
+            let new_return = options[0].1.clone();
+            current_return = new_return;
         }
 
         Some(current_return)
     } else {
-
         None
     };
 
@@ -179,7 +184,7 @@ pub(crate) async fn route_hobbs_move(
     {
         let mut state = state.lock();
 
-        let mut game_state = state
+        let game_state = state
             .game_states
             .get_mut(&game_id)
             .expect("If we hit the start endpoint we should have a game state already");

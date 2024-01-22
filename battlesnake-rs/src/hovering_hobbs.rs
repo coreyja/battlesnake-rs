@@ -10,7 +10,6 @@ use battlesnake_minimax::{
     ParanoidMinimaxSnake,
 };
 use decorum::N64;
-use types::types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Score {
@@ -116,11 +115,11 @@ macro_rules! build_from_best_cell_board {
         let options = $options;
 
         if game_info.ruleset.name == "wrapped" {
-            use types::compact_representation::wrapped::*;
+            use battlesnake_game_types::compact_representation::wrapped::*;
 
             build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         } else {
-            use types::compact_representation::standard::*;
+            use battlesnake_game_types::compact_representation::standard::*;
 
             build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
         }
@@ -231,7 +230,7 @@ impl Factory {
         let name = "hovering-hobbs";
 
         let options: SnakeOptions = SnakeOptions {
-            network_latency_padding: Duration::from_millis(50),
+            network_latency_padding: Duration::from_millis(120),
             move_ordering: MoveOrdering::BestFirst,
         };
 
@@ -256,7 +255,7 @@ impl Factory {
 
 #[cfg(test)]
 mod tests {
-    use types::{
+    use battlesnake_game_types::{
         compact_representation::WrappedCellBoard4Snakes11x11,
         types::{build_snake_id_map, SnakeIDGettableGame, YouDeterminableGame},
         wire_representation::Game,

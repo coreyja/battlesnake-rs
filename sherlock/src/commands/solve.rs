@@ -1,13 +1,13 @@
 use std::{collections::HashMap, fmt::Debug};
 
+use battlesnake_game_types::{
+    compact_representation::{dimensions::Square, WrappedCellBoard},
+    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
+};
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 use color_eyre::eyre::Result;
 use itertools::Itertools;
 use serde_json::Value;
-use types::{
-    compact_representation::{dimensions::Square, WrappedCellBoard},
-    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
-};
 
 use crate::unofficial_api::{frame_to_game, get_frame_for_turn};
 

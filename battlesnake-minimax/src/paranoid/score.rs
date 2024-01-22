@@ -1,6 +1,8 @@
 use std::{cmp::Reverse, fmt::Debug};
 
-use types::types::{HealthGettableGame, VictorDeterminableGame, YouDeterminableGame};
+use battlesnake_game_types::types::{
+    HealthGettableGame, VictorDeterminableGame, YouDeterminableGame,
+};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
 /// The wrapped score type. This takes into account the score provided by the score function, but

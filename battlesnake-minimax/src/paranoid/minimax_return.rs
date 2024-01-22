@@ -1,7 +1,7 @@
+use battlesnake_game_types::types::{Move, SnakeIDGettableGame};
 use dotavious::{attributes::NodeAttributes, EdgeBuilder, GraphBuilder, NodeBuilder};
 use std::{fmt::Debug, sync::atomic::AtomicUsize};
 use text_trees::StringTreeNode;
-use types::types::{Move, SnakeIDGettableGame};
 
 use super::WrappedScore;
 

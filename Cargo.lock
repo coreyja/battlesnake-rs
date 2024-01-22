@@ -335,8 +335,7 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "battlesnake-game-types"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370d3e9c1067908a33bb29721a19f0658eb3b923d046d6ad38f30494658b4659"
+source = "git+https://github.com/fables-tales/battlesnake-game-types.git?branch=ca/main/stacked-hazards#4c5733474c1af7de7d94f0ed9deb3185c828273b"
 dependencies = [
  "fxhash",
  "itertools",
@@ -350,6 +349,7 @@ dependencies = [
 name = "battlesnake-minimax"
 version = "0.1.0"
 dependencies = [
+ "battlesnake-game-types",
  "color-eyre",
  "dashmap",
  "debug_print",
@@ -361,7 +361,6 @@ dependencies = [
  "serde_json",
  "text_trees",
  "tracing",
- "types",
 ]
 
 [[package]]
@@ -369,6 +368,7 @@ name = "battlesnake-rs"
 version = "0.1.0"
 dependencies = [
  "atomic_float",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "color-eyre",
  "criterion",
@@ -387,7 +387,6 @@ dependencies = [
  "tinyvec",
  "tracing",
  "typed-arena",
- "types",
 ]
 
 [[package]]
@@ -3422,6 +3421,7 @@ name = "sherlock"
 version = "0.1.0"
 dependencies = [
  "axum 0.6.1",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "clap 4.0.32",
  "color-eyre",
@@ -3434,7 +3434,6 @@ dependencies = [
  "tokio",
  "tower-http",
  "tungstenite 0.18.0",
- "types",
  "ureq",
  "url 2.3.1",
 ]
@@ -4179,13 +4178,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
-name = "types"
-version = "0.1.0"
-dependencies = [
- "battlesnake-game-types",
-]
-
-[[package]]
 name = "uname"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4464,6 +4456,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.6.1",
  "axum-macros",
+ "battlesnake-game-types",
  "battlesnake-minimax",
  "battlesnake-rs",
  "color-eyre",

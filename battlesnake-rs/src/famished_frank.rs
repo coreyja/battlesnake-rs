@@ -1,5 +1,5 @@
+use battlesnake_game_types::types::*;
 use rand::thread_rng;
-use types::types::*;
 
 use crate::a_prime::{APrimeNextDirection, APrimeOptions};
 
@@ -26,7 +26,7 @@ where
         let targets = if you_body.len() < target_length as usize {
             self.game.get_all_food_as_native_positions()
         } else {
-            vec![
+            [
                 Position { x: 0, y: 0 },
                 Position {
                     x: (self.game.get_width() - 1) as i32,

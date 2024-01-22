@@ -10,15 +10,15 @@ use std::{
 };
 
 use atomic_float::AtomicF64;
+use battlesnake_game_types::{
+    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
+};
 use decorum::{Infinite, Real, N64};
 use dotavious::{Dot, Edge, GraphBuilder};
 use itertools::Itertools;
 use rand::prelude::ThreadRng;
 use tracing::{info, info_span};
 pub use typed_arena::Arena;
-use types::{
-    compact_representation::WrappedCellBoard4Snakes11x11, wire_representation::NestedGame,
-};
 
 use crate::flood_fill::spread_from_head_arcade_maze::{Scores, SpreadFromHead};
 
@@ -254,7 +254,7 @@ where
 
             let start = std::time::Instant::now();
 
-            const NETWORK_LATENCY_PADDING: i64 = 100;
+            const NETWORK_LATENCY_PADDING: i64 = 120;
             let max_duration = self.game_info.timeout - NETWORK_LATENCY_PADDING;
 
             let while_condition =
@@ -674,10 +674,12 @@ where
         child_id: Vec<usize>,
         total_number_of_iterations: usize,
     ) -> String {
+        // TODO: Submit a clippy bug report for this
+        #[allow(clippy::useless_asref)]
         let me_id: String = format!(
             "Depth: {depth}\nChild ID: {:?}\nMove: {:?}\nTotal Score: {:?}\nVisits: {:?}\nUCB1: {}\nAvg Score: {:?}\nIs Over: {:?}",
             child_id,
-            self.tree_context.as_ref().map(|t| t.snake_move.clone()),
+            &self.tree_context.as_ref().map(|t| t.snake_move.clone()),
             self.total_score,
             self.number_of_visits,
             self.ucb1_normal_score(total_number_of_iterations),
@@ -708,9 +710,9 @@ where
 #[cfg(test)]
 mod test {
 
+    use battlesnake_game_types::compact_representation::standard::CellBoard4Snakes11x11;
     use decorum::Infinite;
     use itertools::Itertools;
-    use types::compact_representation::standard::CellBoard4Snakes11x11;
 
     use super::*;
 

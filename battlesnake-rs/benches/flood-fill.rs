@@ -1,4 +1,4 @@
-use types::{
+use battlesnake_game_types::{
     types::*,
     wire_representation::{Game, Ruleset},
 };
@@ -16,7 +16,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let game: Game = serde_json::from_str(game_json).unwrap();
 
         let id_map = build_snake_id_map(&game);
-        let game = types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(
+        let game = battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(
             game, &id_map,
         )
         .unwrap();
@@ -39,7 +39,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         };
 
         let id_map = build_snake_id_map(&game);
-        let game = types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
+        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
             game, &id_map,
         )
         .unwrap();
@@ -62,7 +62,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         };
 
         let id_map = build_snake_id_map(&game);
-        let game = types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
+        let game = battlesnake_game_types::compact_representation::WrappedCellBoard4Snakes11x11::convert_from_game(
             game, &id_map,
         )
         .unwrap();

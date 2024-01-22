@@ -8,7 +8,7 @@ use std::{fmt::Debug, hash::Hash};
 
 use color_eyre::eyre::Result;
 
-pub use types::{
+pub use battlesnake_game_types::{
     compact_representation::StandardCellBoard4Snakes11x11, types::*, wire_representation::Game,
 };
 
@@ -50,10 +50,7 @@ impl Default for AboutMe {
     }
 }
 
-use types::{
-    types::{PositionGettableGame, SnakeIDGettableGame, YouDeterminableGame},
-    wire_representation::Position,
-};
+use battlesnake_game_types::wire_representation::Position;
 
 // use crate::{
 //     bombastic_bob::BombasticBobFactory, constant_carter::ConstantCarterFactory,
