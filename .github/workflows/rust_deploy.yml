@@ -13,11 +13,8 @@ jobs:
   build:
     name: Build Release
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Fail Deploy if Tests Failed
-        run: exit 1
-        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -32,14 +29,47 @@ jobs:
           toolchain: nightly-2024-09-01
 
       - name: Build
-        run: cargo build --release --all-targets
+        run: cargo build --release --bin web-axum --locked
 
-      - name: Upload Releases
+      - name: Upload Release Binary
         uses: actions/upload-artifact@v4
         with:
-          name: releases
-          path: |
-            target/release/web-axum
-            target/release/web-rocket
-            target/release/web-lambda
-            target/release/sherlock
+          name: web-axum
+          path: target/release/web-axum
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Terrarium
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write  # Required for OIDC
+    steps:
+      - name: Download Release Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: web-axum
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
+          tags: tag:ci
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy Binary
+        run: |
+          chmod +x web-axum
+          scp -o StrictHostKeyChecking=no web-axum www@terrarium:~/server/web-axum.new
+          ssh www@terrarium "mv ~/server/web-axum.new ~/server/web-axum"
+
+      - name: Restart Service
+        run: |
+          ssh circle@terrarium "sudo systemctl restart terrarium.coreyja.com.service"
