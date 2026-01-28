@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fmt:
+    uses: ./.github/workflows/_fmt.yml
+
+  clippy:
+    uses: ./.github/workflows/_clippy.yml
+
+  test:
+    uses: ./.github/workflows/_test.yml
+
+  doc:
+    uses: ./.github/workflows/_doc.yml
