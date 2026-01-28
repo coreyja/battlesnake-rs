@@ -1,14 +1,14 @@
-#![feature(let_chains)]
 #![deny(warnings)]
 
 use axum::{
     async_trait,
-    extract::{FromRequestParts, Path, State},
+    extract::{FromRequestParts, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
+use serde::Deserialize;
 use battlesnake_minimax::{
     paranoid::{move_ordering::MoveOrdering, MinMaxReturn, SnakeOptions},
     types::types::YouDeterminableGame,
@@ -94,10 +94,13 @@ async fn main() -> Result<()> {
     };
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var(
-            "RUST_LOG",
-            "info,battlesnake-minimax=info,battlesnake-rs=info",
-        );
+        // SAFETY: This is called at startup before any other threads are spawned
+        unsafe {
+            std::env::set_var(
+                "RUST_LOG",
+                "info,battlesnake-minimax=info,battlesnake-rs=info",
+            );
+        }
     }
     let logging: Box<dyn Layer<Registry> + Send + Sync> = if std::env::var("JSON_LOGS").is_ok() {
         Box::new(tracing_subscriber::fmt::layer().json())
@@ -242,10 +245,20 @@ where
     tokio::task::spawn_blocking(move || current_span.in_scope(f))
 }
 
+#[derive(Debug, Deserialize)]
+struct MoveQueryParams {
+    sleep_ms: Option<u64>,
+}
+
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
+    Query(params): Query<MoveQueryParams>,
     Json(game): Json<Game>,
 ) -> JsonResponse<MoveOutput> {
+    if let Some(sleep_ms) = params.sleep_ms {
+        tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
+    }
+
     let snake = factory.create_from_wire_game(game);
 
     let output = spawn_blocking_with_tracing(move || snake.make_move()).await??;
