@@ -9,7 +9,6 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use serde::Deserialize;
 use battlesnake_minimax::{
     paranoid::{move_ordering::MoveOrdering, MinMaxReturn, SnakeOptions},
     types::types::YouDeterminableGame,
@@ -25,6 +24,7 @@ use color_eyre::{
     eyre::{eyre, Result},
     Report,
 };
+use serde::Deserialize;
 
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;

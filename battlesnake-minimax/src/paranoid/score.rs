@@ -5,7 +5,9 @@ use battlesnake_game_types::types::{
 };
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Copy)]
-/// The wrapped score type. This takes into account the score provided by the score function, but
+/// The wrapped score type.
+///
+/// This takes into account the score provided by the score function, but
 /// wraps it with a Score based on the game state. This allows us to say that wins are better than
 /// any score and loses are worse than any score, etc.
 pub enum WrappedScore<ScoreType>
