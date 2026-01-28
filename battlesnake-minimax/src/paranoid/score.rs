@@ -28,7 +28,7 @@ where
     Win(Reverse<i64>),
 }
 
-const LOWEST_DEPTH: i64 = std::i64::MIN;
+const LOWEST_DEPTH: i64 = i64::MIN;
 
 impl<ScoreType> WrappedScore<ScoreType>
 where
