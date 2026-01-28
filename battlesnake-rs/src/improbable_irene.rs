@@ -550,7 +550,7 @@ where
     fn next_child_to_explore(
         &self,
         total_number_of_iterations: usize,
-    ) -> Option<&'arena Node<'_, BoardType>> {
+    ) -> Option<&'arena Node<BoardType>> {
         debug_assert!(self.has_been_expanded());
 
         let borrowed = self.children.borrow();
@@ -564,7 +564,7 @@ where
             .max_by_key(|child| child.ucb1_normal_score(total_number_of_iterations))
     }
 
-    fn highest_average_score_child(&self) -> Option<&'arena Node<'_, BoardType>> {
+    fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
         let children = borrowed
@@ -657,7 +657,7 @@ where
         }
     }
 
-    fn graph(&self, total_number_of_iterations: usize) -> Dot<'_> {
+    fn graph(&self, total_number_of_iterations: usize) -> Dot {
         let mut builder = GraphBuilder::new_named_directed("example");
         self.graph_with(&mut builder, 0, vec![], total_number_of_iterations);
 
