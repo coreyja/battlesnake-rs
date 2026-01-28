@@ -3,7 +3,7 @@
 
 use axum::{
     async_trait,
-    extract::{FromRequestParts, Path, State},
+    extract::{FromRequestParts, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -24,6 +24,7 @@ use color_eyre::{
     eyre::{eyre, Result},
     Report,
 };
+use serde::Deserialize;
 
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
@@ -242,10 +243,20 @@ where
     tokio::task::spawn_blocking(move || current_span.in_scope(f))
 }
 
+#[derive(Debug, Deserialize)]
+struct MoveQueryParams {
+    sleep_ms: Option<u64>,
+}
+
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
+    Query(params): Query<MoveQueryParams>,
     Json(game): Json<Game>,
 ) -> JsonResponse<MoveOutput> {
+    if let Some(sleep_ms) = params.sleep_ms {
+        tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
+    }
+
     let snake = factory.create_from_wire_game(game);
 
     let output = spawn_blocking_with_tracing(move || snake.make_move()).await??;

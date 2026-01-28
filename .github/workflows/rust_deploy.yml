@@ -5,7 +5,7 @@ run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha }}
 
 on:
   workflow_run:
-    workflows: ["Rust Test"]
+    workflows: ["CI"]
     types: [completed]
     branches: "main"
 
@@ -17,25 +17,25 @@ jobs:
       - name: Fail Deploy if Tests Failed
         run: exit 1
         if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-      - name: Setup | Checkout
+
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-        uses: actions/checkout@v3
-      - name: Setup | Rust
-        uses: ATiltedTree/setup-rust@v1
+
+      - name: Install protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rust-version: nightly
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: protobuf-compiler
-          version: v0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust"
+          toolchain: nightly-2024-09-01
+
       - name: Build
         run: cargo build --release --all-targets
+
       - name: Upload Releases
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: releases
           path: |
