@@ -159,7 +159,7 @@ where
     }
 
     /// To dot graph to view elsewhere
-    pub fn to_dot_graph(&self, you_id: &GameType::SnakeIDType) -> dotavious::Dot {
+    pub fn to_dot_graph(&self, you_id: &GameType::SnakeIDType) -> dotavious::Dot<'_> {
         let mut builder = GraphBuilder::new_named_directed("example");
         self.to_dot_graph_recursive(&mut builder, you_id);
         builder.add_attribute(
