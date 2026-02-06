@@ -333,8 +333,6 @@ fn snake_catalog() -> Vec<SnakeInfo> {
 
 async fn root() -> Html<String> {
     let snakes = snake_catalog();
-    let factories = all_factories();
-    let active_slugs: Vec<String> = factories.iter().map(|f| f.name()).collect();
 
     let markup = maud::html! {
         (maud::DOCTYPE)
@@ -452,7 +450,6 @@ async fn root() -> Html<String> {
                     main class="px-6 pb-24" {
                         div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5" {
                             @for (i, snake) in snakes.iter().enumerate() {
-                                @let is_active = active_slugs.contains(&snake.slug.to_string());
                                 @let delay = format!("animation-delay: {}ms", i * 80);
                                 div class="snake-card slither-in group relative rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-sm overflow-hidden"
                                     style=(delay) {
@@ -475,11 +472,6 @@ async fn root() -> Html<String> {
                                                     span class="text-xs px-2.5 py-1 rounded-full border font-mono tracking-wide"
                                                         style=(format!("color: {}; border-color: {}40; background: {}10;", snake.color, snake.color, snake.color)) {
                                                         (snake.strategy)
-                                                    }
-                                                    @if !is_active {
-                                                        span class="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500 font-mono" {
-                                                            "inactive"
-                                                        }
                                                     }
                                                 }
                                             }
