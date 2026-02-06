@@ -1,4 +1,4 @@
-#![allow(mismatched_lifetime_syntaxes)]
+#![allow(unknown_lints, mismatched_lifetime_syntaxes)]
 #![deny(
     warnings,
     missing_copy_implementations,
