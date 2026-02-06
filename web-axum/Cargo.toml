@@ -28,3 +28,4 @@ sentry = { version ="0.29.1", default-features = false, features = ["rustls", "b
 sentry-tower = { version = "0.29.1", features = ["http"] }
 sentry-tracing = "0.29.1"
 color-eyre = "0.6.2"
+maud = "0.26"
