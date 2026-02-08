@@ -26,7 +26,7 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly-2024-09-01
+          toolchain: nightly-2026-01-26
 
       - name: Build
         run: cargo build --release --bin web-axum --locked
@@ -54,7 +54,7 @@ jobs:
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
+          audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
           tags: tag:ci
 
       - name: Setup SSH Key
