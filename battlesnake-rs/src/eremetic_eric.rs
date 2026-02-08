@@ -140,7 +140,7 @@ where
         if &you_head == closest_body_part && cant_survive_another_loop {
             let d = self
                 .game
-                .shortest_path_next_direction(&you_head, &[best_food.clone()], None)
+                .shortest_path_next_direction(&you_head, std::slice::from_ref(best_food), None)
                 .unwrap();
 
             return Ok(MoveOutput {
