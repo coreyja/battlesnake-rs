@@ -323,7 +323,7 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 [[package]]
 name = "battlesnake-game-types"
 version = "0.17.0"
-source = "git+https://github.com/fables-tales/battlesnake-game-types.git?branch=ca%2Fmain%2Fstacked-hazards#4c5733474c1af7de7d94f0ed9deb3185c828273b"
+source = "git+https://github.com/coreyja-studio/battlesnake-game-types.git?branch=feature%2Fminstd-food-spawn#df32030371dfa2372e559c44cedc80c4489b3ca0"
 dependencies = [
  "fxhash",
  "itertools",
