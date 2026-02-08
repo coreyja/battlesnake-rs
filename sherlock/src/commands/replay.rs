@@ -25,14 +25,14 @@ pub(crate) struct File {
 }
 
 use axum::{
+    Json, Router,
     extract::{
-        ws::{rejection::WebSocketUpgradeRejection, Message, WebSocket, WebSocketUpgrade},
         Path,
+        ws::{Message, WebSocket, WebSocketUpgrade, rejection::WebSocketUpgradeRejection},
     },
     http::{Method, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router,
 };
 use serde_json::Value;
 use tower_http::cors::CorsLayer;

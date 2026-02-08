@@ -5,7 +5,7 @@ use battlesnake_game_types::{
 use color_eyre::eyre::Result;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tungstenite::{connect, Message};
+use tungstenite::{Message, connect};
 use url::Url;
 
 #[derive(Serialize, Deserialize, Debug)]
