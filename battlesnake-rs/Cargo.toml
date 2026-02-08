@@ -30,7 +30,7 @@ battlesnake-game-types = { workspace = true }
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
-pprof = { git ="https://github.com/tikv/pprof-rs.git", rev = "a280c9e", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.15.0", features = ["flamegraph", "criterion"] }
 
 [lib]
 name = "battlesnake_rs"

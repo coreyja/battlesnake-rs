@@ -175,7 +175,7 @@ where
         create_dir("/Users/coreyja/Projects/battlesnake-rs/tmp/")?;
 
         let while_condition = |root_node: &Node<BoardType>, total_number_of_iterations: usize| {
-            if total_number_of_iterations % 64 == 0 && total_number_of_iterations != 0 {
+            if total_number_of_iterations != 0 && total_number_of_iterations.is_multiple_of(64) {
                 let mut file = OpenOptions::new()
                     .write(true)
                     .create(true)
@@ -550,7 +550,7 @@ where
     fn next_child_to_explore(
         &self,
         total_number_of_iterations: usize,
-    ) -> Option<&'arena Node<BoardType>> {
+    ) -> Option<&'arena Node<'_, BoardType>> {
         debug_assert!(self.has_been_expanded());
 
         let borrowed = self.children.borrow();
@@ -564,7 +564,7 @@ where
             .max_by_key(|child| child.ucb1_normal_score(total_number_of_iterations))
     }
 
-    fn highest_average_score_child(&self) -> Option<&'arena Node<BoardType>> {
+    fn highest_average_score_child(&self) -> Option<&'arena Node<'_, BoardType>> {
         debug_assert!(self.has_been_expanded());
         let borrowed = self.children.borrow();
         let children = borrowed
@@ -657,7 +657,7 @@ where
         }
     }
 
-    fn graph(&self, total_number_of_iterations: usize) -> Dot {
+    fn graph(&self, total_number_of_iterations: usize) -> Dot<'_> {
         let mut builder = GraphBuilder::new_named_directed("example");
         self.graph_with(&mut builder, 0, vec![], total_number_of_iterations);
 

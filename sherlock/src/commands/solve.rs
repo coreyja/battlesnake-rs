@@ -1,8 +1,8 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use battlesnake_game_types::{
-    compact_representation::{dimensions::Square, WrappedCellBoard},
-    types::{build_snake_id_map, Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame},
+    compact_representation::{WrappedCellBoard, dimensions::Square},
+    types::{Move, SnakeIDGettableGame, SnakeId, YouDeterminableGame, build_snake_id_map},
 };
 use battlesnake_minimax::paranoid::{MinMaxReturn, MinimaxSnake, WrappedScore};
 use color_eyre::eyre::Result;
