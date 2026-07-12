@@ -1,24 +1,28 @@
 name: Deploy Terrarium
 concurrency: deploy
 
-run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha }}
+run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha || github.sha }}
 
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: "main"
+  # Manual redeploy of main — revives the service after a crash/reboot
+  # without waiting for a code change (terrarium served 502s for a week
+  # because the only restart lever was a deploy).
+  workflow_dispatch:
 
 jobs:
   build:
     name: Build Release
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Install protobuf-compiler
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
