@@ -1,4 +1,6 @@
 name: Deploy Terrarium
+# Run manual inspection from main, where Tailscale's federated login is accepted.
+# SSH uses the deploy key over Tailscale; enabling Tailscale SSH also needs a CI SSH policy rule.
 concurrency: deploy
 
 run-name: Terrarium ${{ inputs.operation || 'deploy' }} @ ${{ github.event.workflow_run.head_sha || github.sha }}

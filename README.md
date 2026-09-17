@@ -77,8 +77,5 @@ Irene explores possible games with Monte Carlo Tree Search.
 
 ### Judicious Jev
 
-Jev uses TypeSafe's Choice API to select a move from board features computed in Rust.
-Local collision checks and a deadline-aware fallback keep the snake moving when the
-API is unavailable. An Eyes dashboard tracks tokens, estimated cost per game, and latency.
-
-See [setup and telemetry](docs/judicious-jev.md). Served by `web-axum` at `/judicious-jev`.
+Jev uses TypeSafe Choice with a local fallback and per-game cost tracking in Eyes.
+See the [Rust module docs](web-axum/src/judicious_jev/mod.rs) for setup and behavior.

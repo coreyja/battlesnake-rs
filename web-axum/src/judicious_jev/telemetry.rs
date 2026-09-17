@@ -1,3 +1,15 @@
+//! Per-game token counts, estimated cost, latency, and fallback metrics.
+//!
+//! Set `EYES_ORG_ID`, `EYES_APP_ID`, and `EYES_TOKEN` to publish the
+//! `judicious-jev` dashboard. Use a dedicated Eyes app: startup publishes its
+//! metric/dashboard manifest. `EYES_URL` defaults to `https://eyes.coreyja.com`.
+//! Terrarium's deploy workflow supplies these settings and the TypeSafe key
+//! from GitHub; update the repository settings and redeploy to rotate them.
+//!
+//! Late or invalid answers still count toward usage. Missing usage and unknown
+//! model pricing are tracked as unknown, not zero. Costs are estimates; the
+//! dashboard displays microUSD (1,000,000 = $1) to keep small amounts visible.
+
 use std::time::Duration;
 
 use battlesnake_rs::Game;

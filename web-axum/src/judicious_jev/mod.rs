@@ -1,4 +1,14 @@
-//! Async TypeSafe snake. Kept outside the synchronous BattlesnakeAI factory API.
+//! Judicious Jev, a TypeSafe Choice snake served at `/judicious-jev`.
+//!
+//! Run `cargo run -p web-axum` with `TYPESAFE_API_KEY` set. `TYPESAFE_MODEL`
+//! defaults to `jev-latest`. See [`telemetry`] for optional Eyes reporting.
+//!
+//! Rust filters immediate hazards and computes board features for one async
+//! choice. Forced moves stay local; missing credentials, errors, and timeouts
+//! use the local fallback. Squad-specific rules are not modeled.
+//!
+//! Turns reserve 50 ms for transport and wait at most 450 ms for Jev. Late
+//! requests can finish for up to five seconds so their usage is still recorded.
 
 mod board;
 pub(super) mod telemetry;
