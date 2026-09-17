@@ -1,7 +1,7 @@
 name: Deploy Terrarium
 concurrency: deploy
 
-run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha || github.sha }}
+run-name: Terrarium ${{ inputs.operation || 'deploy' }} @ ${{ github.event.workflow_run.head_sha || github.sha }}
 
 on:
   workflow_run:
@@ -88,6 +88,7 @@ jobs:
     name: Inspect Terrarium
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'inspect' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       id-token: write
     steps:
@@ -97,6 +98,8 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
           tags: tag:ci
+          timeout: 30s
+          retry: 1
 
       - name: Setup SSH Key
         env:
