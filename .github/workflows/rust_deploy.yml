@@ -84,15 +84,6 @@ jobs:
           EYES_ORG_ID: ${{ vars.EYES_ORG_ID }}
           EYES_APP_ID: ${{ vars.EYES_APP_ID }}
         run: |
-          # Refuse to deploy a snake whose credentials systemd would ignore.
-          ssh -o BatchMode=yes circle@terrarium '
-            env_file="$(getent passwd www | cut -d: -f6)/server/judicious-jev.env"
-            systemctl show terrarium.coreyja.com.service -p EnvironmentFiles --value |
-              grep -F -- "$env_file (ignore_errors=" >/dev/null || {
-                echo "Service setup required: see docs/judicious-jev.md" >&2
-                exit 1
-              }
-          '
           trap 'rm -f "$RUNNER_TEMP/judicious-jev.env"' EXIT
           python3 - <<'PY'
           import os
@@ -119,6 +110,24 @@ jobs:
             mv "$temporary" "$HOME/server/judicious-jev.env"
           ' < "$RUNNER_TEMP/judicious-jev.env"
 
+      - name: Configure systemd environment file
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          www_home="$(getent passwd www | cut -d: -f6)"
+          test -n "$www_home"
+          dropin_dir=/etc/systemd/system/terrarium.coreyja.com.service.d
+          sudo -n install -d -m 0755 "$dropin_dir"
+          temporary="$(sudo -n mktemp "$dropin_dir/.judicious-jev.XXXXXX")"
+          trap 'sudo -n rm -f "$temporary"' EXIT
+          printf '[Service]\nEnvironmentFile=%s/server/judicious-jev.env\n' "$www_home" |
+            sudo -n tee "$temporary" >/dev/null
+          sudo -n chmod 0644 "$temporary"
+          sudo -n mv "$temporary" "$dropin_dir/judicious-jev.conf"
+          sudo -n systemctl daemon-reload
+          systemctl show terrarium.coreyja.com.service -p EnvironmentFiles --value |
+            grep -F -- "$www_home/server/judicious-jev.env (ignore_errors=no)" >/dev/null
+          SH
+
       - name: Deploy Binary
         run: |
           chmod +x web-axum
@@ -127,7 +136,28 @@ jobs:
 
       - name: Restart Service
         run: |
-          ssh circle@terrarium "sudo systemctl restart terrarium.coreyja.com.service"
+          ssh -o BatchMode=yes circle@terrarium "sudo -n systemctl restart terrarium.coreyja.com.service"
+
+      - name: Verify running service configuration
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          systemctl is-active --quiet terrarium.coreyja.com.service
+          pid="$(systemctl show terrarium.coreyja.com.service -p MainPID --value)"
+          sudo -n python3 - "$pid" <<'PY'
+          import sys
+          from pathlib import Path
+
+          entries = Path(f"/proc/{int(sys.argv[1])}/environ").read_bytes().split(b"\0")
+          configured = {entry.split(b"=", 1)[0] for entry in entries if b"=" in entry and entry.split(b"=", 1)[1]}
+          names = (b"TYPESAFE_API_KEY", b"EYES_TOKEN", b"EYES_ORG_ID", b"EYES_APP_ID")
+          missing = [name.decode() for name in names if name not in configured]
+          if missing:
+              raise SystemExit("Missing process settings: " + ", ".join(missing))
+          print("Running service has all four Jev/Eyes settings; values withheld.")
+          PY
+          SH
+          curl --fail --silent --show-error --retry 5 --retry-delay 1 --retry-connrefused \
+            --connect-timeout 5 --max-time 15 --output /dev/null https://terrarium.coreyja.com/
 
   inspect:
     name: Inspect Terrarium

@@ -18,41 +18,15 @@ metadata; `POST /judicious-jev/start`, `/move`, and `/end` implement the game li
 
 ## Terrarium deployment
 
-The `Deploy Terrarium` workflow writes the four required settings to
-`~www/server/judicious-jev.env`, owned by `www` with mode `0600`, before replacing
-the binary and restarting the service. Values travel over SSH and are never printed.
-Configure these GitHub repository settings:
+The `Deploy Terrarium` workflow installs `TYPESAFE_API_KEY` and `EYES_TOKEN` from
+GitHub repository secrets, and `EYES_ORG_ID` and `EYES_APP_ID` from repository
+variables. It writes a mode-0600 environment file owned by `www`, configures systemd
+to load it, and verifies that the restarted process received all four settings.
+No manual systemd setup is needed.
 
-| Kind | Name | Purpose |
-| --- | --- | --- |
-| Secret | `TYPESAFE_API_KEY` | TypeSafe API credential |
-| Secret | `EYES_TOKEN` | Dedicated Eyes app's ingest token |
-| Variable | `EYES_ORG_ID` | Eyes organization UUID |
-| Variable | `EYES_APP_ID` | Judicious Jev app UUID |
-
-Once on the droplet, an administrator must configure systemd to read that file:
-
-```sh
-www_home="$(getent passwd www | cut -d: -f6)"
-test -n "$www_home"
-sudo install -d -m 0755 /etc/systemd/system/terrarium.coreyja.com.service.d
-printf '[Service]\nEnvironmentFile=-%s/server/judicious-jev.env\n' "$www_home" |
-  sudo tee /etc/systemd/system/terrarium.coreyja.com.service.d/judicious-jev.conf >/dev/null
-sudo systemctl daemon-reload
-```
-
-This adds a drop-in alongside existing service configuration. The optional-file
-prefix lets the existing server run before the first Jev deployment. The deploy
-workflow checks that the drop-in is loaded and fails before replacing the binary
-if it is missing. Future deployments refresh the credentials and restart normally.
-
-The workflow also has a manual `inspect` operation that reports service status,
-environment-file paths, and deployment permissions without exposing environment
-values or deploying a binary. It requires a GitHub revision accepted by the
-tailnet's federated identity configuration, plus the existing deploy SSH key.
-Enabling Tailscale SSH on the droplet also requires an SSH policy rule for the
-workflow's `tag:ci` identity as `www` and `circle`; otherwise it intercepts and
-rejects the existing key-based deployment connection.
+See [Terrarium deployment](terrarium-deployment.md) for the full workflow,
+credential rotation, and read-only host inspection. `TYPESAFE_MODEL` defaults to
+`jev-latest`; `EYES_URL` defaults to `https://eyes.coreyja.com`.
 
 ## Decisions and deadlines
 
