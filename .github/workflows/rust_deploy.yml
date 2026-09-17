@@ -1,7 +1,7 @@
 name: Deploy Terrarium
 concurrency: deploy
 
-run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha || github.sha }}
+run-name: Terrarium ${{ inputs.operation || 'deploy' }} @ ${{ github.event.workflow_run.head_sha || github.sha }}
 
 on:
   workflow_run:
@@ -12,12 +12,18 @@ on:
   # without waiting for a code change (terrarium served 502s for a week
   # because the only restart lever was a deploy).
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy the selected revision or inspect the host configuration
+        type: choice
+        options: [deploy, inspect]
+        default: deploy
 
 jobs:
   build:
     name: Build Release
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.operation != 'inspect') || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,3 +83,34 @@ jobs:
       - name: Restart Service
         run: |
           ssh circle@terrarium "sudo systemctl restart terrarium.coreyja.com.service"
+
+  inspect:
+    name: Inspect Terrarium
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'inspect' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
+          tags: tag:ci
+          timeout: 30s
+          retry: 1
+
+      - name: Setup SSH Key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts
+
+      - name: Inspect service and deployment permissions
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'id; hostname; sudo -n -l; systemctl show terrarium.coreyja.com.service -p FragmentPath -p User -p Group -p WorkingDirectory -p EnvironmentFiles -p ActiveState -p SubState -p Result -p ExecMainStatus'
+          ssh -o BatchMode=yes www@terrarium 'id; ls -ld ~ ~/server; find ~/server -maxdepth 1 -type f -printf "%f %m %u\n"'
