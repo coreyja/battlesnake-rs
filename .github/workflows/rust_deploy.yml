@@ -1,7 +1,7 @@
 name: Deploy Terrarium
 concurrency: deploy
 
-run-name: Deploy Terrarium @ ${{ github.event.workflow_run.head_sha || github.sha }}
+run-name: Terrarium ${{ inputs.operation || 'deploy' }} @ ${{ github.event.workflow_run.head_sha || github.sha }}
 
 on:
   workflow_run:
@@ -51,6 +51,7 @@ jobs:
   deploy:
     name: Deploy to Terrarium
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     permissions:
       id-token: write  # Required for OIDC
@@ -68,16 +69,60 @@ jobs:
           tags: tag:ci
 
       - name: Setup SSH Key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          umask 077
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts 2>/dev/null || true
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts
+
+      - name: Configure Judicious Jev
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EYES_TOKEN: ${{ secrets.EYES_TOKEN }}
+          EYES_ORG_ID: ${{ vars.EYES_ORG_ID }}
+          EYES_APP_ID: ${{ vars.EYES_APP_ID }}
+        run: |
+          # Refuse to deploy a snake whose credentials systemd would ignore.
+          ssh -o BatchMode=yes circle@terrarium '
+            env_file="$(getent passwd www | cut -d: -f6)/server/judicious-jev.env"
+            systemctl show terrarium.coreyja.com.service -p EnvironmentFiles --value |
+              grep -F -- "$env_file (ignore_errors=" >/dev/null || {
+                echo "Service setup required: see docs/judicious-jev.md" >&2
+                exit 1
+              }
+          '
+          trap 'rm -f "$RUNNER_TEMP/judicious-jev.env"' EXIT
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          names = ("TYPESAFE_API_KEY", "EYES_TOKEN", "EYES_ORG_ID", "EYES_APP_ID")
+          values = {name: os.environ.get(name, "") for name in names}
+          for name, value in values.items():
+              if not value or any(c in value for c in "\r\n\0"):
+                  raise SystemExit(f"Missing or invalid repository setting: {name}")
+          path = Path(os.environ["RUNNER_TEMP"]) / "judicious-jev.env"
+          descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(descriptor, "w") as output:
+              for name, value in values.items():
+                  escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+                  output.write(f'{name}="{escaped}"\n')
+          PY
+          ssh -o BatchMode=yes www@terrarium '
+            set -eu
+            umask 077
+            temporary="$(mktemp "$HOME/server/.judicious-jev.env.XXXXXX")"
+            trap '\''rm -f "$temporary"'\'' EXIT
+            cat > "$temporary"
+            mv "$temporary" "$HOME/server/judicious-jev.env"
+          ' < "$RUNNER_TEMP/judicious-jev.env"
 
       - name: Deploy Binary
         run: |
           chmod +x web-axum
-          scp -o StrictHostKeyChecking=no web-axum www@terrarium:~/server/web-axum.new
+          scp web-axum www@terrarium:~/server/web-axum.new
           ssh www@terrarium "mv ~/server/web-axum.new ~/server/web-axum"
 
       - name: Restart Service
@@ -88,6 +133,7 @@ jobs:
     name: Inspect Terrarium
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'inspect' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       id-token: write
     steps:
@@ -97,6 +143,8 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_OAUTH_AUDIENCE }}
           tags: tag:ci
+          timeout: 30s
+          retry: 1
 
       - name: Setup SSH Key
         env:

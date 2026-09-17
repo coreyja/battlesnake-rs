@@ -16,6 +16,44 @@ The snake URL is `http://localhost:3000/judicious-jev`. Set `PORT` to change the
 warning and Jev uses its local fallback. `GET /judicious-jev` returns Battlesnake v1
 metadata; `POST /judicious-jev/start`, `/move`, and `/end` implement the game lifecycle.
 
+## Terrarium deployment
+
+The `Deploy Terrarium` workflow writes the four required settings to
+`~www/server/judicious-jev.env`, owned by `www` with mode `0600`, before replacing
+the binary and restarting the service. Values travel over SSH and are never printed.
+Configure these GitHub repository settings:
+
+| Kind | Name | Purpose |
+| --- | --- | --- |
+| Secret | `TYPESAFE_API_KEY` | TypeSafe API credential |
+| Secret | `EYES_TOKEN` | Dedicated Eyes app's ingest token |
+| Variable | `EYES_ORG_ID` | Eyes organization UUID |
+| Variable | `EYES_APP_ID` | Judicious Jev app UUID |
+
+Once on the droplet, an administrator must configure systemd to read that file:
+
+```sh
+www_home="$(getent passwd www | cut -d: -f6)"
+test -n "$www_home"
+sudo install -d -m 0755 /etc/systemd/system/terrarium.coreyja.com.service.d
+printf '[Service]\nEnvironmentFile=-%s/server/judicious-jev.env\n' "$www_home" |
+  sudo tee /etc/systemd/system/terrarium.coreyja.com.service.d/judicious-jev.conf >/dev/null
+sudo systemctl daemon-reload
+```
+
+This adds a drop-in alongside existing service configuration. The optional-file
+prefix lets the existing server run before the first Jev deployment. The deploy
+workflow checks that the drop-in is loaded and fails before replacing the binary
+if it is missing. Future deployments refresh the credentials and restart normally.
+
+The workflow also has a manual `inspect` operation that reports service status,
+environment-file paths, and deployment permissions without exposing environment
+values or deploying a binary. It requires a GitHub revision accepted by the
+tailnet's federated identity configuration, plus the existing deploy SSH key.
+Enabling Tailscale SSH on the droplet also requires an SSH policy rule for the
+workflow's `tag:ci` identity as `www` and `circle`; otherwise it intercepts and
+rejects the existing key-based deployment connection.
+
 ## Decisions and deadlines
 
 Rust removes wall, body, neck, starvation, and lethal hazard moves. It accounts for
