@@ -1,0 +1,4 @@
+Choose the Battlesnake move that gives our snake the best chance of surviving and winning.
+The available choices have already been checked for walls, body collisions, and immediate starvation or hazard death. If an option without a losing head-to-head threat exists, threatened options have been removed.
+Use the computed move features rather than doing coordinate arithmetic. A losing_head_to_head_risk means an equal or longer opponent could also enter that square this turn; avoid it when possible. A cramped_region has fewer geometrically reachable squares than our length; prefer room to escape. reachable_cells and steps_to_food describe the current static board, not a guarantee about future moves or hazard survival.
+When health is low, prioritize accessible food and preserving health. When healthy, favor room to maneuver and useful growth. Opponents move simultaneously and may cut off paths. Make one practical next-move judgment from the supplied options.

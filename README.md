@@ -70,3 +70,12 @@ Hobbs is an area control snake. They take the minimax implementation from Devin,
 with a Flood Fill inspired algorithm to try and control more of the board than their opponents.
 
 Hobbs is brand new, and excited to compete in the arenas
+
+### Improbable Irene
+
+Irene explores possible games with Monte Carlo Tree Search.
+
+### Judicious Jev
+
+Jev uses TypeSafe Choice with a local fallback and per-game cost tracking in Eyes.
+See the [Rust module docs](web-axum/src/judicious_jev/mod.rs) for setup and behavior.

@@ -1,0 +1,6 @@
+{
+  "game": {"id": "jev-test", "timeout": 500, "ruleset": {"name": "standard", "version": "v1.2.3", "settings": {"foodSpawnChance": 15, "minimumFood": 1, "hazardDamagePerTurn": 14}}},
+  "turn": 10,
+  "board": {"width": 7, "height": 7, "food": [{"x": 3, "y": 5}], "hazards": [], "snakes": [{"id": "jev", "name": "Judicious Jev", "health": 80, "head": {"x": 3, "y": 3}, "body": [{"x": 3, "y": 3}, {"x": 3, "y": 2}, {"x": 3, "y": 1}]}]},
+  "you": {"id": "jev", "name": "Judicious Jev", "health": 80, "head": {"x": 3, "y": 3}, "body": [{"x": 3, "y": 3}, {"x": 3, "y": 2}, {"x": 3, "y": 1}]}
+}

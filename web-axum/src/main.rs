@@ -1,5 +1,7 @@
 #![deny(warnings)]
 
+mod judicious_jev;
+
 use axum::{
     Json, Router, async_trait,
     extract::{FromRequestParts, Path, Query, State},
@@ -147,13 +149,23 @@ async fn main() -> Result<()> {
         None
     };
 
+    let (eyes_layer, eyes_shutdown) = judicious_jev::telemetry::layer()?;
     Registry::default()
         .with(logging)
         .with(heirarchical)
         .with(opentelemetry_layer)
         .with(env_filter)
         .with(sentry_tracing::layer())
+        .with(eyes_layer.map(|layer| {
+            layer.with_filter(tracing_subscriber::EnvFilter::new(
+                "web_axum::judicious_jev=info",
+            ))
+        }))
         .try_init()?;
+
+    if eyes_shutdown.is_some() {
+        judicious_jev::telemetry::publish()?;
+    }
 
     let state = AppState {
         game_states: HashMap::new(),
@@ -162,6 +174,7 @@ async fn main() -> Result<()> {
     let state = Arc::new(state);
 
     let app = Router::new()
+        .merge(judicious_jev::router()?)
         .route("/", get(root))
         .route("/hovering-hobbs", get(route_hobbs_info))
         .route("/hovering-hobbs/start", post(route_hobbs_start))
@@ -193,9 +206,36 @@ async fn main() -> Result<()> {
     tracing::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    if let Some(shutdown) = eyes_shutdown {
+        shutdown
+            .shutdown()
+            .await
+            .map_err(|error| eyre!(error.to_string()))?;
+    }
+
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        if let Ok(mut signal) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
+            signal.recv().await;
+        } else {
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
 }
 
 struct HttpError(color_eyre::eyre::Report);
@@ -237,6 +277,15 @@ struct SnakeInfo {
 
 fn snake_catalog() -> Vec<SnakeInfo> {
     vec![
+        SnakeInfo {
+            name: "Judicious Jev",
+            slug: "judicious-jev",
+            color: "#14b8a6",
+            head: "trans-rights-scarf",
+            tail: "default",
+            strategy: "TypeSafe Choice",
+            description: "A snap judgment every turn. Jev chooses a move from board features computed in Rust, with a local survival instinct when time runs short.",
+        },
         SnakeInfo {
             name: "Amphibious Arthur",
             slug: "amphibious-arthur",
