@@ -51,6 +51,7 @@ jobs:
   deploy:
     name: Deploy to Terrarium
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     permissions:
       id-token: write  # Required for OIDC
@@ -68,21 +69,95 @@ jobs:
           tags: tag:ci
 
       - name: Setup SSH Key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          umask 077
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts 2>/dev/null || true
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          ssh-keyscan -H terrarium >> ~/.ssh/known_hosts
+
+      - name: Configure Judicious Jev
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EYES_TOKEN: ${{ secrets.EYES_TOKEN }}
+          EYES_ORG_ID: ${{ vars.EYES_ORG_ID }}
+          EYES_APP_ID: ${{ vars.EYES_APP_ID }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/judicious-jev.env"' EXIT
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          names = ("TYPESAFE_API_KEY", "EYES_TOKEN", "EYES_ORG_ID", "EYES_APP_ID")
+          values = {name: os.environ.get(name, "") for name in names}
+          for name, value in values.items():
+              if not value or any(c in value for c in "\r\n\0"):
+                  raise SystemExit(f"Missing or invalid repository setting: {name}")
+          path = Path(os.environ["RUNNER_TEMP"]) / "judicious-jev.env"
+          descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(descriptor, "w") as output:
+              for name, value in values.items():
+                  escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+                  output.write(f'{name}="{escaped}"\n')
+          PY
+          ssh -o BatchMode=yes www@terrarium '
+            set -eu
+            umask 077
+            temporary="$(mktemp "$HOME/server/.judicious-jev.env.XXXXXX")"
+            trap '\''rm -f "$temporary"'\'' EXIT
+            cat > "$temporary"
+            mv "$temporary" "$HOME/server/judicious-jev.env"
+          ' < "$RUNNER_TEMP/judicious-jev.env"
+
+      - name: Configure systemd environment file
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          www_home="$(getent passwd www | cut -d: -f6)"
+          test -n "$www_home"
+          dropin_dir=/etc/systemd/system/terrarium.coreyja.com.service.d
+          sudo -n install -d -m 0755 "$dropin_dir"
+          temporary="$(sudo -n mktemp "$dropin_dir/.judicious-jev.XXXXXX")"
+          trap 'sudo -n rm -f "$temporary"' EXIT
+          printf '[Service]\nEnvironmentFile=%s/server/judicious-jev.env\n' "$www_home" |
+            sudo -n tee "$temporary" >/dev/null
+          sudo -n chmod 0644 "$temporary"
+          sudo -n mv "$temporary" "$dropin_dir/judicious-jev.conf"
+          sudo -n systemctl daemon-reload
+          systemctl show terrarium.coreyja.com.service -p EnvironmentFiles --value |
+            grep -F -- "$www_home/server/judicious-jev.env (ignore_errors=no)" >/dev/null
+          SH
 
       - name: Deploy Binary
         run: |
           chmod +x web-axum
-          scp -o StrictHostKeyChecking=no web-axum www@terrarium:~/server/web-axum.new
+          scp web-axum www@terrarium:~/server/web-axum.new
           ssh www@terrarium "mv ~/server/web-axum.new ~/server/web-axum"
 
       - name: Restart Service
         run: |
-          ssh circle@terrarium "sudo systemctl restart terrarium.coreyja.com.service"
+          ssh -o BatchMode=yes circle@terrarium "sudo -n systemctl restart terrarium.coreyja.com.service"
+
+      - name: Verify running service configuration
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          systemctl is-active --quiet terrarium.coreyja.com.service
+          pid="$(systemctl show terrarium.coreyja.com.service -p MainPID --value)"
+          sudo -n python3 - "$pid" <<'PY'
+          import sys
+          from pathlib import Path
+
+          entries = Path(f"/proc/{int(sys.argv[1])}/environ").read_bytes().split(b"\0")
+          configured = {entry.split(b"=", 1)[0] for entry in entries if b"=" in entry and entry.split(b"=", 1)[1]}
+          names = (b"TYPESAFE_API_KEY", b"EYES_TOKEN", b"EYES_ORG_ID", b"EYES_APP_ID")
+          missing = [name.decode() for name in names if name not in configured]
+          if missing:
+              raise SystemExit("Missing process settings: " + ", ".join(missing))
+          print("Running service has all four Jev/Eyes settings; values withheld.")
+          PY
+          SH
+          curl --fail --silent --show-error --retry 5 --retry-delay 1 --retry-connrefused \
+            --connect-timeout 5 --max-time 15 --output /dev/null https://terrarium.coreyja.com/
 
   inspect:
     name: Inspect Terrarium
