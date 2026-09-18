@@ -18,6 +18,7 @@ impl Drop for Server {
 }
 
 fn serve(app: Router) -> Server {
+    logs();
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
@@ -199,16 +200,24 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogWriter {
     }
 }
 
+fn logs() -> &'static LogWriter {
+    static LOGS: std::sync::OnceLock<LogWriter> = std::sync::OnceLock::new();
+    LOGS.get_or_init(|| {
+        let writer = LogWriter(Arc::new(std::sync::Mutex::new(Vec::new())));
+        let subscriber = tracing_subscriber::fmt()
+            .json()
+            .with_writer(writer.clone())
+            .finish();
+        // Initialize before any test server starts so parallel requests cannot
+        // capture an absent subscriber or register disabled telemetry callsites.
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        writer
+    })
+}
+
 #[tokio::test]
 async fn late_and_invalid_answers_still_record_billable_usage() {
-    let writer = LogWriter(Arc::new(std::sync::Mutex::new(Vec::new())));
-    let subscriber = tracing_subscriber::fmt()
-        .json()
-        .with_writer(writer.clone())
-        .finish();
-    // A process-wide subscriber avoids tracing's callsite-interest cache racing
-    // with the other parallel tests' initially absent thread-local subscribers.
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+    let writer = logs();
     async {
         let mut invalid = answer("left");
         invalid["answers"] = json!({});
