@@ -1,6 +1,7 @@
 #![deny(warnings)]
 
 mod judicious_jev;
+mod telemetry;
 
 use axum::{
     Json, Router, async_trait,
@@ -37,9 +38,8 @@ use tower_http::{
     LatencyUnit,
     trace::{DefaultOnRequest, DefaultOnResponse, OnResponse, TraceLayer},
 };
-use tracing::{Instrument, Level, Metadata, Span, span};
+use tracing::{Instrument, Level, Span, span};
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::filter::{FilterFn, filter_fn};
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
@@ -151,14 +151,14 @@ async fn main() -> Result<()> {
         None
     };
 
-    let (eyes_layer, eyes_shutdown) = judicious_jev::telemetry::layer()?;
+    let (eyes_layer, eyes_shutdown) = telemetry::layer()?;
     Registry::default()
         .with(logging)
         .with(heirarchical)
         .with(opentelemetry_layer)
         .with(env_filter)
         .with(sentry_tracing::layer())
-        .with(eyes_layer.map(|layer| layer.with_filter(eyes_filter())))
+        .with(eyes_layer.map(|layer| layer.with_filter(telemetry::eyes_filter())))
         .try_init()?;
 
     // Panics otherwise only reach stderr; record them as errors so they show
@@ -172,12 +172,12 @@ async fn main() -> Result<()> {
             .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
             .unwrap_or("non-string panic payload");
         let location = info.location().map(ToString::to_string);
-        tracing::error!(panic.message = message, panic.location = location, "panic");
+        tracing::error!(panic_message = message, panic_location = location, "panic");
         report_panic(info);
     }));
 
     if eyes_shutdown.is_some() {
-        judicious_jev::telemetry::publish()?;
+        telemetry::publish()?;
     }
 
     let state = Mutex::new(AppState::default());
@@ -608,20 +608,6 @@ async fn root() -> Html<String> {
     Html(markup.into_string())
 }
 
-/// Eyes gets every INFO+ span but only the events that carry signal: WARN+
-/// (including panics) and Judicious Jev's metric events. Per-request log lines
-/// stay in the journal.
-fn eyes_filter() -> FilterFn<impl Fn(&Metadata<'_>) -> bool> {
-    filter_fn(|metadata| {
-        if metadata.is_span() {
-            *metadata.level() <= Level::INFO
-        } else {
-            *metadata.level() <= Level::WARN
-                || metadata.target().starts_with("web_axum::judicious_jev")
-        }
-    })
-}
-
 async fn route_info(ExtractSnakeFactory(factory): ExtractSnakeFactory) -> impl IntoResponse {
     let carter_info = factory.about();
 
@@ -642,7 +628,7 @@ struct MoveQueryParams {
     sleep_ms: Option<u64>,
 }
 
-#[tracing::instrument(skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
+#[tracing::instrument(name = "snake.move", skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Query(params): Query<MoveQueryParams>,
@@ -688,7 +674,7 @@ async fn route_graph(Json(game): Json<Game>) -> JsonResponse<MoveOutput> {
 
 // Always acknowledges, as before: the body is parsed only to label the span,
 // so an unknown snake or unparseable game still gets a 204.
-#[tracing::instrument(skip_all, fields(
+#[tracing::instrument(name = "snake.start", skip_all, fields(
     snake = %snake_name,
     game_id = game.as_ref().map(|Json(game)| game.game.id.as_str()),
     turn = game.as_ref().map(|Json(game)| game.turn),
@@ -699,7 +685,7 @@ async fn route_start(
 ) -> impl IntoResponse {
     StatusCode::NO_CONTENT
 }
-#[tracing::instrument(skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
+#[tracing::instrument(name = "snake.end", skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn, won = telemetry::won(&game)))]
 async fn route_end(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
@@ -716,14 +702,97 @@ use hobbs::*;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
+    use tracing::{Subscriber, field::Field, span};
+    use tracing_subscriber::layer::Context;
+
     use super::*;
+
+    fn fixture() -> Game {
+        serde_json::from_str(include_str!(
+            "../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json"
+        ))
+        .unwrap()
+    }
+
+    /// A span's name and the fields it carried *at creation*, which is all
+    /// Eyes queries can see.
+    type CreatedSpan = (String, BTreeSet<String>);
+
+    #[derive(Clone, Default)]
+    struct CreatedSpans(Arc<Mutex<Vec<CreatedSpan>>>);
+
+    struct FieldNames(BTreeSet<String>);
+
+    impl tracing::field::Visit for FieldNames {
+        fn record_debug(&mut self, field: &Field, _: &dyn std::fmt::Debug) {
+            self.0.insert(field.name().to_string());
+        }
+    }
+
+    impl<S: Subscriber> Layer<S> for CreatedSpans {
+        fn on_new_span(&self, attrs: &span::Attributes<'_>, _: &span::Id, _: Context<'_, S>) {
+            let mut names = FieldNames(BTreeSet::new());
+            attrs.record(&mut names);
+            self.0
+                .lock()
+                .push((attrs.metadata().name().to_string(), names.0));
+        }
+    }
+
+    #[tokio::test]
+    async fn snake_spans_carry_dashboard_fields_at_creation() {
+        let spans = CreatedSpans::default();
+        let _guard = tracing::subscriber::set_default(Registry::default().with(spans.clone()));
+
+        let carter = || {
+            let factory = all_factories()
+                .into_iter()
+                .find(|f| f.name() == "constant-carter")
+                .unwrap();
+            ExtractSnakeFactory(factory)
+        };
+        // Moves are left out: they run on the blocking pool via
+        // spawn_blocking_with_tracing, where the Jev tests' global subscriber
+        // collides with this test-local one. The move spans use the same
+        // `#[instrument]` field pattern as start/end.
+        route_start(Path("constant-carter".to_string()), Some(Json(fixture()))).await;
+        route_end(carter(), Json(fixture())).await;
+
+        let hobbs = Arc::new(Mutex::new(AppState::default()));
+        route_hobbs_start(State(hobbs.clone()), Json(fixture())).await;
+        route_hobbs_end(State(hobbs), Json(fixture())).await;
+
+        let spans = spans.0.lock();
+        let fields = |name: &str, index: usize| -> BTreeSet<String> {
+            spans
+                .iter()
+                .filter(|(span, _)| span == name)
+                .nth(index)
+                .unwrap_or_else(|| panic!("no {name} span #{index}"))
+                .1
+                .clone()
+        };
+        let expect = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<BTreeSet<_>>();
+
+        let game = ["snake", "game_id", "turn"];
+        assert!(fields(telemetry::START_SPAN, 0).is_superset(&expect(&game)));
+        assert!(
+            fields(telemetry::END_SPAN, 0).is_superset(&expect(&[&game[..], &["won"]].concat()))
+        );
+        // Hovering Hobbs: its start/end also carry the live game gauge.
+        let with_gauge = [&game[..], &["live_games"]].concat();
+        assert!(fields(telemetry::START_SPAN, 1).is_superset(&expect(&with_gauge)));
+        assert!(
+            fields(telemetry::END_SPAN, 1)
+                .is_superset(&expect(&[&with_gauge[..], &["won"]].concat()))
+        );
+    }
 
     #[tokio::test]
     async fn start_acknowledges_with_or_without_a_parseable_game() {
-        let game: Game = serde_json::from_str(include_str!(
-            "../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json"
-        ))
-        .unwrap();
+        let game = fixture();
 
         for game in [Some(Json(game)), None] {
             let response = route_start(Path("no-such-snake".to_string()), game)
