@@ -52,6 +52,7 @@ impl GameState {
 pub(crate) async fn route_hobbs_info() -> impl IntoResponse {
     Json(Factory {}.about())
 }
+#[tracing::instrument(skip_all, fields(game_id = %game.game.id, live_games = tracing::field::Empty))]
 pub(crate) async fn route_hobbs_start(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
@@ -63,17 +64,21 @@ pub(crate) async fn route_hobbs_start(
     state
         .game_states
         .insert(game.game.id, GameState::new(id_map, now));
+    Span::current().record("live_games", state.game_states.len());
     StatusCode::NO_CONTENT
 }
+#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn, live_games = tracing::field::Empty))]
 pub(crate) async fn route_hobbs_end(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
     let mut state = state.lock();
     state.game_states.remove(&game.game.id);
+    Span::current().record("live_games", state.game_states.len());
     StatusCode::NO_CONTENT
 }
 
+#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn))]
 pub(crate) async fn route_hobbs_move(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,

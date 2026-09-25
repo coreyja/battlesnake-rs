@@ -4,9 +4,10 @@ mod judicious_jev;
 
 use axum::{
     Json, Router, async_trait,
-    extract::{FromRequestParts, Path, Query, State},
-    http::StatusCode,
-    response::{Html, IntoResponse},
+    body::Body,
+    extract::{FromRequestParts, MatchedPath, Path, Query, State},
+    http::{Request, StatusCode},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 use battlesnake_minimax::{
@@ -34,10 +35,11 @@ use tokio::task::{JoinError, JoinHandle};
 
 use tower_http::{
     LatencyUnit,
-    trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    trace::{DefaultOnRequest, DefaultOnResponse, OnResponse, TraceLayer},
 };
-use tracing::{Instrument, Level, span};
+use tracing::{Instrument, Level, Metadata, Span, span};
 use tracing_opentelemetry::OpenTelemetryLayer;
+use tracing_subscriber::filter::{FilterFn, filter_fn};
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::{prelude::*, registry::Registry};
 use tracing_tree::HierarchicalLayer;
@@ -156,12 +158,23 @@ async fn main() -> Result<()> {
         .with(opentelemetry_layer)
         .with(env_filter)
         .with(sentry_tracing::layer())
-        .with(eyes_layer.map(|layer| {
-            layer.with_filter(tracing_subscriber::EnvFilter::new(
-                "web_axum::judicious_jev=info",
-            ))
-        }))
+        .with(eyes_layer.map(|layer| layer.with_filter(eyes_filter())))
         .try_init()?;
+
+    // Panics otherwise only reach stderr; record them as errors so they show
+    // up in Eyes inside the request span that panicked.
+    let report_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let payload = info.payload();
+        let message = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("non-string panic payload");
+        let location = info.location().map(ToString::to_string);
+        tracing::error!(panic.message = message, panic.location = location, "panic");
+        report_panic(info);
+    }));
 
     if eyes_shutdown.is_some() {
         judicious_jev::telemetry::publish()?;
@@ -186,12 +199,33 @@ async fn main() -> Result<()> {
         .layer(NewSentryLayer::new_from_top())
         .layer(
             TraceLayer::new_for_http()
+                // cja's `server.request` vocabulary, which Eyes' requests
+                // dashboard keys on. It reads these fields from span creation
+                // and groups on `otel.name`, so unmatched paths share a bucket.
+                .make_span_with(|request: &Request<Body>| {
+                    let method = request.method().as_str();
+                    let route = request
+                        .extensions()
+                        .get::<MatchedPath>()
+                        .map(MatchedPath::as_str);
+                    let otel_name = format!("{method} {}", route.unwrap_or("unmatched"));
+                    tracing::info_span!(
+                        "server.request",
+                        otel.name = otel_name.as_str(),
+                        http.route = route,
+                        http.request.method = method,
+                        url.path = request.uri().path(),
+                        http.response.status_code = tracing::field::Empty,
+                    )
+                })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
-                .on_response(
+                .on_response(|response: &Response, latency: Duration, span: &Span| {
+                    span.record("http.response.status_code", response.status().as_u16());
                     DefaultOnResponse::new()
                         .level(Level::INFO)
-                        .latency_unit(LatencyUnit::Millis),
-                ),
+                        .latency_unit(LatencyUnit::Millis)
+                        .on_response(response, latency, span);
+                }),
         )
         .with_state(state);
 
@@ -574,6 +608,20 @@ async fn root() -> Html<String> {
     Html(markup.into_string())
 }
 
+/// Eyes gets every INFO+ span but only the events that carry signal: WARN+
+/// (including panics) and Judicious Jev's metric events. Per-request log lines
+/// stay in the journal.
+fn eyes_filter() -> FilterFn<impl Fn(&Metadata<'_>) -> bool> {
+    filter_fn(|metadata| {
+        if metadata.is_span() {
+            *metadata.level() <= Level::INFO
+        } else {
+            *metadata.level() <= Level::WARN
+                || metadata.target().starts_with("web_axum::judicious_jev")
+        }
+    })
+}
+
 async fn route_info(ExtractSnakeFactory(factory): ExtractSnakeFactory) -> impl IntoResponse {
     let carter_info = factory.about();
 
@@ -594,6 +642,7 @@ struct MoveQueryParams {
     sleep_ms: Option<u64>,
 }
 
+#[tracing::instrument(skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
 async fn route_move(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Query(params): Query<MoveQueryParams>,
@@ -610,6 +659,7 @@ async fn route_move(
     Ok(Json(output))
 }
 
+#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn))]
 async fn route_graph(Json(game): Json<Game>) -> JsonResponse<MoveOutput> {
     let game_info = game.game.clone();
     let id_map = build_snake_id_map(&game);
@@ -639,6 +689,7 @@ async fn route_graph(Json(game): Json<Game>) -> JsonResponse<MoveOutput> {
 async fn route_start() -> impl IntoResponse {
     StatusCode::NO_CONTENT
 }
+#[tracing::instrument(skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
 async fn route_end(
     ExtractSnakeFactory(factory): ExtractSnakeFactory,
     Json(game): Json<Game>,
