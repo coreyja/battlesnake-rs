@@ -253,6 +253,7 @@ async fn info() -> Json<Value> {
     )
 }
 
+#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn))]
 async fn make_move(State(jev): State<Arc<Jev>>, Json(game): Json<Game>) -> Json<MoveOutput> {
     Json(jev.make_move(&game).await)
 }
