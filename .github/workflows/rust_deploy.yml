@@ -1,6 +1,8 @@
 name: Deploy Terrarium
-# Run manual inspection from main, where Tailscale's federated login is accepted.
-# SSH uses the deploy key over Tailscale; enabling Tailscale SSH also needs a CI SSH policy rule.
+# Run manual host operations from main, where Tailscale's federated login is accepted.
+# Before Tailscale SSH is enabled, SSH uses the deploy key over Tailscale. Afterwards,
+# tailscaled answers tailnet:22 and the tailnet policy's tag:ci -> tag:terrarium rule
+# authorizes circle and www (coreyja-studio/tailscale#16).
 concurrency: deploy
 
 run-name: Terrarium ${{ inputs.operation || 'deploy' }} @ ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -16,16 +18,16 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Deploy the selected revision or inspect the host configuration
+        description: Deploy the selected revision, inspect the host, or enable Tailscale SSH on it
         type: choice
-        options: [deploy, inspect]
+        options: [deploy, inspect, enable-tailscale-ssh]
         default: deploy
 
 jobs:
   build:
     name: Build Release
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.operation != 'inspect') || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy') || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -161,11 +163,11 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 1 --retry-connrefused \
             --connect-timeout 5 --max-time 15 --output /dev/null https://terrarium.coreyja.com/
 
-  inspect:
-    name: Inspect Terrarium
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'inspect' }}
+  host:
+    name: Terrarium ${{ inputs.operation }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation != 'deploy' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       id-token: write
     steps:
@@ -188,6 +190,79 @@ jobs:
           ssh-keyscan -H terrarium >> ~/.ssh/known_hosts
 
       - name: Inspect service and deployment permissions
+        if: ${{ inputs.operation == 'inspect' }}
         run: |
           ssh -o BatchMode=yes circle@terrarium 'id; hostname; sudo -n -l; systemctl show terrarium.coreyja.com.service -p FragmentPath -p User -p Group -p WorkingDirectory -p EnvironmentFiles -p ActiveState -p SubState -p Result -p ExecMainStatus'
           ssh -o BatchMode=yes www@terrarium 'id; ls -ld ~ ~/server; find ~/server -maxdepth 1 -type f -printf "%f %m %u\n"'
+
+      - name: Inspect Tailscale state
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          set -eu
+          tailscale version | head -n 1
+          sudo -n tailscale status --json |
+            python3 -c 'import json, sys; print("Tags:", json.load(sys.stdin)["Self"].get("Tags"))'
+          sudo -n tailscale debug prefs |
+            python3 -c 'import json, sys; print("RunSSH:", json.load(sys.stdin).get("RunSSH"))'
+          SH
+          banner="$(ssh-keyscan terrarium 2>&1 >/dev/null || true)"
+          printf '%s\n' "$banner" | grep -F 'SSH-2.0' | sort -u
+
+      # tag:ci and tag:byte may only SSH to tag:terrarium, so enabling Tailscale SSH
+      # on an untagged node would lock both out. Tag the node in the admin console
+      # first. The change runs from a transient systemd unit because tailscaled may
+      # reset this SSH session when it starts intercepting port 22.
+      - name: Enable Tailscale SSH
+        if: ${{ inputs.operation == 'enable-tailscale-ssh' }}
+        run: |
+          ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
+          set -eu
+          tags="$(sudo -n tailscale status --json |
+            python3 -c 'import json, sys; print(" ".join(json.load(sys.stdin)["Self"].get("Tags") or []))')"
+          case " $tags " in
+            *" tag:terrarium "*) ;;
+            *)
+              echo "::error::terrarium must carry tag:terrarium before Tailscale SSH is enabled (tags: ${tags:-none})"
+              exit 1
+              ;;
+          esac
+          if ! sudo -n tailscale set --help 2>&1 | grep -q -- '-ssh'; then
+            echo "::error::tailscale on terrarium has no 'tailscale set --ssh'; upgrade it first"
+            exit 1
+          fi
+          sudo -n systemd-run --unit=enable-tailscale-ssh --collect --on-active=5s \
+            "$(command -v tailscale)" set --ssh
+          SH
+
+      - name: Verify deploy access through Tailscale SSH
+        if: ${{ inputs.operation == 'enable-tailscale-ssh' }}
+        run: |
+          # Capture before matching: with pipefail, grep -q exiting early can SIGPIPE
+          # ssh-keyscan and fail the pipeline even on a match.
+          for _ in $(seq 1 24); do
+            banner="$(ssh-keyscan terrarium 2>&1 >/dev/null || true)"
+            [[ $banner == *SSH-2.0-Tailscale* ]] && break
+            sleep 5
+          done
+          if [[ $banner != *SSH-2.0-Tailscale* ]]; then
+            echo "::error::terrarium:22 is still not served by Tailscale SSH: $banner"
+            exit 1
+          fi
+
+          # Tailscale SSH may present different host keys than sshd did.
+          ssh-keyscan -H terrarium > ~/.ssh/known_hosts
+
+          test "$(ssh -o BatchMode=yes www@terrarium id -un)" = www
+          test "$(ssh -o BatchMode=yes circle@terrarium 'sudo -n true && id -un')" = circle
+
+          # Exercise the same scp form the deploy job uses.
+          probe="$RUNNER_TEMP/tailscale-ssh-probe"
+          printf 'probe\n' > "$probe"
+          scp -o BatchMode=yes "$probe" www@terrarium:~/server/.tailscale-ssh-probe
+          ssh -o BatchMode=yes www@terrarium 'rm ~/server/.tailscale-ssh-probe'
+
+          ssh -o BatchMode=yes circle@terrarium 'sudo -n tailscale debug prefs' |
+            python3 -c 'import json, sys; assert json.load(sys.stdin).get("RunSSH") is True, "RunSSH is not enabled"'
+          curl --fail --silent --show-error --retry 5 --retry-delay 1 --retry-connrefused \
+            --connect-timeout 5 --max-time 15 --output /dev/null https://terrarium.coreyja.com/
+          echo "Tailscale SSH is serving terrarium; www, circle+sudo, and scp all work."
