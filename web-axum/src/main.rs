@@ -167,10 +167,7 @@ async fn main() -> Result<()> {
         judicious_jev::telemetry::publish()?;
     }
 
-    let state = AppState {
-        game_states: HashMap::new(),
-    };
-    let state = Mutex::new(state);
+    let state = Mutex::new(AppState::default());
     let state = Arc::new(state);
 
     let app = Router::new()
