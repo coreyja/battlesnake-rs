@@ -1,23 +1,36 @@
+use std::time::Instant;
+
 use battlesnake_game_types::types::Move;
-use battlesnake_minimax::{dashmap::DashMap, types::types::SnakeIDGettableGame};
+use battlesnake_minimax::types::types::SnakeIDGettableGame;
 use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Vector};
-use fxhash::FxBuildHasher;
 use parking_lot::Mutex;
 
 use crate::*;
 
-#[derive(Debug)]
-#[allow(dead_code)]
+/// How long a game may go without a request before its state is dropped.
+///
+/// `/end` is not guaranteed: an engine that errors or restarts mid-game never
+/// sends it, and those states used to accumulate until the process was
+/// OOM-killed.
+const GAME_STATE_IDLE_TTL: Duration = Duration::from_secs(15 * 60);
+
+#[derive(Debug, Default)]
 pub(crate) struct AppState {
     pub game_states: HashMap<String, GameState>,
+}
+
+impl AppState {
+    fn evict_idle_games(&mut self, now: Instant) {
+        self.game_states
+            .retain(|_, game_state| now.duration_since(game_state.last_seen) < GAME_STATE_IDLE_TTL);
+    }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct GameState {
     pub last_move: Option<LastMoveState>,
     pub id_map: HashMap<String, SnakeId>,
-    #[allow(dead_code)]
-    pub score_map: Arc<DashMap<StandardCellBoard4Snakes11x11, Score, FxBuildHasher>>,
+    pub last_seen: Instant,
 }
 
 #[derive(Debug, Clone)]
@@ -28,14 +41,11 @@ pub(crate) struct LastMoveState {
 }
 
 impl GameState {
-    pub fn new(id_map: HashMap<String, SnakeId>) -> Self {
+    pub fn new(id_map: HashMap<String, SnakeId>, now: Instant) -> Self {
         Self {
             last_move: None,
             id_map,
-            score_map: Arc::new(DashMap::with_capacity_and_hasher(
-                10_000_000,
-                Default::default(),
-            )),
+            last_seen: now,
         }
     }
 }
@@ -47,10 +57,12 @@ pub(crate) async fn route_hobbs_start(
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
     let id_map = build_snake_id_map(&game);
+    let now = Instant::now();
     let mut state = state.lock();
+    state.evict_idle_games(now);
     state
         .game_states
-        .insert(game.game.id, GameState::new(id_map));
+        .insert(game.game.id, GameState::new(id_map, now));
     StatusCode::NO_CONTENT
 }
 pub(crate) async fn route_hobbs_end(
@@ -77,13 +89,15 @@ pub(crate) async fn route_hobbs_move(
         move_ordering: MoveOrdering::BestFirst,
     };
 
+    // A missing state means we never saw /start (e.g. we restarted mid-game)
+    // or it was evicted; rebuild it rather than fail the move.
     let game_state = {
-        let state_guard = state.lock();
+        let mut state_guard = state.lock();
 
         state_guard
             .game_states
-            .get(&game_id)
-            .expect("If we hit the start endpoint we should have a game state already")
+            .entry(game_id.clone())
+            .or_insert_with(|| GameState::new(build_snake_id_map(&game), Instant::now()))
             .clone()
     };
     let last_move = &game_state.last_move;
@@ -168,7 +182,6 @@ pub(crate) async fn route_hobbs_move(
     };
 
     let score = &standard_score::<StandardCellBoard4Snakes11x11, _, 4>;
-    // let score = CachedScore::new(score, game_state.score_map);
 
     let my_id = game.you_id();
     let snake = ParanoidMinimaxSnake::new(game, game_info, turn, score, name, options);
@@ -181,20 +194,14 @@ pub(crate) async fn route_hobbs_move(
     let scored_options = scored.first_options_for_snake(my_id).unwrap();
     let output = scored_options.first().unwrap().0;
 
-    {
-        let mut state = state.lock();
-
-        let game_state = state
-            .game_states
-            .get_mut(&game_id)
-            .expect("If we hit the start endpoint we should have a game state already");
-
-        let last_move = LastMoveState {
+    // /end can arrive while the move is still computing; don't resurrect it.
+    if let Some(game_state) = state.lock().game_states.get_mut(&game_id) {
+        game_state.last_move = Some(LastMoveState {
             last_return: scored,
             last_board: game,
             turn,
-        };
-        game_state.last_move = Some(last_move);
+        });
+        game_state.last_seen = Instant::now();
     }
 
     let output: MoveOutput = MoveOutput {
@@ -203,4 +210,93 @@ pub(crate) async fn route_hobbs_move(
     };
 
     Json(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{Json, extract::State};
+
+    use super::*;
+
+    fn game(id: &str) -> Game {
+        let mut game: Game = serde_json::from_str(include_str!(
+            "../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json"
+        ))
+        .unwrap();
+        game.game.id = id.to_string();
+        game
+    }
+
+    fn shared_state() -> Arc<Mutex<AppState>> {
+        Arc::new(Mutex::new(AppState::default()))
+    }
+
+    #[test]
+    fn evicts_only_games_idle_past_the_ttl() {
+        let start = Instant::now();
+        let mut state = AppState::default();
+        for (id, idle) in [
+            ("fresh", Duration::ZERO),
+            ("just-under", GAME_STATE_IDLE_TTL - Duration::from_secs(1)),
+            ("at-ttl", GAME_STATE_IDLE_TTL),
+            ("abandoned", GAME_STATE_IDLE_TTL * 4),
+        ] {
+            let last_seen = start + GAME_STATE_IDLE_TTL * 4 - idle;
+            state
+                .game_states
+                .insert(id.to_string(), GameState::new(HashMap::new(), last_seen));
+        }
+
+        state.evict_idle_games(start + GAME_STATE_IDLE_TTL * 4);
+
+        let mut remaining: Vec<_> = state.game_states.keys().map(String::as_str).collect();
+        remaining.sort_unstable();
+        assert_eq!(remaining, ["fresh", "just-under"]);
+    }
+
+    #[tokio::test]
+    async fn end_removes_the_game_state() {
+        let state = shared_state();
+
+        route_hobbs_start(State(state.clone()), Json(game("a"))).await;
+        route_hobbs_start(State(state.clone()), Json(game("b"))).await;
+        assert_eq!(state.lock().game_states.len(), 2);
+
+        route_hobbs_end(State(state.clone()), Json(game("a"))).await;
+        let state = state.lock();
+        assert!(!state.game_states.contains_key("a"));
+        assert!(state.game_states.contains_key("b"));
+    }
+
+    #[tokio::test]
+    async fn move_without_start_builds_state_instead_of_panicking() {
+        let state = shared_state();
+
+        let response = route_hobbs_move(State(state.clone()), Json(game("restarted")))
+            .await
+            .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let state = state.lock();
+        let game_state = &state.game_states["restarted"];
+        assert_eq!(game_state.last_move.as_ref().map(|m| m.turn), Some(25));
+    }
+
+    #[tokio::test]
+    async fn move_after_end_does_not_resurrect_the_game() {
+        let state = shared_state();
+        route_hobbs_start(State(state.clone()), Json(game("finished"))).await;
+
+        // Simulate /end landing while the move is computing: the move handler
+        // re-creates the state on entry, so remove it again right after.
+        let pending = tokio::spawn(route_hobbs_move(
+            State(state.clone()),
+            Json(game("finished")),
+        ));
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        route_hobbs_end(State(state.clone()), Json(game("finished"))).await;
+        pending.await.unwrap();
+
+        assert!(state.lock().game_states.is_empty());
+    }
 }
