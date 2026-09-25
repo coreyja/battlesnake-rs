@@ -13,10 +13,9 @@
 use std::time::Duration;
 
 use battlesnake_rs::Game;
-use color_eyre::eyre::{Result, eyre};
 use eyes_subscriber::{
-    AggregateFunction, AppManifest, DashboardItem, DashboardSection, EyesLayer, EyesShutdownHandle,
-    EyesSubscriberBuilder, NamedDashboard, NamedMetric, NamedMetricBuilder, TransportType,
+    AggregateFunction, DashboardItem, DashboardSection, NamedDashboard, NamedMetric,
+    NamedMetricBuilder,
 };
 
 use super::Evaluation;
@@ -67,29 +66,15 @@ pub(super) fn record_move(game: &Game, direction: &str, reason: &str, elapsed: D
     );
 }
 
-pub(crate) fn layer() -> Result<(Option<EyesLayer>, Option<EyesShutdownHandle>)> {
-    match (
-        std::env::var("EYES_ORG_ID").ok(),
-        std::env::var("EYES_APP_ID").ok(),
-    ) {
-        (None, None) => Ok((None, None)),
-        (Some(org), Some(app)) => {
-            let (layer, shutdown) = EyesSubscriberBuilder::from_env(org.parse()?, app.parse()?)?
-                .with_queue_capacity(4096)
-                .build_with_transport(TransportType::BatchingHttp);
-            Ok((Some(layer), Some(shutdown)))
-        }
-        _ => Err(eyre!("Set both EYES_ORG_ID and EYES_APP_ID to enable Eyes")),
-    }
-}
-
 fn metric(id: &str, field: &str, event: &str, unit: &str) -> Result<NamedMetricBuilder, String> {
     NamedMetricBuilder::new(id, AggregateFunction::Sum, Some(field))?
         .filter_eq("fields.event_kind", event)
         .map(|builder| builder.unit(unit))
 }
 
-fn declarations() -> Result<AppManifest, String> {
+/// Jev's metrics and dashboard; `crate::telemetry` publishes them alongside
+/// the Terrarium dashboard in the app's single manifest.
+pub(crate) fn declarations() -> Result<(Vec<NamedMetric>, NamedDashboard), String> {
     let mut metrics: Vec<NamedMetric> = Vec::new();
     for (id, field, unit, event) in [
         (
@@ -184,27 +169,7 @@ fn declarations() -> Result<AppManifest, String> {
             .item(DashboardItem::table("jev.output_tokens.by_game").label("Output tokens"))
             .item(DashboardItem::table("jev.fallbacks.by_game").label("Local moves"))
             .item(DashboardItem::table("jev.cost_unknown.by_game").label("Requests with unknown cost")));
-    Ok(AppManifest::default()
-        .app_version(env!("CARGO_PKG_VERSION"))
-        .metrics(metrics)
-        .dashboards(vec![dashboard]))
-}
-
-pub(crate) fn publish() -> Result<()> {
-    let manifest = declarations().map_err(|error| eyre!(error))?;
-    tokio::spawn(async move {
-        match tokio::time::timeout(
-            Duration::from_secs(10),
-            eyes_subscriber::send_manifest_from_env(&manifest),
-        )
-        .await
-        {
-            Ok(Ok(())) => tracing::info!("Published Judicious Jev Eyes dashboard"),
-            Ok(Err(error)) => tracing::warn!(%error, "Could not publish Jev Eyes dashboard"),
-            Err(_) => tracing::warn!("Timed out publishing Jev Eyes dashboard"),
-        }
-    });
-    Ok(())
+    Ok((metrics, dashboard))
 }
 
 #[cfg(test)]
@@ -213,9 +178,9 @@ mod tests {
 
     #[test]
     fn dashboard_declarations_validate() {
-        let manifest = declarations().unwrap();
-        assert_eq!(manifest.metrics.as_ref().unwrap().len(), 17);
-        assert_eq!(manifest.dashboards.as_ref().unwrap()[0].id, "judicious-jev");
+        let (metrics, dashboard) = declarations().unwrap();
+        assert_eq!(metrics.len(), 17);
+        assert_eq!(dashboard.id, "judicious-jev");
     }
 
     #[test]

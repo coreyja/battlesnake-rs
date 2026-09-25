@@ -253,11 +253,14 @@ async fn info() -> Json<Value> {
     )
 }
 
-#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn))]
+const SNAKE_NAME: &str = "judicious-jev";
+
+#[tracing::instrument(name = "snake.move", skip_all, fields(snake = SNAKE_NAME, game_id = %game.game.id, turn = game.turn))]
 async fn make_move(State(jev): State<Arc<Jev>>, Json(game): Json<Game>) -> Json<MoveOutput> {
     Json(jev.make_move(&game).await)
 }
 
+#[tracing::instrument(name = "snake.start", skip_all, fields(snake = SNAKE_NAME, game_id = %game.game.id, turn = game.turn))]
 async fn start(Json(game): Json<Game>) -> StatusCode {
     tracing::info!(
         event_kind = "jev_game_start",
@@ -268,8 +271,9 @@ async fn start(Json(game): Json<Game>) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
+#[tracing::instrument(name = "snake.end", skip_all, fields(snake = SNAKE_NAME, game_id = %game.game.id, turn = game.turn, won = crate::telemetry::won(&game)))]
 async fn end(Json(game): Json<Game>) -> StatusCode {
-    let won = game.board.snakes.len() == 1 && game.board.snakes[0].id == game.you.id;
+    let won = crate::telemetry::won(&game) == 1;
     tracing::info!(
         event_kind = "jev_game_end",
         game_id = game.game.id,

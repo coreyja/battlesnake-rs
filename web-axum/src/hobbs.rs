@@ -14,6 +14,8 @@ use crate::*;
 /// OOM-killed.
 const GAME_STATE_IDLE_TTL: Duration = Duration::from_secs(15 * 60);
 
+pub(crate) const SNAKE_NAME: &str = "hovering-hobbs";
+
 #[derive(Debug, Default)]
 pub(crate) struct AppState {
     pub game_states: HashMap<String, GameState>,
@@ -52,33 +54,54 @@ impl GameState {
 pub(crate) async fn route_hobbs_info() -> impl IntoResponse {
     Json(Factory {}.about())
 }
-#[tracing::instrument(skip_all, fields(game_id = %game.game.id, live_games = tracing::field::Empty))]
+// The start/end spans open after the state change so `live_games` exists at
+// span creation, the only time Eyes reads span fields.
 pub(crate) async fn route_hobbs_start(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
     let id_map = build_snake_id_map(&game);
     let now = Instant::now();
-    let mut state = state.lock();
-    state.evict_idle_games(now);
-    state
-        .game_states
-        .insert(game.game.id, GameState::new(id_map, now));
-    Span::current().record("live_games", state.game_states.len());
+    let live_games = {
+        let mut state = state.lock();
+        state.evict_idle_games(now);
+        state
+            .game_states
+            .insert(game.game.id.clone(), GameState::new(id_map, now));
+        state.game_states.len()
+    };
+    let _span = tracing::info_span!(
+        "snake.start",
+        snake = SNAKE_NAME,
+        game_id = %game.game.id,
+        turn = game.turn,
+        live_games,
+    )
+    .entered();
     StatusCode::NO_CONTENT
 }
-#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn, live_games = tracing::field::Empty))]
 pub(crate) async fn route_hobbs_end(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
 ) -> impl IntoResponse {
-    let mut state = state.lock();
-    state.game_states.remove(&game.game.id);
-    Span::current().record("live_games", state.game_states.len());
+    let live_games = {
+        let mut state = state.lock();
+        state.game_states.remove(&game.game.id);
+        state.game_states.len()
+    };
+    let _span = tracing::info_span!(
+        "snake.end",
+        snake = SNAKE_NAME,
+        game_id = %game.game.id,
+        turn = game.turn,
+        won = crate::telemetry::won(&game),
+        live_games,
+    )
+    .entered();
     StatusCode::NO_CONTENT
 }
 
-#[tracing::instrument(skip_all, fields(game_id = %game.game.id, turn = game.turn))]
+#[tracing::instrument(name = "snake.move", skip_all, fields(snake = SNAKE_NAME, game_id = %game.game.id, turn = game.turn))]
 pub(crate) async fn route_hobbs_move(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
@@ -87,7 +110,7 @@ pub(crate) async fn route_hobbs_move(
     let game_id = game_info.id.to_string();
     let turn = game.turn;
 
-    let name = "hovering-hobbs";
+    let name = SNAKE_NAME;
 
     let options: SnakeOptions = SnakeOptions {
         network_latency_padding: Duration::from_millis(150),
