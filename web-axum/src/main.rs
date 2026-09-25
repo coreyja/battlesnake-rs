@@ -686,7 +686,17 @@ async fn route_graph(Json(game): Json<Game>) -> JsonResponse<MoveOutput> {
     Ok(Json(output))
 }
 
-async fn route_start() -> impl IntoResponse {
+// Always acknowledges, as before: the body is parsed only to label the span,
+// so an unknown snake or unparseable game still gets a 204.
+#[tracing::instrument(skip_all, fields(
+    snake = %snake_name,
+    game_id = game.as_ref().map(|Json(game)| game.game.id.as_str()),
+    turn = game.as_ref().map(|Json(game)| game.turn),
+))]
+async fn route_start(
+    Path(snake_name): Path<String>,
+    game: Option<Json<Game>>,
+) -> impl IntoResponse {
     StatusCode::NO_CONTENT
 }
 #[tracing::instrument(skip_all, fields(snake = factory.name(), game_id = %game.game.id, turn = game.turn))]
@@ -703,3 +713,23 @@ async fn route_end(
 
 mod hobbs;
 use hobbs::*;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn start_acknowledges_with_or_without_a_parseable_game() {
+        let game: Game = serde_json::from_str(include_str!(
+            "../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json"
+        ))
+        .unwrap();
+
+        for game in [Some(Json(game)), None] {
+            let response = route_start(Path("no-such-snake".to_string()), game)
+                .await
+                .into_response();
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        }
+    }
+}
