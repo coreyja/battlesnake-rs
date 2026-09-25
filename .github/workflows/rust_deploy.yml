@@ -114,29 +114,36 @@ jobs:
             mv "$temporary" "$HOME/server/judicious-jev.env"
           ' < "$RUNNER_TEMP/judicious-jev.env"
 
-      - name: Configure systemd environment file
+      # restart.conf: web-axum has been OOM-killed twice (2026-08-16, 2026-09-22)
+      # and, with the unit's Restart=no, stayed down until the next deploy.
+      - name: Configure systemd drop-ins
         run: |
           ssh -o BatchMode=yes circle@terrarium 'bash -se' <<'SH'
           www_home="$(getent passwd www | cut -d: -f6)"
           test -n "$www_home"
           dropin_dir=/etc/systemd/system/terrarium.coreyja.com.service.d
           sudo -n install -d -m 0755 "$dropin_dir"
-          temporary="$(sudo -n mktemp "$dropin_dir/.judicious-jev.XXXXXX")"
-          trap 'sudo -n rm -f "$temporary"' EXIT
-          printf '[Service]\nEnvironmentFile=%s/server/judicious-jev.env\n' "$www_home" |
-            sudo -n tee "$temporary" >/dev/null
-          sudo -n chmod 0644 "$temporary"
-          sudo -n mv "$temporary" "$dropin_dir/judicious-jev.conf"
+          trap 'sudo -n rm -f "${temporary:-}"' EXIT
+          install_dropin() {
+            temporary="$(sudo -n mktemp "$dropin_dir/.$1.XXXXXX")"
+            printf '%s\n' "$2" | sudo -n tee "$temporary" >/dev/null
+            sudo -n chmod 0644 "$temporary"
+            sudo -n mv "$temporary" "$dropin_dir/$1.conf"
+          }
+          install_dropin judicious-jev "$(printf '[Service]\nEnvironmentFile=%s/server/judicious-jev.env' "$www_home")"
+          install_dropin restart "$(printf '[Service]\nRestart=on-failure\nRestartSec=5s')"
           sudo -n systemctl daemon-reload
           systemctl show terrarium.coreyja.com.service -p EnvironmentFiles --value |
             grep -F -- "$www_home/server/judicious-jev.env (ignore_errors=no)" >/dev/null
+          systemctl show terrarium.coreyja.com.service -p Restart --value | grep -qx on-failure
           SH
 
+      # Tailscale SSH's SFTP server does not carry the source file's mode over scp,
+      # so the binary must be made executable on the host.
       - name: Deploy Binary
         run: |
-          chmod +x web-axum
           scp web-axum www@terrarium:~/server/web-axum.new
-          ssh www@terrarium "mv ~/server/web-axum.new ~/server/web-axum"
+          ssh www@terrarium "chmod 0755 ~/server/web-axum.new && mv ~/server/web-axum.new ~/server/web-axum"
 
       - name: Restart Service
         run: |
