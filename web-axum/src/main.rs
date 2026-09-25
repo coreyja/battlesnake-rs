@@ -199,22 +199,28 @@ async fn main() -> Result<()> {
         .layer(NewSentryLayer::new_from_top())
         .layer(
             TraceLayer::new_for_http()
+                // cja's `server.request` vocabulary, which Eyes' requests
+                // dashboard keys on. It reads these fields from span creation
+                // and groups on `otel.name`, so unmatched paths share a bucket.
                 .make_span_with(|request: &Request<Body>| {
+                    let method = request.method().as_str();
                     let route = request
                         .extensions()
                         .get::<MatchedPath>()
                         .map(MatchedPath::as_str);
+                    let otel_name = format!("{method} {}", route.unwrap_or("unmatched"));
                     tracing::info_span!(
-                        "request",
-                        method = %request.method(),
-                        uri = %request.uri(),
-                        route,
-                        status = tracing::field::Empty,
+                        "server.request",
+                        otel.name = otel_name.as_str(),
+                        http.route = route,
+                        http.request.method = method,
+                        url.path = request.uri().path(),
+                        http.response.status_code = tracing::field::Empty,
                     )
                 })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(|response: &Response, latency: Duration, span: &Span| {
-                    span.record("status", response.status().as_u16());
+                    span.record("http.response.status_code", response.status().as_u16());
                     DefaultOnResponse::new()
                         .level(Level::INFO)
                         .latency_unit(LatencyUnit::Millis)
