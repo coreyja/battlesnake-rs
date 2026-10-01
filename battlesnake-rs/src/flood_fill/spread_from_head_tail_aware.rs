@@ -9,11 +9,21 @@
 //! the spread enter that square on the cycle after it vacates. Squares are counted for scoring
 //! exactly as the original does, so the two variants are directly comparable.
 //!
+//! The spread models *paths that move every tick*, which is what a snake can actually do: there is
+//! no waiting. If a frontier square has no enterable neighbour on some cycle it simply dies, even
+//! when one of its neighbours opens a cycle or two later -- a real snake standing there would have
+//! had to move, and if it could not, it is dead. Letting blocked frontiers retry would overstate
+//! reachable territory.
+//!
 //! Known approximations:
 //! - Growth is ignored. A snake that eats does not move its tail that tick, so vacate times are
 //!   optimistic by one tick per food eaten along the way.
-//! - Stacked body pieces (a freshly spawned or just-fed snake) are handled by taking the *latest*
-//!   vacate time for a square, which is the conservative choice.
+//! - Stacked body pieces (a freshly spawned or just-fed snake) are handled exactly, not
+//!   approximately: `get_snake_body_vec` repeats a stacked square once per stack level, so taking
+//!   the *latest* vacate time per square gives a double-stacked tail the extra tick it really
+//!   takes to clear.
+//! - Like any breadth-first fill, a square is claimed at its *earliest* arrival time. A square
+//!   that only becomes reachable via a longer detour arriving later is missed.
 
 use std::cmp::Reverse;
 
@@ -91,7 +101,8 @@ where
                 let enterable_on = (len - index_from_head) as u16;
 
                 grid.cells[cell] = Some(*sid);
-                // A stacked square appears twice; the entry nearer the head vacates later and wins.
+                // A stacked square appears once per stack level; the entry nearer the head vacates
+                // later and wins, which is what gives a double-stacked tail two ticks.
                 body_life[cell] = body_life[cell].max(enterable_on);
             }
         }
@@ -177,7 +188,7 @@ where
 mod tests {
     use battlesnake_game_types::{
         compact_representation::{StandardCellBoard4Snakes11x11, WrappedCellBoard4Snakes11x11},
-        types::build_snake_id_map,
+        types::{build_snake_id_map, SnakeBodyGettableGame, SnakeId},
         wire_representation::{Game, Position},
     };
 
@@ -277,6 +288,44 @@ mod tests {
         assert_eq!(at(1), 4);
         // Cycle 2: (1,1) opens on schedule and (2,0) is reached through the vacated tail.
         assert_eq!(at(2), 5);
+    }
+
+    #[test]
+    fn a_double_stacked_tail_takes_the_extra_tick_to_clear() {
+        // The sealed corner again, but with the tail double stacked -- the state a snake is in
+        // right after eating. `get_snake_body_vec` repeats a stacked square per stack level, so the
+        // tail square carries vacate times 1 *and* 2 and the later one must win: after one tick
+        // only one stack level has moved off it, so it is still body.
+        //
+        // That one tick is the difference between escaping and not. The head's only two on-board
+        // neighbours are its own body, so on cycle 1 nothing is enterable, the frontier dies, and
+        // the fill is stuck at the four body squares no matter how many cycles it is given. If the
+        // stacking were mishandled -- taking the tail's *earlier* vacate time -- the snake would
+        // step out on cycle 1 and reach 19 squares, as the unstacked version does.
+        let stacked: &[(i32, i32)] = &[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)];
+        let stacked_board = board(&[stacked]);
+        let unstacked_board = board(&[SEALED_CORNER]);
+
+        let body = stacked_board.get_snake_body_vec(&SnakeId(0));
+        assert_eq!(body.len(), 5, "the stacked tail should be two entries");
+        assert_eq!(body[3], body[4], "the last two entries are the same square");
+
+        for cycles in [1, 2, 5, 20] {
+            assert_eq!(
+                SpreadFromHeadTailAware::<u8, 4>::squares_per_snake_tail_aware(
+                    &stacked_board,
+                    cycles
+                )[0],
+                4,
+                "a frontier with no legal move at {cycles} cycles cannot wait for a square to open"
+            );
+        }
+
+        // Same body without the stack: the tail opens on cycle 1 and the snake escapes.
+        assert_eq!(
+            SpreadFromHeadTailAware::<u8, 4>::squares_per_snake_tail_aware(&unstacked_board, 5)[0],
+            19
+        );
     }
 
     #[test]

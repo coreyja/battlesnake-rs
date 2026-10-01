@@ -21,9 +21,9 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Scores {
-    pub(crate) food: u16,
-    pub(crate) hazard: u16,
-    pub(crate) empty: u16,
+    pub food: u16,
+    pub hazard: u16,
+    pub empty: u16,
 }
 
 pub trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
