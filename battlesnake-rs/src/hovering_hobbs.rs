@@ -285,7 +285,14 @@ impl Factory {
         if game.is_arcade_maze_map() {
             build_from_best_cell_board!(game, game_info, turn, arcade_maze_score, name, options)
         } else {
-            build_from_best_cell_board!(game, game_info, turn, standard_score, name, options)
+            build_from_best_cell_board!(
+                game,
+                game_info,
+                turn,
+                standard_score_tail_aware,
+                name,
+                options
+            )
         }
     }
 
@@ -309,7 +316,7 @@ mod tests {
         wire_representation::Game,
     };
 
-    use crate::hovering_hobbs::standard_score;
+    use crate::hovering_hobbs::standard_score_tail_aware;
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     #[test]
@@ -368,8 +375,14 @@ mod tests {
         let name = "hovering-hobbs";
         let options = Default::default();
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        let hobbs =
-            ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+        let hobbs = ParanoidMinimaxSnake::new(
+            game,
+            game_info,
+            turn,
+            &standard_score_tail_aware,
+            name,
+            options,
+        );
 
         let my_id = game.you_id();
         let mut sorted_ids = game.get_snake_ids();
