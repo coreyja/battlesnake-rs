@@ -27,6 +27,24 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    g.bench_function("compact spread tail aware", |b| {
+        use battlesnake_rs::flood_fill::spread_from_head_tail_aware::SpreadFromHeadTailAware;
+
+        let game_json = include_str!("../fixtures/a-prime-food-maze.json");
+        let game: Game = serde_json::from_str(game_json).unwrap();
+
+        let id_map = build_snake_id_map(&game);
+        let game = battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11::convert_from_game(
+            game, &id_map,
+        )
+        .unwrap();
+
+        b.iter(|| -> [u8; 4] {
+            let game = black_box(&game);
+            game.squares_per_snake_tail_aware(5)
+        })
+    });
+
     g.bench_function("wrapped spread", |b| {
         use battlesnake_rs::flood_fill::spread_from_head::SpreadFromHead;
 
