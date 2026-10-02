@@ -30,19 +30,55 @@ const STANDARD_SCORES: Scores = Scores {
 ///
 /// The fill stops early once its frontier dies, so this is a cap rather than a fixed cost: on a
 /// cramped board a larger budget costs nothing extra, and on an 11x11 board the frontier is dead by
-/// ~12 cycles, so any larger value is the same computation. See [`standard_score_with_cycles`] for
-/// measuring a different budget without changing what Hobbs ships.
+/// ~12 cycles, so any larger value is the same computation.
 ///
 /// 12 rather than the original 5: measured head-to-head under production rules, a 12-cycle
 /// tail-aware fill beats the 5-cycle one 90.0% of the time (z=+22.4) *after* being charged a full
 /// deepening round of lost search on every position. See DEV-1507.
 pub const STANDARD_CYCLES: usize = 12;
 
+/// Below this health the leaf score stops valuing territory and heads for the nearest food.
+///
+/// This is Hobbs' whole growth policy: above the threshold food is worth only its fill weight, so
+/// Hobbs hovers and controls space rather than growing, and eats exactly often enough to stay
+/// alive. Measured in real Arena games, that is about one food every 40 turns.
+pub const STANDARD_LOW_HEALTH: i64 = 60;
+
+/// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
+///
+/// This exists so a sweep can vary one knob without a second copy of the scoring logic; see
+/// `byte-scratch/hobbs-tail-aware-ab`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScoreParams {
+    /// Cap on spread cycles. See [`STANDARD_CYCLES`].
+    pub cycles: usize,
+    /// Per-square weights for the fill. See [`STANDARD_SCORES`].
+    pub scores: Scores,
+    /// Health below which the score switches to food-seeking. See [`STANDARD_LOW_HEALTH`].
+    pub low_health: i64,
+}
+
+impl ScoreParams {
+    /// What Hobbs ships.
+    pub const STANDARD: Self = Self {
+        cycles: STANDARD_CYCLES,
+        scores: STANDARD_SCORES,
+        low_health: STANDARD_LOW_HEALTH,
+    };
+}
+
+impl Default for ScoreParams {
+    fn default() -> Self {
+        Self::STANDARD
+    }
+}
+
 /// Turn a per-snake territory count into a [`Score`], shared by every flood-fill variant so the
 /// variants differ only in how the territory was measured.
 pub fn score_from_square_counts<BoardType, const MAX_SNAKES: usize>(
     node: &BoardType,
     square_counts: [u16; MAX_SNAKES],
+    low_health: i64,
 ) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -57,7 +93,7 @@ where
     let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
-    if node.get_health_i64(me) < 60 {
+    if node.get_health_i64(me) < low_health {
         let dist = node
             .shortest_distance(
                 &node.get_head_as_native_position(me),
@@ -71,13 +107,10 @@ where
     Score::FloodFill(my_ratio)
 }
 
-/// [`standard_score`] with the spread cycle budget supplied by the caller.
-///
-/// Hobbs ships [`STANDARD_CYCLES`]; this exists so the budget can be swept without a second copy
-/// of the scoring logic. See `byte-scratch/hobbs-tail-aware-ab`.
-pub fn standard_score_with_cycles<BoardType, CellType, const MAX_SNAKES: usize>(
+/// [`standard_score`] with every knob supplied by the caller.
+pub fn standard_score_with_params<BoardType, CellType, const MAX_SNAKES: usize>(
     node: &BoardType,
-    cycles: usize,
+    params: ScoreParams,
 ) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -93,14 +126,15 @@ where
 {
     score_from_square_counts(
         node,
-        node.squares_per_snake_with_scores(cycles, STANDARD_SCORES),
+        node.squares_per_snake_with_scores(params.cycles, params.scores),
+        params.low_health,
     )
 }
 
-/// [`standard_score_tail_aware`] with the spread cycle budget supplied by the caller.
-pub fn standard_score_tail_aware_with_cycles<BoardType, CellType, const MAX_SNAKES: usize>(
+/// [`standard_score_tail_aware`] with every knob supplied by the caller.
+pub fn standard_score_tail_aware_with_params<BoardType, CellType, const MAX_SNAKES: usize>(
     node: &BoardType,
-    cycles: usize,
+    params: ScoreParams,
 ) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -116,7 +150,8 @@ where
 {
     score_from_square_counts(
         node,
-        node.squares_per_snake_with_scores_tail_aware(cycles, STANDARD_SCORES),
+        node.squares_per_snake_with_scores_tail_aware(params.cycles, params.scores),
+        params.low_health,
     )
 }
 
@@ -133,7 +168,7 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    standard_score_with_cycles::<_, CellType, MAX_SNAKES>(node, STANDARD_CYCLES)
+    standard_score_with_params::<_, CellType, MAX_SNAKES>(node, ScoreParams::STANDARD)
 }
 
 /// [`standard_score`] with a tail-aware flood fill: squares your own tail is about to vacate count
@@ -153,7 +188,7 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    standard_score_tail_aware_with_cycles::<_, CellType, MAX_SNAKES>(node, STANDARD_CYCLES)
+    standard_score_tail_aware_with_params::<_, CellType, MAX_SNAKES>(node, ScoreParams::STANDARD)
 }
 
 pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
@@ -368,8 +403,63 @@ mod tests {
         wire_representation::Game,
     };
 
-    use crate::hovering_hobbs::standard_score_tail_aware;
+    use crate::hovering_hobbs::{
+        standard_score, standard_score_tail_aware, standard_score_tail_aware_with_params,
+        standard_score_with_params, Score, ScoreParams,
+    };
+    use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
     use battlesnake_minimax::ParanoidMinimaxSnake;
+
+    /// The parameterized entry points exist so a sweep can vary one knob; at
+    /// [`ScoreParams::STANDARD`] they have to be the shipped score exactly, or every baseline in a
+    /// sweep is quietly measuring something else.
+    #[test]
+    fn the_standard_params_reproduce_the_shipped_scores() {
+        for fixture in [
+            include_str!("../fixtures/start_of_game.json"),
+            include_str!("../fixtures/a-prime-food-maze.json"),
+            include_str!("../fixtures/check_board_doubled_up.json"),
+        ] {
+            let game = serde_json::from_str::<Game>(fixture).unwrap();
+            let id_map = build_snake_id_map(&game);
+            let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+            assert_eq!(
+                standard_score_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
+                standard_score::<_, u8, 4>(&board)
+            );
+            assert_eq!(
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
+                standard_score_tail_aware::<_, u8, 4>(&board)
+            );
+        }
+    }
+
+    /// `low_health` is the whole growth policy, so a changed threshold has to actually change the
+    /// branch the score takes -- not just sit in the struct unread.
+    #[test]
+    fn the_low_health_threshold_picks_the_branch() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        // A freshly spawned snake is on 100 health, so the shipped threshold of 60 hovers...
+        assert!(matches!(
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
+            Score::FloodFill(_)
+        ));
+
+        // ...and a threshold above full health always seeks food.
+        let always_eat = ScoreParams {
+            low_health: 101,
+            ..ScoreParams::STANDARD
+        };
+        assert!(matches!(
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, always_eat),
+            Score::LowOnHealth(_, _)
+        ));
+    }
 
     #[test]
     #[ignore]
