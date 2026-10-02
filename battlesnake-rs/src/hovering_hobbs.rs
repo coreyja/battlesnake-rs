@@ -37,12 +37,36 @@ const STANDARD_SCORES: Scores = Scores {
 /// deepening round of lost search on every position. See DEV-1507.
 pub const STANDARD_CYCLES: usize = 12;
 
-/// Below this health the leaf score stops valuing territory and heads for the nearest food.
+/// Below this health the leaf score stops valuing territory and heads for the nearest food, when
+/// only one rival is left alive.
 ///
-/// This is Hobbs' whole growth policy: above the threshold food is worth only its fill weight, so
-/// Hobbs hovers and controls space rather than growing, and eats exactly often enough to stay
-/// alive. Measured in real Arena games, that is about one food every 40 turns.
-pub const STANDARD_LOW_HEALTH: i64 = 60;
+/// Growth is worth much less in a duel: there is one snake to out-length rather than three, while
+/// the cost of being long -- less room, so more collisions -- is unchanged. Measured head-to-head
+/// on 2 snakes under production rules, raising this to 85 **loses** 43.0% (z=-3.80), with
+/// head-to-head deaths falling 49 -> 19 but body collisions rising 57 -> 124 and self-collisions
+/// 212 -> 279. So the duel threshold stays where it was.
+pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
+
+/// Below this health the leaf score heads for the nearest food, when two or more rivals are alive.
+///
+/// At the original 60 Hobbs ate about **once every 40 turns** -- measured off real Arena game
+/// frames -- and finished a 4-snake game near length 14 while rivals passed 20. A snake that short
+/// loses every head-to-head it enters, which is a complete account of a 0% first-place rate on the
+/// Standard 11x11 leaderboard.
+///
+/// 85 rather than 60: measured head-to-head on the 4-snake board under production rules, 55.7%
+/// (z=+2.83, 610 decisive games), with head-to-head deaths falling 183 -> 88 and body collisions
+/// rising 279 -> 365 -- the trade, and it is net positive once there are three rivals to out-length.
+/// It is also the knob that matters: adding a doubled food weight on top of it is worth only 53.0%
+/// (z=+1.62, n.s.), while adding this threshold on top of a doubled food weight is worth 62.4%
+/// (z=+6.30).
+///
+/// Do not raise it further. The fraction of turns on which *every* leaf sits below the threshold --
+/// so territory is demoted to a tiebreak behind food distance for the whole search window -- goes as
+/// `depth / (100 - threshold)`, so the cost is hyperbolic: 90 scores 34.0%, 95 scores 27.4%, and 100
+/// (always food-seeking) loses every decisive game while finishing *shorter* than the shipped
+/// policy, because it dives for food into losing space.
+pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
 
 /// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
 ///
@@ -54,8 +78,12 @@ pub struct ScoreParams {
     pub cycles: usize,
     /// Per-square weights for the fill. See [`STANDARD_SCORES`].
     pub scores: Scores,
-    /// Health below which the score switches to food-seeking. See [`STANDARD_LOW_HEALTH`].
-    pub low_health: i64,
+    /// Health below which the score switches to food-seeking with one rival left.
+    /// See [`STANDARD_LOW_HEALTH_DUEL`].
+    pub low_health_duel: i64,
+    /// Health below which the score switches to food-seeking with two or more rivals left.
+    /// See [`STANDARD_LOW_HEALTH_CROWDED`].
+    pub low_health_crowded: i64,
 }
 
 impl ScoreParams {
@@ -63,8 +91,29 @@ impl ScoreParams {
     pub const STANDARD: Self = Self {
         cycles: STANDARD_CYCLES,
         scores: STANDARD_SCORES,
-        low_health: STANDARD_LOW_HEALTH,
+        low_health_duel: STANDARD_LOW_HEALTH_DUEL,
+        low_health_crowded: STANDARD_LOW_HEALTH_CROWDED,
     };
+
+    /// The threshold for this board: growth is worth more the more rivals there are to out-length.
+    fn low_health_for<BoardType>(self, node: &BoardType) -> i64
+    where
+        BoardType:
+            SnakeIDGettableGame<SnakeIDType = SnakeId> + YouDeterminableGame + HealthGettableGame,
+    {
+        let me = node.you_id();
+        let rivals = node
+            .get_snake_ids()
+            .iter()
+            .filter(|id| *id != me && node.is_alive(id))
+            .count();
+
+        if rivals >= 2 {
+            self.low_health_crowded
+        } else {
+            self.low_health_duel
+        }
+    }
 }
 
 impl Default for ScoreParams {
@@ -78,7 +127,7 @@ impl Default for ScoreParams {
 pub fn score_from_square_counts<BoardType, const MAX_SNAKES: usize>(
     node: &BoardType,
     square_counts: [u16; MAX_SNAKES],
-    low_health: i64,
+    params: ScoreParams,
 ) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -93,7 +142,7 @@ where
     let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
-    if node.get_health_i64(me) < low_health {
+    if node.get_health_i64(me) < params.low_health_for(node) {
         let dist = node
             .shortest_distance(
                 &node.get_head_as_native_position(me),
@@ -127,7 +176,7 @@ where
     score_from_square_counts(
         node,
         node.squares_per_snake_with_scores(params.cycles, params.scores),
-        params.low_health,
+        params,
     )
 }
 
@@ -151,7 +200,7 @@ where
     score_from_square_counts(
         node,
         node.squares_per_snake_with_scores_tail_aware(params.cycles, params.scores),
-        params.low_health,
+        params,
     )
 }
 
@@ -435,7 +484,7 @@ mod tests {
         }
     }
 
-    /// `low_health` is the whole growth policy, so a changed threshold has to actually change the
+    /// The thresholds are the whole growth policy, so a changed one has to actually change the
     /// branch the score takes -- not just sit in the struct unread.
     #[test]
     fn the_low_health_threshold_picks_the_branch() {
@@ -444,7 +493,7 @@ mod tests {
         let id_map = build_snake_id_map(&game);
         let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
-        // A freshly spawned snake is on 100 health, so the shipped threshold of 60 hovers...
+        // A freshly spawned snake is on 100 health, so every shipped threshold hovers...
         assert!(matches!(
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
             Score::FloodFill(_)
@@ -452,12 +501,46 @@ mod tests {
 
         // ...and a threshold above full health always seeks food.
         let always_eat = ScoreParams {
-            low_health: 101,
+            low_health_duel: 101,
+            low_health_crowded: 101,
             ..ScoreParams::STANDARD
         };
         assert!(matches!(
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, always_eat),
             Score::LowOnHealth(_, _)
+        ));
+    }
+
+    /// The point of two thresholds is that the board picks between them. `start_of_game` has three
+    /// snakes, so it must read the *crowded* one and ignore the duel one entirely.
+    #[test]
+    fn the_rival_count_picks_which_threshold_applies() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        assert_eq!(board.get_snake_ids().len(), 3, "fixture is a crowded board");
+
+        // Crowded threshold above full health: food-seeking, even though the duel threshold is low.
+        let crowded_eats = ScoreParams {
+            low_health_duel: 1,
+            low_health_crowded: 101,
+            ..ScoreParams::STANDARD
+        };
+        assert!(matches!(
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, crowded_eats),
+            Score::LowOnHealth(_, _)
+        ));
+
+        // And the other way round: a sky-high *duel* threshold must not reach a 3-snake board.
+        let duel_eats = ScoreParams {
+            low_health_duel: 101,
+            low_health_crowded: 1,
+            ..ScoreParams::STANDARD
+        };
+        assert!(matches!(
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, duel_eats),
+            Score::FloodFill(_)
         ));
     }
 
