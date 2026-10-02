@@ -49,14 +49,12 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 
 /// Below this health the leaf score heads for the nearest food, when two or more rivals are alive.
 ///
-/// At the original 60 Hobbs ate about **once every 40 turns** -- measured off real Arena game
-/// frames -- and finished a 4-snake game near length 14 while rivals passed 20. A snake that short
-/// loses every head-to-head it enters, which is a complete account of a 0% first-place rate on the
-/// Standard 11x11 leaderboard.
+/// 85 rather than 60: measured head-to-head on the 4-snake board under production rules at fixed
+/// depth, the conditional policy beats a flat 60 **72.0%** of the time (z=+10.52, 574 decisive games
+/// of 720, A/A control exactly 50.0%). In those games the flat-60 side finishes near length 15 and
+/// the raised-threshold side near 20, and the elimination counts show the trade: head-to-head deaths
+/// 213 -> 84, body collisions flat at 306 -> 300, self-collisions 604 -> 513.
 ///
-/// 85 rather than 60: measured head-to-head on the 4-snake board under production rules, 55.7%
-/// (z=+2.83, 610 decisive games), with head-to-head deaths falling 183 -> 88 and body collisions
-/// rising 279 -> 365 -- the trade, and it is net positive once there are three rivals to out-length.
 /// It is also the knob that matters: adding a doubled food weight on top of it is worth only 53.0%
 /// (z=+1.62, n.s.), while adding this threshold on top of a doubled food weight is worth 62.4%
 /// (z=+6.30).
@@ -64,8 +62,12 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 /// Do not raise it further. The fraction of turns on which *every* leaf sits below the threshold --
 /// so territory is demoted to a tiebreak behind food distance for the whole search window -- goes as
 /// `depth / (100 - threshold)`, so the cost is hyperbolic: 90 scores 34.0%, 95 scores 27.4%, and 100
-/// (always food-seeking) loses every decisive game while finishing *shorter* than the shipped
-/// policy, because it dives for food into losing space.
+/// (always food-seeking) loses every decisive game while finishing *shorter* than a flat 60, because
+/// it dives for food into losing space.
+///
+/// This is a *relative* result from controlled self-play, and deliberately not justified by the
+/// leaderboard. The ranked games that preceded it were played while the handler was panicking on
+/// last-snake-standing boards (fixed separately), so they say nothing about how this policy plays.
 pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
 
 /// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
