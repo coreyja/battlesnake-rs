@@ -454,7 +454,7 @@ mod tests {
 
     use crate::hovering_hobbs::{
         standard_score, standard_score_tail_aware, standard_score_tail_aware_with_params,
-        standard_score_with_params, Score, ScoreParams,
+        standard_score_with_params, Score, ScoreParams, STANDARD_LOW_HEALTH_DUEL,
     };
     use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
     use battlesnake_minimax::ParanoidMinimaxSnake;
@@ -542,6 +542,36 @@ mod tests {
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, duel_eats),
             Score::FloodFill(_)
         ));
+    }
+
+    /// The claim that justifies a conditional threshold rather than a flat one: with a single rival
+    /// the crowded threshold is unreachable, so raising it cannot change how Hobbs plays a duel.
+    #[test]
+    fn a_duel_never_reads_the_crowded_threshold() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/check_board_doubled_up.json"))
+                .unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        assert_eq!(board.get_snake_ids().len(), 2, "fixture is a duel");
+
+        // Whatever the crowded threshold says, a duel board scores the same as it did before the
+        // crowded threshold existed.
+        let flat_duel = ScoreParams {
+            low_health_crowded: STANDARD_LOW_HEALTH_DUEL,
+            ..ScoreParams::STANDARD
+        };
+        for crowded in [1, 50, 85, 101] {
+            let params = ScoreParams {
+                low_health_crowded: crowded,
+                ..ScoreParams::STANDARD
+            };
+            assert_eq!(
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, params),
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, flat_duel),
+                "crowded threshold {crowded} leaked into a 2-snake board"
+            );
+        }
     }
 
     #[test]
