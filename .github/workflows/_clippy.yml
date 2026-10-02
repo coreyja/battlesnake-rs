@@ -19,5 +19,8 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
+      # `--benches` matters: nothing else in CI compiles them. benches.yml is
+      # `workflow_dispatch`-only, and `cargo test` does not build bench targets, so the benches sat
+      # broken on main for an unknown length of time with every check green.
       - name: Run clippy
-        run: cargo clippy --workspace --lib --bins --tests --no-deps --locked -- -D warnings
+        run: cargo clippy --workspace --lib --bins --tests --benches --no-deps --locked -- -D warnings
