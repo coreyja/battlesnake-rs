@@ -209,7 +209,10 @@ pub(crate) async fn route_hobbs_move(
         None
     };
 
-    let score = &standard_score::<StandardCellBoard4Snakes11x11, _, 4>;
+    // The tail-aware fill, matching `hovering_hobbs::Factory`. This route does not go through the
+    // factory -- `hovering_hobbs::Factory` is commented out of `all_factories()` -- so the score has
+    // to be switched here too or the deployed snake keeps playing the naive fill.
+    let score = &standard_score_tail_aware::<StandardCellBoard4Snakes11x11, _, 4>;
 
     let my_id = game.you_id();
     let snake = ParanoidMinimaxSnake::new(game, game_info, turn, score, name, options);

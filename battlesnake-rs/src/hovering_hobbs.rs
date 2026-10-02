@@ -29,9 +29,14 @@ const STANDARD_SCORES: Scores = Scores {
 /// How many spread cycles the leaf score looks ahead.
 ///
 /// The fill stops early once its frontier dies, so this is a cap rather than a fixed cost: on a
-/// cramped board a larger budget costs nothing extra. See [`standard_score_with_cycles`] for
+/// cramped board a larger budget costs nothing extra, and on an 11x11 board the frontier is dead by
+/// ~12 cycles, so any larger value is the same computation. See [`standard_score_with_cycles`] for
 /// measuring a different budget without changing what Hobbs ships.
-pub const STANDARD_CYCLES: usize = 5;
+///
+/// 12 rather than the original 5: measured head-to-head under production rules, a 12-cycle
+/// tail-aware fill beats the 5-cycle one 90.0% of the time (z=+22.4) *after* being charged a full
+/// deepening round of lost search on every position. See DEV-1507.
+pub const STANDARD_CYCLES: usize = 12;
 
 /// Turn a per-snake territory count into a [`Score`], shared by every flood-fill variant so the
 /// variants differ only in how the territory was measured.

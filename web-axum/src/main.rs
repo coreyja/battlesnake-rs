@@ -19,7 +19,7 @@ use battlesnake_minimax::{
 use battlesnake_rs::{
     BoxedFactory, Game, MoveOutput, SnakeId, StandardCellBoard4Snakes11x11, all_factories,
     build_snake_id_map,
-    hovering_hobbs::{Factory, Score, standard_score},
+    hovering_hobbs::{Factory, Score, standard_score_tail_aware},
     improbable_irene::{Arena, ImprobableIrene},
 };
 use color_eyre::{
