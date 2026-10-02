@@ -27,11 +27,20 @@ const STANDARD_SCORES: Scores = Scores {
 };
 
 /// How many spread cycles the leaf score looks ahead.
-const STANDARD_CYCLES: usize = 5;
+///
+/// The fill stops early once its frontier dies, so this is a cap rather than a fixed cost: on a
+/// cramped board a larger budget costs nothing extra, and on an 11x11 board the frontier is dead by
+/// ~12 cycles, so any larger value is the same computation. See [`standard_score_with_cycles`] for
+/// measuring a different budget without changing what Hobbs ships.
+///
+/// 12 rather than the original 5: measured head-to-head under production rules, a 12-cycle
+/// tail-aware fill beats the 5-cycle one 90.0% of the time (z=+22.4) *after* being charged a full
+/// deepening round of lost search on every position. See DEV-1507.
+pub const STANDARD_CYCLES: usize = 12;
 
 /// Turn a per-snake territory count into a [`Score`], shared by every flood-fill variant so the
 /// variants differ only in how the territory was measured.
-fn score_from_square_counts<BoardType, const MAX_SNAKES: usize>(
+pub fn score_from_square_counts<BoardType, const MAX_SNAKES: usize>(
     node: &BoardType,
     square_counts: [u16; MAX_SNAKES],
 ) -> Score
@@ -62,7 +71,14 @@ where
     Score::FloodFill(my_ratio)
 }
 
-pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+/// [`standard_score`] with the spread cycle budget supplied by the caller.
+///
+/// Hobbs ships [`STANDARD_CYCLES`]; this exists so the budget can be swept without a second copy
+/// of the scoring logic. See `byte-scratch/hobbs-tail-aware-ab`.
+pub fn standard_score_with_cycles<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+    cycles: usize,
+) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
@@ -77,8 +93,47 @@ where
 {
     score_from_square_counts(
         node,
-        node.squares_per_snake_with_scores(STANDARD_CYCLES, STANDARD_SCORES),
+        node.squares_per_snake_with_scores(cycles, STANDARD_SCORES),
     )
+}
+
+/// [`standard_score_tail_aware`] with the spread cycle budget supplied by the caller.
+pub fn standard_score_tail_aware_with_cycles<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+    cycles: usize,
+) -> Score
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + YouDeterminableGame
+        + SpreadFromHeadTailAware<CellType, MAX_SNAKES>
+        + APrimeCalculable
+        + HeadGettableGame
+        + HazardQueryableGame
+        + HealthGettableGame
+        + LengthGettableGame
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
+{
+    score_from_square_counts(
+        node,
+        node.squares_per_snake_with_scores_tail_aware(cycles, STANDARD_SCORES),
+    )
+}
+
+pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + YouDeterminableGame
+        + SpreadFromHead<CellType, MAX_SNAKES>
+        + APrimeCalculable
+        + HeadGettableGame
+        + HazardQueryableGame
+        + HealthGettableGame
+        + LengthGettableGame
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
+{
+    standard_score_with_cycles::<_, CellType, MAX_SNAKES>(node, STANDARD_CYCLES)
 }
 
 /// [`standard_score`] with a tail-aware flood fill: squares your own tail is about to vacate count
@@ -98,10 +153,7 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    score_from_square_counts(
-        node,
-        node.squares_per_snake_with_scores_tail_aware(STANDARD_CYCLES, STANDARD_SCORES),
-    )
+    standard_score_tail_aware_with_cycles::<_, CellType, MAX_SNAKES>(node, STANDARD_CYCLES)
 }
 
 pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
