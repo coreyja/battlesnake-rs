@@ -89,7 +89,9 @@ pub struct Instruments {}
 #[cfg(test)]
 mod tests {
     use battlesnake_game_types::{
-        compact_representation::{dimensions::Custom, WrappedCellBoard},
+        compact_representation::{
+            dimensions::Custom, StandardCellBoard4Snakes11x11, WrappedCellBoard,
+        },
         types::{build_snake_id_map, Move, SimulableGame, SnakeIDGettableGame},
         wire_representation::Game,
     };
@@ -159,5 +161,23 @@ mod tests {
             "This game should be a win but was {:?}",
             result.score()
         );
+    }
+
+    #[test]
+    fn solo_game_still_picks_a_safe_move() {
+        // `is_over` treats a board with at most one snake as finished, so a
+        // solo game (or the last snake standing) used to produce a bare Leaf
+        // and no move at all.
+        let fixture = include_str!("../../fixtures/solo_cornered_bottom_right.json");
+        let wire_game: Game = serde_json::from_str(fixture).unwrap();
+        let snake_ids = build_snake_id_map(&wire_game);
+        let game_info = wire_game.game.clone();
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(wire_game, &snake_ids)
+            .expect("Fixture data should be a valid game");
+
+        let snake = MinimaxSnake::from_fn(game, game_info, 7, &|_| (), "solo");
+
+        // Down and Right leave the board, and Up is our own neck.
+        assert_eq!(snake.choose_move().map(|(m, _)| m), Some(Move::Left));
     }
 }
