@@ -20,7 +20,7 @@ pub enum Score {
 
 /// Weights for the flood-fill leaf score: food is worth four empty squares, hazards a fifth of
 /// one.
-const STANDARD_SCORES: Scores = Scores {
+pub const STANDARD_SCORES: Scores = Scores {
     food: 20,
     hazard: 1,
     empty: 5,
