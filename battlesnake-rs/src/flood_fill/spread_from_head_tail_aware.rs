@@ -368,6 +368,55 @@ mod tests {
         );
     }
 
+    /// Both spreads stop once their frontier dies, so any budget past the board's diameter is
+    /// identical to an unbounded one. A cycle-budget sweep relies on this: "unbounded" can be
+    /// spelled as a large constant without having to add an uncapped code path.
+    ///
+    /// 200 is well past the 121-cell board; 121 is the loosest budget any 11x11 fill can use.
+    #[test]
+    fn a_budget_past_the_board_size_is_the_same_as_an_unbounded_one() {
+        let fixtures = [
+            include_str!("../../../fixtures/095b30fa-f2c7-4826-ac93-90b4dde6b785_5.json"),
+            include_str!("../../../fixtures/130b18e2-8689-4d64-a09f-c4345f80ae79_25.json"),
+            include_str!("../../../fixtures/4f198c01-d613-4109-b8b9-226208cde009_505.json"),
+            include_str!("../../../fixtures/7311099d-b98a-4589-9b05-32dc80362bcc_135.json"),
+            include_str!("../../../fixtures/7a02e19b-f658-4639-8ace-ece46629a6ed_192.json"),
+            include_str!("../../../fixtures/95d72d73-352b-4ad5-83e4-86139fa556a9_54.json"),
+        ];
+
+        for (i, fixture) in fixtures.iter().enumerate() {
+            let game: Game = serde_json::from_str(fixture).unwrap();
+            let wrapped = game.game.ruleset.name == "wrapped";
+            let id_map = build_snake_id_map(&game);
+
+            let at = |cycles: usize| -> (u32, u32) {
+                if wrapped {
+                    let board =
+                        WrappedCellBoard4Snakes11x11::convert_from_game(game.clone(), &id_map)
+                            .unwrap();
+                    (
+                        totals_naive(&board, cycles),
+                        totals_tail_aware(&board, cycles),
+                    )
+                } else {
+                    let board =
+                        StandardCellBoard4Snakes11x11::convert_from_game(game.clone(), &id_map)
+                            .unwrap();
+                    (
+                        totals_naive(&board, cycles),
+                        totals_tail_aware(&board, cycles),
+                    )
+                }
+            };
+
+            assert_eq!(
+                at(121),
+                at(200),
+                "fixture {i}: the fill kept growing past the board size"
+            );
+        }
+    }
+
     /// The tail-aware frontier is a superset of the naive one at every cycle, so the total number
     /// of owned squares can only grow. An individual snake can lose squares to a rival that now
     /// reaches them first, which is why this checks the sum.
