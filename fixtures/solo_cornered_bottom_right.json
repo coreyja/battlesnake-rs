@@ -1,0 +1,52 @@
+{
+  "game": {
+    "id": "5d3b8e21-9a4f-4c6d-b2e7-1f0a9c8d7e6b",
+    "ruleset": {
+      "name": "standard",
+      "version": "v1.0.0",
+      "settings": {
+        "foodSpawnChance": 15,
+        "minimumFood": 1,
+        "hazardDamagePerTurn": 0
+      }
+    },
+    "timeout": 500,
+    "map": "standard",
+    "source": "custom"
+  },
+  "turn": 7,
+  "board": {
+    "height": 11,
+    "width": 11,
+    "food": [{ "x": 5, "y": 5 }],
+    "snakes": [
+      {
+        "id": "solo",
+        "name": "Solo",
+        "health": 93,
+        "body": [
+          { "x": 10, "y": 0 },
+          { "x": 10, "y": 1 },
+          { "x": 10, "y": 2 }
+        ],
+        "head": { "x": 10, "y": 0 },
+        "length": 3,
+        "shout": ""
+      }
+    ],
+    "hazards": []
+  },
+  "you": {
+    "id": "solo",
+    "name": "Solo",
+    "health": 93,
+    "body": [
+      { "x": 10, "y": 0 },
+      { "x": 10, "y": 1 },
+      { "x": 10, "y": 2 }
+    ],
+    "head": { "x": 10, "y": 0 },
+    "length": 3,
+    "shout": ""
+  }
+}

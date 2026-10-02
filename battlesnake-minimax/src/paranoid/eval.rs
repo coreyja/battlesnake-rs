@@ -285,16 +285,7 @@ where
         let my_id = self.game.you_id();
         let (depth, scored) = self.choose_move_inner(None);
 
-        let scored_options = scored.first_options_for_snake(my_id)?;
-
-        let ids = self.game.get_snake_ids();
-        if ids.len() == 1 {
-            info!("We are the only snake left on the board, lets go Right");
-
-            return Some((Move::Right, 0));
-        }
-
-        Some((scored_options.first()?.0, depth))
+        Some((scored.your_best_move(my_id)?, depth))
     }
 
     #[allow(missing_docs)]
@@ -441,14 +432,21 @@ where
             node
         };
 
+        // Callers need a move from the root even when the position already
+        // counts as over. `is_over` means one snake or fewer is left, which is
+        // true from turn 0 of a solo game and for the last snake standing, so
+        // returning a Leaf here would leave us with no move options at all.
+        let must_expand_root = depth == 0 && node.is_over();
         let new_depth = depth.try_into().unwrap();
-        if let Some(s) = self.wrapped_score(
-            &node,
-            new_depth,
-            max_depth.try_into().unwrap(),
-            players.len() as i64,
-        ) {
-            return Ok(MinMaxReturn::Leaf { score: s });
+        if !must_expand_root {
+            if let Some(s) = self.wrapped_score(
+                &node,
+                new_depth,
+                max_depth.try_into().unwrap(),
+                players.len() as i64,
+            ) {
+                return Ok(MinMaxReturn::Leaf { score: s });
+            }
         }
 
         let snake_id = &players[depth % players.len()];

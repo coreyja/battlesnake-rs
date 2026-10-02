@@ -105,7 +105,7 @@ pub(crate) async fn route_hobbs_end(
 pub(crate) async fn route_hobbs_move(
     State(state): State<Arc<Mutex<AppState>>>,
     Json(game): Json<Game>,
-) -> impl IntoResponse {
+) -> Json<MoveOutput> {
     let game_info = game.game.clone();
     let game_id = game_info.id.to_string();
     let turn = game.turn;
@@ -219,8 +219,12 @@ pub(crate) async fn route_hobbs_move(
             .await
             .unwrap();
 
-    let scored_options = scored.first_options_for_snake(my_id).unwrap();
-    let output = scored_options.first().unwrap().0;
+    // A panic here drops the connection, which the proxy turns into a 502, so
+    // answer with some move and leave a trace instead.
+    let output = scored.your_best_move(my_id).unwrap_or_else(|| {
+        tracing::warn!("minimax returned no move for us; falling back to up");
+        Move::Up
+    });
 
     // /end can arrive while the move is still computing; don't resurrect it.
     if let Some(game_state) = state.lock().game_states.get_mut(&game_id) {
@@ -243,6 +247,7 @@ pub(crate) async fn route_hobbs_move(
 #[cfg(test)]
 mod tests {
     use axum::{Json, extract::State};
+    use battlesnake_game_types::wire_representation::Position;
 
     use super::*;
 
@@ -253,6 +258,11 @@ mod tests {
         .unwrap();
         game.game.id = id.to_string();
         game
+    }
+
+    async fn hobbs_move(state: &Arc<Mutex<AppState>>, game: Game) -> String {
+        let Json(output) = route_hobbs_move(State(state.clone()), Json(game)).await;
+        output.r#move
     }
 
     fn shared_state() -> Arc<Mutex<AppState>> {
@@ -326,5 +336,47 @@ mod tests {
         pending.await.unwrap();
 
         assert!(state.lock().game_states.is_empty());
+    }
+
+    #[tokio::test]
+    async fn arena_health_probe_gets_a_move() {
+        // Arena's health probe and "Test Snake" button send a solo turn-0
+        // game. This used to panic, and the dropped connection reached
+        // Arena as a 502.
+        let game: Game =
+            serde_json::from_str(include_str!("../../fixtures/arena_health_probe.json")).unwrap();
+
+        let chosen = hobbs_move(&shared_state(), game).await;
+
+        assert!(["up", "down", "left", "right"].contains(&chosen.as_str()));
+    }
+
+    #[tokio::test]
+    async fn solo_game_avoids_the_walls() {
+        let game: Game = serde_json::from_str(include_str!(
+            "../../fixtures/solo_cornered_bottom_right.json"
+        ))
+        .unwrap();
+
+        // Down and Right leave the board, and Up is our own neck.
+        assert_eq!(hobbs_move(&shared_state(), game).await, "left");
+    }
+
+    #[tokio::test]
+    async fn last_snake_standing_gets_a_move() {
+        let state = shared_state();
+        hobbs_move(&state, game("last-standing")).await;
+
+        // Every opponent died on turn 25. The previous turn's search tree is
+        // still reused, and it reaches a snake that no longer exists.
+        let mut game = game("last-standing");
+        game.turn = 26;
+        game.you.body.pop_back();
+        game.you.body.push_front(Position { x: 3, y: 9 });
+        game.you.head = Position { x: 3, y: 9 };
+        game.board.snakes = vec![game.you.clone()];
+
+        // Up is our neck, and also the fallback when the search finds no move.
+        assert_ne!(hobbs_move(&state, game).await, "up");
     }
 }
