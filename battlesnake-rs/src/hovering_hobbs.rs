@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::{Scores, SpreadFromHead};
 use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
+use crate::flood_fill::spread_from_head_tail_aware::SpreadFromHeadTailAware;
 use crate::*;
 
 use battlesnake_minimax::{
@@ -17,26 +18,31 @@ pub enum Score {
     FloodFill(N64),
 }
 
-pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+/// Weights for the flood-fill leaf score: food is worth four empty squares, hazards a fifth of
+/// one.
+const STANDARD_SCORES: Scores = Scores {
+    food: 20,
+    hazard: 1,
+    empty: 5,
+};
+
+/// How many spread cycles the leaf score looks ahead.
+const STANDARD_CYCLES: usize = 5;
+
+/// Turn a per-snake territory count into a [`Score`], shared by every flood-fill variant so the
+/// variants differ only in how the territory was measured.
+fn score_from_square_counts<BoardType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+    square_counts: [u16; MAX_SNAKES],
+) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
         + YouDeterminableGame
-        + SpreadFromHead<CellType, MAX_SNAKES>
         + APrimeCalculable
         + HeadGettableGame
-        + HazardQueryableGame
         + HealthGettableGame
-        + LengthGettableGame
-        + FoodGettableGame
-        + MaxSnakes<MAX_SNAKES>,
+        + FoodGettableGame,
 {
-    let scores = Scores {
-        food: 20,
-        hazard: 1,
-        empty: 5,
-    };
-    let square_counts = node.squares_per_snake_with_scores(5, scores);
-
     let me = node.you_id();
     let my_space: f64 = square_counts[me.as_usize()] as f64;
     let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
@@ -54,6 +60,48 @@ where
     }
 
     Score::FloodFill(my_ratio)
+}
+
+pub fn standard_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + YouDeterminableGame
+        + SpreadFromHead<CellType, MAX_SNAKES>
+        + APrimeCalculable
+        + HeadGettableGame
+        + HazardQueryableGame
+        + HealthGettableGame
+        + LengthGettableGame
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
+{
+    score_from_square_counts(
+        node,
+        node.squares_per_snake_with_scores(STANDARD_CYCLES, STANDARD_SCORES),
+    )
+}
+
+/// [`standard_score`] with a tail-aware flood fill: squares your own tail is about to vacate count
+/// as reachable instead of as wall. See [`crate::flood_fill::spread_from_head_tail_aware`].
+pub fn standard_score_tail_aware<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+) -> Score
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + YouDeterminableGame
+        + SpreadFromHeadTailAware<CellType, MAX_SNAKES>
+        + APrimeCalculable
+        + HeadGettableGame
+        + HazardQueryableGame
+        + HealthGettableGame
+        + LengthGettableGame
+        + FoodGettableGame
+        + MaxSnakes<MAX_SNAKES>,
+{
+    score_from_square_counts(
+        node,
+        node.squares_per_snake_with_scores_tail_aware(STANDARD_CYCLES, STANDARD_SCORES),
+    )
 }
 
 pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
@@ -237,7 +285,14 @@ impl Factory {
         if game.is_arcade_maze_map() {
             build_from_best_cell_board!(game, game_info, turn, arcade_maze_score, name, options)
         } else {
-            build_from_best_cell_board!(game, game_info, turn, standard_score, name, options)
+            build_from_best_cell_board!(
+                game,
+                game_info,
+                turn,
+                standard_score_tail_aware,
+                name,
+                options
+            )
         }
     }
 
@@ -261,7 +316,7 @@ mod tests {
         wire_representation::Game,
     };
 
-    use crate::hovering_hobbs::standard_score;
+    use crate::hovering_hobbs::standard_score_tail_aware;
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     #[test]
@@ -320,8 +375,14 @@ mod tests {
         let name = "hovering-hobbs";
         let options = Default::default();
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        let hobbs =
-            ParanoidMinimaxSnake::new(game, game_info, turn, &standard_score, name, options);
+        let hobbs = ParanoidMinimaxSnake::new(
+            game,
+            game_info,
+            turn,
+            &standard_score_tail_aware,
+            name,
+            options,
+        );
 
         let my_id = game.you_id();
         let mut sorted_ids = game.get_snake_ids();

@@ -21,9 +21,9 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Scores {
-    pub(crate) food: u16,
-    pub(crate) hazard: u16,
-    pub(crate) empty: u16,
+    pub food: u16,
+    pub hazard: u16,
+    pub empty: u16,
 }
 
 pub trait SpreadFromHead<CellType, const MAX_SNAKES: usize> {
@@ -130,16 +130,9 @@ where
     }
 
     fn squares_per_snake(&self, number_of_cycles: usize) -> [u8; MAX_SNAKES] {
-        let result = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
-        let cell_sids = result.cells.iter().filter_map(|x| *x);
+        let grid = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
 
-        let mut total_values = [0; MAX_SNAKES];
-
-        for sid in cell_sids {
-            total_values[sid.as_usize()] += 1;
-        }
-
-        total_values
+        count_grid(&grid)
     }
 
     fn squares_per_snake_with_scores(
@@ -149,33 +142,59 @@ where
     ) -> [u16; MAX_SNAKES] {
         let grid = SpreadFromHead::<CellType, MAX_SNAKES>::calculate(self, number_of_cycles);
 
-        let sid_and_values = grid
-            .cells
-            .iter()
-            .enumerate()
-            .filter_map(|x| x.1.map(|sid| (x.0, sid)))
-            .map(|(i, sid)| {
-                let value = if self.is_hazard(
-                    &<BoardType as PositionGettableGame>::NativePositionType::from_usize(i),
-                ) {
-                    scores.hazard
-                } else if self.is_food(
-                    &<BoardType as PositionGettableGame>::NativePositionType::from_usize(i),
-                ) {
-                    scores.food
-                } else {
-                    scores.empty
-                };
-
-                (sid, value)
-            });
-
-        let mut total_values = [0_u16; MAX_SNAKES];
-
-        for (sid, value) in sid_and_values {
-            total_values[sid.as_usize()] += value;
-        }
-
-        total_values
+        score_grid(self, &grid, scores)
     }
+}
+
+/// Count the squares each snake owns in a finished [`Grid`].
+pub(crate) fn count_grid<BoardType, const MAX_SNAKES: usize>(
+    grid: &Grid<BoardType>,
+) -> [u8; MAX_SNAKES]
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId> + ?Sized,
+{
+    let mut total_values = [0; MAX_SNAKES];
+
+    for sid in grid.cells.iter().filter_map(|x| *x) {
+        total_values[sid.as_usize()] += 1;
+    }
+
+    total_values
+}
+
+/// Weigh the squares each snake owns in a finished [`Grid`] by what is on them.
+pub(crate) fn score_grid<BoardType, CellType, const MAX_SNAKES: usize>(
+    node: &BoardType,
+    grid: &Grid<BoardType>,
+    scores: Scores,
+) -> [u16; MAX_SNAKES]
+where
+    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+        + PositionGettableGame<NativePositionType = CellIndex<CellType>>
+        + HazardQueryableGame
+        + FoodQueryableGame,
+    CellType: CellNum,
+{
+    let mut total_values = [0_u16; MAX_SNAKES];
+
+    for (i, sid) in grid
+        .cells
+        .iter()
+        .enumerate()
+        .filter_map(|(i, cell)| cell.map(|sid| (i, sid)))
+    {
+        let pos = <BoardType as PositionGettableGame>::NativePositionType::from_usize(i);
+
+        let value = if node.is_hazard(&pos) {
+            scores.hazard
+        } else if node.is_food(&pos) {
+            scores.food
+        } else {
+            scores.empty
+        };
+
+        total_values[sid.as_usize()] += value;
+    }
+
+    total_values
 }
