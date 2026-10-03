@@ -76,13 +76,39 @@ pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
 /// square of length advantage over the longest living rival worth 0.02 of ratio -- about the
 /// difference between claiming 40% and 42% of the board.
 ///
-/// 0 disables the term, which is what ships until an A/B says otherwise.
-pub const STANDARD_LENGTH_WEIGHT_MILLI: i64 = 0;
+/// Ships at 160: one square of length is worth 0.16 of ratio. Sibling moves usually differ by about
+/// 0.05, so in practice this orders leaves by capped length difference first and territory second,
+/// and only a territory gap above 0.16 per square (being sealed in, or sealing a rival) overrules
+/// it.
+///
+/// Measured in self-play under production rules against the same snake with the term off, both
+/// sides searching to the same budget of leaf evaluations -- iterative deepening that plays the
+/// deepest completed round, which is the production time limit with leaves in place of wall time,
+/// so the term is charged for any depth it costs:
+///
+/// | board | budget | games | win rate | z |
+/// | -- | -- | --: | --: | --: |
+/// | 4 snakes | 1k leaves | 180 | 73.6% | +5.75 |
+/// | 4 snakes | 8k leaves | 180 | 78.9% | +6.88 |
+/// | 4 snakes | 60k leaves (~production) | 60 | 72.1% | +2.90 |
+/// | duel | 1k leaves | 600 | 63.8% | +6.20 |
+/// | duel | 8k leaves | 60 | 62.7% | +1.82 |
+///
+/// It costs no search: compared at the same number of living snakes, both sides complete the same
+/// number of rounds on the same budget (2.26 vs 2.25 with four alive at 8k). It does not replace
+/// [`STANDARD_LOW_HEALTH_CROWDED`] either -- keeping that threshold on top of the term beats a flat
+/// 60 with the term, 58.0% (z=+1.96).
+///
+/// 0 disables the term.
+pub const STANDARD_LENGTH_WEIGHT_MILLI: i64 = 160;
 
 /// Magnitude at which the length difference stops counting, in squares.
 ///
 /// Being 10 longer than every rival is not materially safer than being 3 longer, and an uncapped
-/// term would keep paying a runaway leader to eat into bad space.
+/// term would keep paying a runaway leader to eat into bad space. A cap of 1 throws most of the
+/// value away: at weight 160, cap 3 beats cap 1 71.5% (z=+5.41; four snakes, fixed depth, both on a
+/// flat 60 threshold), so being two or three longer than the longest rival is what pays, not merely
+/// not falling behind.
 pub const STANDARD_LENGTH_CAP: i64 = 3;
 
 /// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
@@ -560,8 +586,7 @@ mod tests {
     }
 
     /// The length term has to move the score by exactly its weight times the capped length
-    /// difference, and by nothing at all at weight 0 -- which is what ships, and what the test above
-    /// relies on.
+    /// difference, measured from the same score with the term switched off.
     #[test]
     fn the_length_term_is_the_weight_times_the_capped_difference() {
         // The diffs these fixtures carry are 0, +1 and -9, so the sign and the cap are both
@@ -576,8 +601,12 @@ mod tests {
             let id_map = build_snake_id_map(&game);
             let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
+            let without_term = ScoreParams {
+                length_weight_milli: 0,
+                ..ScoreParams::STANDARD
+            };
             let Score::FloodFill(base) =
-                standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD)
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, without_term)
             else {
                 panic!("fixture is above every shipped health threshold, so it should flood-fill");
             };
@@ -625,6 +654,38 @@ mod tests {
         assert!(
             diffs_seen.contains(&0),
             "no fixture has equal lengths, so the zero case is untested: {diffs_seen:?}"
+        );
+    }
+
+    /// The length term ships on, so the entry point the live route calls has to carry it -- not
+    /// just the parameterized one a sweep calls.
+    #[test]
+    fn the_shipped_score_carries_the_length_term() {
+        // We are 9 shorter than the longest rival here, so the term is at its negative cap.
+        let game = serde_json::from_str::<Game>(include_str!("../fixtures/a-prime-food-maze.json"))
+            .unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let without_term = ScoreParams {
+            length_weight_milli: 0,
+            ..ScoreParams::STANDARD
+        };
+        let (Score::FloodFill(shipped), Score::FloodFill(off)) = (
+            standard_score_tail_aware::<_, u8, 4>(&board),
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, without_term),
+        ) else {
+            panic!("fixture is above every shipped health threshold, so it should flood-fill");
+        };
+
+        let expected = -(ScoreParams::STANDARD.length_cap as f64)
+            * ScoreParams::STANDARD.length_weight_milli as f64
+            / 1000.0;
+        assert!(expected < 0.0, "the length term no longer ships on");
+        assert!(
+            (f64::from(shipped) - f64::from(off) - expected).abs() < 1e-12,
+            "the live entry point moved the score by {}, expected {expected}",
+            f64::from(shipped) - f64::from(off)
         );
     }
 
