@@ -979,6 +979,67 @@ where
 
         current_return.unwrap()
     }
+
+    /// Iterative deepening that stops when `halt` receives, rather than when a clock runs out.
+    ///
+    /// The same contract as [MinimaxSnake::deepened_minimax_until_timelimit()]: a round that is
+    /// halted part-way is thrown away, and the answer is the deepest round that completed. What
+    /// sends the halt is up to the caller, which makes this the hook for spending a search budget
+    /// measured in something other than wall time -- a count of leaf evaluations, say, which does
+    /// not depend on how loaded the machine is.
+    ///
+    /// The first round always runs to completion so there is always an answer to return, and no
+    /// round deeper than `max_turns` is started. Returns the completed depth in plies alongside
+    /// the result.
+    pub fn deepened_minimax_until_halted(
+        &self,
+        halt: &mpsc::Receiver<()>,
+        max_turns: usize,
+    ) -> (usize, MinMaxReturn<GameType, ScoreType>) {
+        let my_id = self.game.you_id();
+        let mut sorted_ids = self.game.get_snake_ids();
+        sorted_ids.sort_by_key(|snake_id| if snake_id == my_id { -1 } else { 1 });
+
+        let players = sorted_ids;
+
+        let max_depth = max_turns * players.len();
+        let mut current_depth = players.len();
+        let mut completed: Option<(usize, MinMaxReturn<GameType, ScoreType>)> = None;
+
+        while current_depth <= max_depth {
+            let receiver = completed.as_ref().map(|_| halt);
+            let previous = completed.as_ref().map(|(_, r)| r.clone());
+
+            let next = match self.minimax(
+                Cow::Borrowed(&self.game),
+                &players,
+                0,
+                WrappedScore::<ScoreType>::worst_possible_score(),
+                WrappedScore::<ScoreType>::best_possible_score(),
+                current_depth,
+                previous,
+                vec![],
+                receiver,
+            ) {
+                Ok(next) => next,
+                Err(AbortedEarly) => break,
+            };
+
+            let game_decided = next
+                .score()
+                .terminal_depth()
+                .is_some_and(|terminal| current_depth >= terminal.try_into().unwrap());
+            completed = Some((current_depth, next));
+
+            if game_decided {
+                break;
+            }
+
+            current_depth += players.len();
+        }
+
+        completed.expect("the first round runs without a halt receiver, so it always completes")
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

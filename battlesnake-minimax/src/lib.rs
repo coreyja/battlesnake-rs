@@ -93,7 +93,7 @@ mod tests {
             dimensions::Custom, StandardCellBoard4Snakes11x11, WrappedCellBoard,
         },
         types::{build_snake_id_map, Move, SimulableGame, SnakeIDGettableGame},
-        wire_representation::Game,
+        wire_representation::{Game, NestedGame},
     };
     use itertools::Itertools;
 
@@ -179,5 +179,45 @@ mod tests {
 
         // Down and Right leave the board, and Up is our own neck.
         assert_eq!(snake.choose_move().map(|(m, _)| m), Some(Move::Left));
+    }
+
+    fn four_snake_board() -> (StandardCellBoard4Snakes11x11, NestedGame) {
+        let fixture = include_str!("../../fixtures/df732ab7-7e22-41d8-b651-95bb912e45ab.json");
+        let wire_game: Game = serde_json::from_str(fixture).unwrap();
+        let snake_ids = build_snake_id_map(&wire_game);
+        let game_info = wire_game.game.clone();
+        let game = StandardCellBoard4Snakes11x11::convert_from_game(wire_game, &snake_ids)
+            .expect("Fixture data should be a valid game");
+
+        (game, game_info)
+    }
+
+    #[test]
+    fn a_halt_throws_away_the_round_in_progress() {
+        let (game, game_info) = four_snake_board();
+        let players = game.get_snake_ids().len();
+        let snake = MinimaxSnake::from_fn(game, game_info, 0, &|_| (), "halted");
+
+        // Already halted: the first round runs without the receiver, so it completes, and the
+        // second consumes the halt at its first poll and is discarded.
+        let (halt, halted) = std::sync::mpsc::channel();
+        halt.send(()).unwrap();
+
+        let (plies, result) = snake.deepened_minimax_until_halted(&halted, 10);
+
+        assert_eq!(plies, players);
+        assert!(matches!(result, MinMaxReturn::Node { .. }));
+    }
+
+    #[test]
+    fn an_unhalted_search_stops_at_the_round_cap() {
+        let (game, game_info) = four_snake_board();
+        let players = game.get_snake_ids().len();
+        let snake = MinimaxSnake::from_fn(game, game_info, 0, &|_| (), "halted");
+        let (_halt, halted) = std::sync::mpsc::channel();
+
+        let (plies, _) = snake.deepened_minimax_until_halted(&halted, 2);
+
+        assert_eq!(plies, 2 * players);
     }
 }
