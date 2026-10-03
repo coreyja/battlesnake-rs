@@ -131,6 +131,9 @@ pub struct ScoreParams {
     pub hunger_weight_milli: i64,
     /// Health at which hunger starts to bite. See [`STANDARD_HUNGER_ONSET`].
     pub hunger_onset: i64,
+    /// RESEARCH ONLY -- do not ship. Route food distance through the pre-fix A*, so an A/B can play
+    /// the broken pathfinder against the fixed one in one process.
+    pub pre_fix_food_distance: bool,
 }
 
 impl ScoreParams {
@@ -144,6 +147,7 @@ impl ScoreParams {
         length_cap: STANDARD_LENGTH_CAP,
         hunger_weight_milli: STANDARD_HUNGER_WEIGHT_MILLI,
         hunger_onset: STANDARD_HUNGER_ONSET,
+        pre_fix_food_distance: false,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -191,6 +195,25 @@ impl ScoreParams {
     ///
     /// Returns zero when disabled, so the default params produce exactly the score they produced
     /// before this term existed -- and the A* call is skipped, which is the expensive part.
+    /// Distance to the nearest food from our own head, through whichever A* the params select.
+    fn food_distance<BoardType>(self, node: &BoardType) -> Option<i32>
+    where
+        BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+            + YouDeterminableGame
+            + APrimeCalculable
+            + HeadGettableGame
+            + FoodGettableGame,
+    {
+        let me = node.you_id();
+        let head = node.get_head_as_native_position(me);
+        let food = node.get_all_food_as_native_positions();
+        if self.pre_fix_food_distance {
+            node.shortest_distance_pre_fix(&head, &food)
+        } else {
+            node.shortest_distance(&head, &food, None)
+        }
+    }
+
     fn hunger_penalty<BoardType>(self, node: &BoardType) -> N64
     where
         BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -211,11 +234,7 @@ impl ScoreParams {
             return N64::from(0.0);
         }
 
-        let Some(dist) = node.shortest_distance(
-            &node.get_head_as_native_position(me),
-            &node.get_all_food_as_native_positions(),
-            None,
-        ) else {
+        let Some(dist) = self.food_distance(node) else {
             return N64::from(0.0);
         };
 
@@ -288,13 +307,7 @@ where
     let rivals = LivingRivals::of(node);
 
     if node.get_health_i64(me) < params.low_health_for(&rivals) {
-        let dist = node
-            .shortest_distance(
-                &node.get_head_as_native_position(me),
-                &node.get_all_food_as_native_positions(),
-                None,
-            )
-            .map(|x| -x);
+        let dist = params.food_distance(node).map(|x| -x);
         return Score::LowOnHealth(dist, my_ratio);
     }
 

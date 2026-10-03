@@ -69,6 +69,28 @@ pub trait APrimeCalculable: PositionGettableGame + NeighborDeterminableGame {
             .map(|r| r.best_cost)
     }
 
+    /// RESEARCH ONLY -- do not ship. The pre-fix behaviour of [`Self::shortest_distance`], kept so
+    /// an A/B can play the broken pathfinder against the fixed one in one process. The filter judged
+    /// the square being expanded rather than the neighbour, and the search always starts on the
+    /// snake's own head, so nothing but an adjacent target was ever reachable.
+    fn shortest_distance_pre_fix(
+        &self,
+        start: &Self::NativePositionType,
+        targets: &[Self::NativePositionType],
+    ) -> Option<i32> {
+        if targets.is_empty() {
+            return None;
+        }
+        // The old search checked for a hit before expanding, so standing on a target was 0.
+        if targets.contains(start) {
+            return Some(0);
+        }
+        self.neighbors(start)
+            .into_iter()
+            .any(|n| targets.contains(&n))
+            .then_some(NEIGHBOR_DISTANCE)
+    }
+
     fn shortest_path(
         &self,
         start: &Self::NativePositionType,
@@ -548,6 +570,34 @@ mod tests {
             "no path to any of {} food squares from {head:?} on an open board",
             food.len()
         );
+    }
+
+    /// The research-only pre-fix distance is the baseline side of the A/B that prices this fix, so
+    /// it has to reproduce what the broken filter actually did rather than approximate it.
+    #[test]
+    fn the_pre_fix_distance_reproduces_the_broken_search() {
+        let game = serde_json::from_str::<battlesnake_game_types::wire_representation::Game>(
+            include_str!("../fixtures/start_of_game.json"),
+        )
+        .unwrap();
+        let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+        let board = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let me = board.you_id();
+        let head = board.get_head_as_native_position(me);
+        let food = board.get_all_food_as_native_positions();
+
+        // What the broken filter did on this board, measured before the fix: nothing found.
+        assert_eq!(board.shortest_distance_pre_fix(&head, &food), None);
+        // What the fixed search does: a real path.
+        assert_eq!(board.shortest_distance(&head, &food, None), Some(4));
+
+        // Adjacent targets were the one case the broken search could answer.
+        let neighbours: Vec<_> = board.neighbors(&head).collect();
+        assert_eq!(board.shortest_distance_pre_fix(&head, &neighbours), Some(1));
+        // And standing on one answered 0, because the hit was checked before expanding.
+        assert_eq!(board.shortest_distance_pre_fix(&head, &[head]), Some(0));
+        assert_eq!(board.shortest_distance_pre_fix(&head, &[]), None);
     }
 
     #[test]
