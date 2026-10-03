@@ -90,7 +90,7 @@ pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
 /// | -- | -- | --: | --: | --: |
 /// | 4 snakes | 1k leaves | 180 | 73.6% | +5.75 |
 /// | 4 snakes | 8k leaves | 180 | 78.9% | +6.88 |
-/// | 4 snakes | 60k leaves (~production) | 60 | 72.1% | +2.90 |
+/// | 4 snakes | 60k leaves (~production) | 120 | 66.7% | +3.11 |
 /// | duel | 1k leaves | 600 | 63.8% | +6.20 |
 /// | duel | 8k leaves | 60 | 62.7% | +1.82 |
 ///
