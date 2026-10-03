@@ -85,6 +85,26 @@ pub const STANDARD_LENGTH_WEIGHT_MILLI: i64 = 0;
 /// term would keep paying a runaway leader to eat into bad space.
 pub const STANDARD_LENGTH_CAP: i64 = 3;
 
+/// Weight on the continuous hunger term, in thousandths of a ratio point per square of distance to
+/// the nearest food, at full hunger.
+///
+/// This is the *other* way to remove the mode switch's cliff, and the one the switch is actually
+/// shaped like. The switch replaces the score with `-dist_to_food` once health drops below a
+/// threshold, which is why territory vanishes from the comparison; a hunger term keeps territory and
+/// food distance in the **same scalar**, so a hungry snake trades room for food at a rate rather
+/// than abandoning room entirely.
+///
+/// It also differs from the length term in the thing that matters at shallow depth: food distance is
+/// an A* distance that sees past the search horizon, while length only changes if the snake can
+/// actually reach food inside the window.
+///
+/// 0 disables the term, which is what ships until an A/B says otherwise.
+pub const STANDARD_HUNGER_WEIGHT_MILLI: i64 = 0;
+
+/// Health at which the hunger term starts to bite. Hunger ramps linearly from 0 here to 1 at health
+/// 0, so there is no threshold to cross.
+pub const STANDARD_HUNGER_ONSET: i64 = 100;
+
 /// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
 ///
 /// This exists so a sweep can vary one knob without a second copy of the scoring logic; see
@@ -106,6 +126,11 @@ pub struct ScoreParams {
     pub length_weight_milli: i64,
     /// Length difference at which the length term saturates. See [`STANDARD_LENGTH_CAP`].
     pub length_cap: i64,
+    /// Weight on the continuous hunger term, in thousandths of a ratio point per square of distance
+    /// at full hunger. See [`STANDARD_HUNGER_WEIGHT_MILLI`].
+    pub hunger_weight_milli: i64,
+    /// Health at which hunger starts to bite. See [`STANDARD_HUNGER_ONSET`].
+    pub hunger_onset: i64,
 }
 
 impl ScoreParams {
@@ -117,6 +142,8 @@ impl ScoreParams {
         low_health_crowded: STANDARD_LOW_HEALTH_CROWDED,
         length_weight_milli: STANDARD_LENGTH_WEIGHT_MILLI,
         length_cap: STANDARD_LENGTH_CAP,
+        hunger_weight_milli: STANDARD_HUNGER_WEIGHT_MILLI,
+        hunger_onset: STANDARD_HUNGER_ONSET,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -149,6 +176,50 @@ impl ScoreParams {
 
         let diff = (my_length - longest_rival).clamp(-self.length_cap, self.length_cap);
         N64::from(diff as f64 * self.length_weight_milli as f64 / 1000.0)
+    }
+
+    /// The hunger penalty for this board: distance to the nearest food, weighted by how hungry we
+    /// are, subtracted from the territory ratio.
+    ///
+    /// Hunger ramps linearly from 0 at [`ScoreParams::hunger_onset`] health to 1 at 0 health, so a
+    /// snake on full health ignores food entirely and a starving one will trade a lot of room for a
+    /// square of progress toward it -- with no threshold at which territory stops counting.
+    ///
+    /// An unreachable food contributes nothing. The flood fill already scores being sealed into a
+    /// pocket, and inventing a distance for food we cannot reach would price a move by a route that
+    /// does not exist.
+    ///
+    /// Returns zero when disabled, so the default params produce exactly the score they produced
+    /// before this term existed -- and the A* call is skipped, which is the expensive part.
+    fn hunger_penalty<BoardType>(self, node: &BoardType) -> N64
+    where
+        BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+            + YouDeterminableGame
+            + APrimeCalculable
+            + HeadGettableGame
+            + HealthGettableGame
+            + FoodGettableGame,
+    {
+        if self.hunger_weight_milli == 0 {
+            return N64::from(0.0);
+        }
+
+        let me = node.you_id();
+        let hunger = (self.hunger_onset - node.get_health_i64(me)).max(0) as f64
+            / self.hunger_onset.max(1) as f64;
+        if hunger <= 0.0 {
+            return N64::from(0.0);
+        }
+
+        let Some(dist) = node.shortest_distance(
+            &node.get_head_as_native_position(me),
+            &node.get_all_food_as_native_positions(),
+            None,
+        ) else {
+            return N64::from(0.0);
+        };
+
+        N64::from(hunger * dist as f64 * self.hunger_weight_milli as f64 / 1000.0)
     }
 }
 
@@ -227,7 +298,10 @@ where
         return Score::LowOnHealth(dist, my_ratio);
     }
 
-    Score::FloodFill(my_ratio + params.length_term(node.get_length_i64(me), &rivals))
+    Score::FloodFill(
+        my_ratio + params.length_term(node.get_length_i64(me), &rivals)
+            - params.hunger_penalty(node),
+    )
 }
 
 /// [`standard_score`] with every knob supplied by the caller.
@@ -526,12 +600,13 @@ mod tests {
         wire_representation::Game,
     };
 
+    use crate::a_prime::APrimeCalculable;
     use crate::hovering_hobbs::{
         standard_score, standard_score_tail_aware, standard_score_tail_aware_with_params,
         standard_score_with_params, Score, ScoreParams, STANDARD_LOW_HEALTH_DUEL,
     };
     use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
-    use battlesnake_game_types::types::LengthGettableGame;
+    use battlesnake_game_types::types::{FoodGettableGame, HeadGettableGame, LengthGettableGame};
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     /// The parameterized entry points exist so a sweep can vary one knob; at
@@ -626,6 +701,83 @@ mod tests {
             diffs_seen.contains(&0),
             "no fixture has equal lengths, so the zero case is untested: {diffs_seen:?}"
         );
+    }
+
+    /// The hunger term has to be hunger x distance x weight, and has to leave the score in the
+    /// `FloodFill` branch -- the whole point is that territory never stops counting.
+    ///
+    /// Every fixture is on 100 health, so rather than inventing a board this raises `hunger_onset`
+    /// above 100 to put a full-health snake partway up the ramp. That is the same trick
+    /// `the_low_health_threshold_picks_the_branch` uses from the other side.
+    #[test]
+    fn the_hunger_term_is_hunger_times_distance_times_weight() {
+        for fixture in [
+            include_str!("../fixtures/start_of_game.json"),
+            include_str!("../fixtures/a-prime-food-maze.json"),
+        ] {
+            let game = serde_json::from_str::<Game>(fixture).unwrap();
+            let id_map = build_snake_id_map(&game);
+            let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+            let Score::FloodFill(base) =
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD)
+            else {
+                panic!("fixtures are on 100 health, so the shipped params should flood-fill");
+            };
+
+            let me = board.you_id();
+            let dist = board
+                .shortest_distance(
+                    &board.get_head_as_native_position(me),
+                    &board.get_all_food_as_native_positions(),
+                    None,
+                )
+                .unwrap_or_else(|| {
+                    panic!(
+                        "no reachable food: head {:?} food {:?}",
+                        board.get_head_as_native_position(me),
+                        board.get_all_food_as_native_positions()
+                    )
+                });
+
+            for (weight, onset) in [(5, 200), (20, 200), (20, 400), (100, 125)] {
+                let params = ScoreParams {
+                    hunger_weight_milli: weight,
+                    hunger_onset: onset,
+                    ..ScoreParams::STANDARD
+                };
+                let Score::FloodFill(scored) =
+                    standard_score_tail_aware_with_params::<_, u8, 4>(&board, params)
+                else {
+                    panic!("the hunger term must not change which branch the score takes");
+                };
+
+                let hunger = (onset - 100) as f64 / onset as f64;
+                let expected = -hunger * dist as f64 * weight as f64 / 1000.0;
+                let actual = f64::from(scored) - f64::from(base);
+                assert!(
+                    (actual - expected).abs() < 1e-12,
+                    "weight {weight} onset {onset}, food {dist} away: moved the score by {actual}, \
+                     expected {expected}"
+                );
+                assert!(
+                    expected < 0.0,
+                    "a hungry snake has to be penalised for distance, not rewarded"
+                );
+            }
+
+            // At or above the onset there is no hunger, so the term is exactly nothing -- the
+            // property that keeps a full-health snake's play identical.
+            let not_hungry = ScoreParams {
+                hunger_weight_milli: 100,
+                hunger_onset: 100,
+                ..ScoreParams::STANDARD
+            };
+            assert_eq!(
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, not_hungry),
+                Score::FloodFill(base)
+            );
+        }
     }
 
     /// The thresholds are the whole growth policy, so a changed one has to actually change the
