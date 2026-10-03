@@ -70,6 +70,47 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 /// last-snake-standing boards (fixed separately), so they say nothing about how this policy plays.
 pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
 
+/// Weight on the length term, in thousandths of the territory ratio's own scale.
+///
+/// The territory ratio `my_space / total_space` lives in `[0, 1]`, so a weight of 20 makes each
+/// square of length advantage over the longest living rival worth 0.02 of ratio -- about the
+/// difference between claiming 40% and 42% of the board.
+///
+/// Ships at 160: one square of length is worth 0.16 of ratio. Sibling moves usually differ by about
+/// 0.05, so in practice this orders leaves by capped length difference first and territory second,
+/// and only a territory gap above 0.16 per square (being sealed in, or sealing a rival) overrules
+/// it.
+///
+/// Measured in self-play under production rules against the same snake with the term off, both
+/// sides searching to the same budget of leaf evaluations -- iterative deepening that plays the
+/// deepest completed round, which is the production time limit with leaves in place of wall time,
+/// so the term is charged for any depth it costs:
+///
+/// | board | budget | games | win rate | z |
+/// | -- | -- | --: | --: | --: |
+/// | 4 snakes | 1k leaves | 180 | 73.6% | +5.75 |
+/// | 4 snakes | 8k leaves | 180 | 78.9% | +6.88 |
+/// | 4 snakes | 60k leaves (~production) | 120 | 66.7% | +3.11 |
+/// | duel | 1k leaves | 600 | 63.8% | +6.20 |
+/// | duel | 8k leaves | 60 | 62.7% | +1.82 |
+///
+/// It costs no search: compared at the same number of living snakes, both sides complete the same
+/// number of rounds on the same budget (2.26 vs 2.25 with four alive at 8k). It does not replace
+/// [`STANDARD_LOW_HEALTH_CROWDED`] either -- keeping that threshold on top of the term beats a flat
+/// 60 with the term, 58.0% (z=+1.96).
+///
+/// 0 disables the term.
+pub const STANDARD_LENGTH_WEIGHT_MILLI: i64 = 160;
+
+/// Magnitude at which the length difference stops counting, in squares.
+///
+/// Being 10 longer than every rival is not materially safer than being 3 longer, and an uncapped
+/// term would keep paying a runaway leader to eat into bad space. A cap of 1 throws most of the
+/// value away: at weight 160, cap 3 beats cap 1 71.5% (z=+5.41; four snakes, fixed depth, both on a
+/// flat 60 threshold), so being two or three longer than the longest rival is what pays, not merely
+/// not falling behind.
+pub const STANDARD_LENGTH_CAP: i64 = 3;
+
 /// Every knob the flood-fill leaf score has. Hobbs ships [`ScoreParams::STANDARD`].
 ///
 /// This exists so a sweep can vary one knob without a second copy of the scoring logic; see
@@ -86,6 +127,11 @@ pub struct ScoreParams {
     /// Health below which the score switches to food-seeking with two or more rivals left.
     /// See [`STANDARD_LOW_HEALTH_CROWDED`].
     pub low_health_crowded: i64,
+    /// Weight on the length term, in thousandths of a ratio point.
+    /// See [`STANDARD_LENGTH_WEIGHT_MILLI`].
+    pub length_weight_milli: i64,
+    /// Length difference at which the length term saturates. See [`STANDARD_LENGTH_CAP`].
+    pub length_cap: i64,
 }
 
 impl ScoreParams {
@@ -95,26 +141,75 @@ impl ScoreParams {
         scores: STANDARD_SCORES,
         low_health_duel: STANDARD_LOW_HEALTH_DUEL,
         low_health_crowded: STANDARD_LOW_HEALTH_CROWDED,
+        length_weight_milli: STANDARD_LENGTH_WEIGHT_MILLI,
+        length_cap: STANDARD_LENGTH_CAP,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
-    fn low_health_for<BoardType>(self, node: &BoardType) -> i64
-    where
-        BoardType:
-            SnakeIDGettableGame<SnakeIDType = SnakeId> + YouDeterminableGame + HealthGettableGame,
-    {
-        let me = node.you_id();
-        let rivals = node
-            .get_snake_ids()
-            .iter()
-            .filter(|id| *id != me && node.is_alive(id))
-            .count();
-
-        if rivals >= 2 {
+    fn low_health_for(self, rivals: &LivingRivals) -> i64 {
+        if rivals.count >= 2 {
             self.low_health_crowded
         } else {
             self.low_health_duel
         }
+    }
+
+    /// The length term for this board: how far ahead of the longest *living* rival we are, capped,
+    /// scaled into the territory ratio's units.
+    ///
+    /// This is the continuous alternative to the health mode switch. The switch demotes territory to
+    /// a tiebreak behind food distance for the whole search window once every leaf is below the
+    /// threshold, which is why it has a cliff; a term inside `FloodFill` prices length against
+    /// territory at every leaf instead, so there is nothing to cross.
+    ///
+    /// Returns zero when disabled or when nobody else is alive, so the default params produce
+    /// exactly the score they produced before this term existed.
+    fn length_term(self, my_length: i64, rivals: &LivingRivals) -> N64 {
+        if self.length_weight_milli == 0 {
+            return N64::from(0.0);
+        }
+
+        let Some(longest_rival) = rivals.longest else {
+            return N64::from(0.0);
+        };
+
+        let diff = (my_length - longest_rival).clamp(-self.length_cap, self.length_cap);
+        N64::from(diff as f64 * self.length_weight_milli as f64 / 1000.0)
+    }
+}
+
+/// What the leaf score needs to know about the other snakes.
+///
+/// Both the health threshold and the length term are functions of the living rivals, and
+/// `get_snake_ids` allocates a `Vec` on every call. The leaf score runs millions of times per move,
+/// so the list is walked exactly once and both answers come out of the same pass.
+struct LivingRivals {
+    /// How many rivals are still alive. Picks which health threshold applies.
+    count: usize,
+    /// The longest living rival, or `None` when we are the last snake standing.
+    longest: Option<i64>,
+}
+
+impl LivingRivals {
+    fn of<BoardType>(node: &BoardType) -> Self
+    where
+        BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
+            + YouDeterminableGame
+            + HealthGettableGame
+            + LengthGettableGame,
+    {
+        let me = node.you_id();
+        let mut count = 0;
+        let mut longest: Option<i64> = None;
+        for id in node.get_snake_ids().iter().filter(|id| *id != me) {
+            if !node.is_alive(id) {
+                continue;
+            }
+            count += 1;
+            let length = node.get_length_i64(id);
+            longest = Some(longest.map_or(length, |best: i64| best.max(length)));
+        }
+        Self { count, longest }
     }
 }
 
@@ -137,6 +232,7 @@ where
         + APrimeCalculable
         + HeadGettableGame
         + HealthGettableGame
+        + LengthGettableGame
         + FoodGettableGame,
 {
     let me = node.you_id();
@@ -144,7 +240,9 @@ where
     let total_space: f64 = square_counts.iter().sum::<u16>() as f64;
     let my_ratio = N64::from(my_space / total_space);
 
-    if node.get_health_i64(me) < params.low_health_for(node) {
+    let rivals = LivingRivals::of(node);
+
+    if node.get_health_i64(me) < params.low_health_for(&rivals) {
         let dist = node
             .shortest_distance(
                 &node.get_head_as_native_position(me),
@@ -155,7 +253,7 @@ where
         return Score::LowOnHealth(dist, my_ratio);
     }
 
-    Score::FloodFill(my_ratio)
+    Score::FloodFill(my_ratio + params.length_term(node.get_length_i64(me), &rivals))
 }
 
 /// [`standard_score`] with every knob supplied by the caller.
@@ -459,6 +557,7 @@ mod tests {
         standard_score_with_params, Score, ScoreParams, STANDARD_LOW_HEALTH_DUEL,
     };
     use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
+    use battlesnake_game_types::types::LengthGettableGame;
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     /// The parameterized entry points exist so a sweep can vary one knob; at
@@ -484,6 +583,110 @@ mod tests {
                 standard_score_tail_aware::<_, u8, 4>(&board)
             );
         }
+    }
+
+    /// The length term has to move the score by exactly its weight times the capped length
+    /// difference, measured from the same score with the term switched off.
+    #[test]
+    fn the_length_term_is_the_weight_times_the_capped_difference() {
+        // The diffs these fixtures carry are 0, +1 and -9, so the sign and the cap are both
+        // exercised rather than assumed.
+        let mut diffs_seen = Vec::new();
+        for fixture in [
+            include_str!("../fixtures/start_of_game.json"),
+            include_str!("../fixtures/check_board_doubled_up.json"),
+            include_str!("../fixtures/a-prime-food-maze.json"),
+        ] {
+            let game = serde_json::from_str::<Game>(fixture).unwrap();
+            let id_map = build_snake_id_map(&game);
+            let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+            let without_term = ScoreParams {
+                length_weight_milli: 0,
+                ..ScoreParams::STANDARD
+            };
+            let Score::FloodFill(base) =
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, without_term)
+            else {
+                panic!("fixture is above every shipped health threshold, so it should flood-fill");
+            };
+
+            let me = board.you_id();
+            let longest_rival = board
+                .get_snake_ids()
+                .iter()
+                .filter(|id| *id != me)
+                .map(|id| board.get_length_i64(id))
+                .max()
+                .expect("fixture has rivals");
+            let raw_diff = board.get_length_i64(me) - longest_rival;
+            diffs_seen.push(raw_diff);
+
+            for (weight, cap) in [(20, 3), (20, 1), (5, 3), (100, 3)] {
+                let params = ScoreParams {
+                    length_weight_milli: weight,
+                    length_cap: cap,
+                    ..ScoreParams::STANDARD
+                };
+                let Score::FloodFill(scored) =
+                    standard_score_tail_aware_with_params::<_, u8, 4>(&board, params)
+                else {
+                    panic!("the length term must not change which branch the score takes");
+                };
+
+                let expected = raw_diff.clamp(-cap, cap) as f64 * weight as f64 / 1000.0;
+                let actual = f64::from(scored) - f64::from(base);
+                // Subtracting two ratios reintroduces float error the term itself does not have,
+                // so compare within it rather than bit-exactly.
+                assert!(
+                    (actual - expected).abs() < 1e-12,
+                    "weight {weight} cap {cap} on a board where we are {raw_diff} longer: \
+                     moved the score by {actual}, expected {expected}"
+                );
+            }
+        }
+
+        // Without this the cap and the negative branch could go untested if a fixture changed.
+        assert!(
+            diffs_seen.iter().any(|d| *d < -3),
+            "no fixture saturates the cap on the negative side: {diffs_seen:?}"
+        );
+        assert!(
+            diffs_seen.contains(&0),
+            "no fixture has equal lengths, so the zero case is untested: {diffs_seen:?}"
+        );
+    }
+
+    /// The length term ships on, so the entry point the live route calls has to carry it -- not
+    /// just the parameterized one a sweep calls.
+    #[test]
+    fn the_shipped_score_carries_the_length_term() {
+        // We are 9 shorter than the longest rival here, so the term is at its negative cap.
+        let game = serde_json::from_str::<Game>(include_str!("../fixtures/a-prime-food-maze.json"))
+            .unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let without_term = ScoreParams {
+            length_weight_milli: 0,
+            ..ScoreParams::STANDARD
+        };
+        let (Score::FloodFill(shipped), Score::FloodFill(off)) = (
+            standard_score_tail_aware::<_, u8, 4>(&board),
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, without_term),
+        ) else {
+            panic!("fixture is above every shipped health threshold, so it should flood-fill");
+        };
+
+        let expected = -(ScoreParams::STANDARD.length_cap as f64)
+            * ScoreParams::STANDARD.length_weight_milli as f64
+            / 1000.0;
+        assert!(expected < 0.0, "the length term no longer ships on");
+        assert!(
+            (f64::from(shipped) - f64::from(off) - expected).abs() < 1e-12,
+            "the live entry point moved the score by {}, expected {expected}",
+            f64::from(shipped) - f64::from(off)
+        );
     }
 
     /// The thresholds are the whole growth policy, so a changed one has to actually change the
