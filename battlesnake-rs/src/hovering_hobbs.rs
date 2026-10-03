@@ -131,6 +131,19 @@ pub struct ScoreParams {
     pub hunger_weight_milli: i64,
     /// Health at which hunger starts to bite. See [`STANDARD_HUNGER_ONSET`].
     pub hunger_onset: i64,
+    /// Weight on a continuous *health* penalty, in thousandths of a ratio point at zero health.
+    ///
+    /// The mode switch's real mechanism is ordinal: every `LowOnHealth` score sorts below every
+    /// `FloodFill`, so the search treats any line that drops below the threshold as worse than any
+    /// line that does not, and the way to stay above it is to eat. That is a step function on
+    /// health, not a pull toward food. This is the same pressure made continuous: a penalty that
+    /// ramps linearly as health falls, with no band to cross.
+    ///
+    /// 0 disables it.
+    pub health_weight_milli: i64,
+    /// Health at which the continuous health penalty starts. Shares the shape of
+    /// [`STANDARD_HUNGER_ONSET`].
+    pub health_onset: i64,
     /// RESEARCH ONLY -- do not ship. Route food distance through the pre-fix A*, so an A/B can play
     /// the broken pathfinder against the fixed one in one process.
     pub pre_fix_food_distance: bool,
@@ -147,6 +160,8 @@ impl ScoreParams {
         length_cap: STANDARD_LENGTH_CAP,
         hunger_weight_milli: STANDARD_HUNGER_WEIGHT_MILLI,
         hunger_onset: STANDARD_HUNGER_ONSET,
+        health_weight_milli: 0,
+        health_onset: 100,
         pre_fix_food_distance: false,
     };
 
@@ -195,6 +210,17 @@ impl ScoreParams {
     ///
     /// Returns zero when disabled, so the default params produce exactly the score they produced
     /// before this term existed -- and the A* call is skipped, which is the expensive part.
+    /// The continuous health penalty: how far below the onset our health is, as a fraction of the
+    /// onset, scaled into ratio units. Zero at or above the onset, so a healthy snake is unaffected.
+    fn health_penalty(self, health: i64) -> N64 {
+        if self.health_weight_milli == 0 {
+            return N64::from(0.0);
+        }
+        let shortfall =
+            (self.health_onset - health).max(0) as f64 / self.health_onset.max(1) as f64;
+        N64::from(shortfall * self.health_weight_milli as f64 / 1000.0)
+    }
+
     /// Distance to the nearest food from our own head, through whichever A* the params select.
     fn food_distance<BoardType>(self, node: &BoardType) -> Option<i32>
     where
@@ -313,7 +339,8 @@ where
 
     Score::FloodFill(
         my_ratio + params.length_term(node.get_length_i64(me), &rivals)
-            - params.hunger_penalty(node),
+            - params.hunger_penalty(node)
+            - params.health_penalty(node.get_health_i64(me)),
     )
 }
 
