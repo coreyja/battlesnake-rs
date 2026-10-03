@@ -182,7 +182,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| targets.contains(n) || !self.position_is_snake_body(coordinate))
+                .filter(|n| targets.contains(n) || !self.position_is_snake_body(*n))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);
@@ -250,7 +250,7 @@ impl<T: CellNum, D: Dimensions, const BOARD_SIZE: usize, const MAX_SNAKES: usize
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| targets.contains(n) || !self.position_is_snake_body(coordinate))
+                .filter(|n| targets.contains(n) || !self.position_is_snake_body(*n))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);
@@ -483,7 +483,7 @@ impl ClosestFoodCalculable for StandardCellBoard4Snakes11x11 {
             let neighbors = self.neighbors(&coordinate);
             for neighbor in neighbors
                 .into_iter()
-                .filter(|n| self.is_food(n) || !self.position_is_snake_body(coordinate))
+                .filter(|n| self.is_food(n) || !self.position_is_snake_body(*n))
             {
                 if &tentative < known_score.get(&neighbor).unwrap_or(&i32::MAX) {
                     known_score.insert(neighbor, tentative);
@@ -513,6 +513,43 @@ mod tests {
         let width = ((11 * 11) as f32).sqrt() as u8;
 
         CellIndex::new(pos, width)
+    }
+
+    /// `shortest_distance` is always called from a snake's own head, and a head is a snake-body
+    /// square, so the neighbour filter has to judge the *neighbour* rather than the square being
+    /// expanded. Judging the expanded square makes the very first expansion -- from the head --
+    /// discard every neighbour that is not itself a target, so the search dead-ends at distance 1.
+    ///
+    /// This test fails on the buggy filter and passes on the fixed one. Food four squares away in a
+    /// clear line is the simplest case that distinguishes them.
+    #[test]
+    fn a_prime_finds_food_that_is_not_adjacent_to_the_head() {
+        let game = serde_json::from_str::<battlesnake_game_types::wire_representation::Game>(
+            include_str!("../fixtures/start_of_game.json"),
+        )
+        .unwrap();
+        let id_map = battlesnake_game_types::types::build_snake_id_map(&game);
+        let board = CellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+
+        let me = board.you_id();
+        let head = board.get_head_as_native_position(me);
+        let food = board.get_all_food_as_native_positions();
+        assert!(
+            {
+                let head_neighbours: Vec<_> = board.neighbors(&head).collect();
+                !food.iter().any(|f| head_neighbours.contains(f))
+            },
+            "the fixture has to put food off the head's own neighbours, or the bug is invisible"
+        );
+
+        // The nearest food on this board is four squares away in a clear line, so the answer is
+        // exact rather than merely non-None -- a path of the wrong length would also be a bug.
+        assert_eq!(
+            board.shortest_distance(&head, &food, None),
+            Some(4),
+            "wrong distance to the nearest of {} food squares from {head:?} on an open board",
+            food.len()
+        );
     }
 
     #[test]
