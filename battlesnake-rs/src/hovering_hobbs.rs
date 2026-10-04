@@ -165,6 +165,18 @@ pub struct ScoreParams {
     /// the threshold also moves its midpoint down as it widens, and a lower threshold is already
     /// known to lose, so widening it confounds shape with position. Centred, the midpoint stays put.
     pub ramp_centred: bool,
+    /// RESEARCH ONLY. Our length at the root of the search; 0 disables it.
+    ///
+    /// The mode switch reads health at the *leaf*, and eating at ply `k` of an `n`-ply window
+    /// leaves `100 - (n - k)` health there. So an early meal can still read as hungry, while the
+    /// food-mode score, `-dist_to_food`, measures the distance to the *next* food once the one we
+    /// were next to has been eaten. With the threshold near 100 the search's best line is to
+    /// hover beside food and schedule the meal for the last ply, every turn.
+    ///
+    /// A leaf longer than this has eaten inside the window, and keeps the territory score
+    /// whatever its health. That makes every meal in the window count the same as one on the
+    /// horizon.
+    pub fed_length: i64,
 }
 
 impl ScoreParams {
@@ -184,6 +196,7 @@ impl ScoreParams {
         ramp_weight_milli: 0,
         ramp_width: 1,
         ramp_centred: false,
+        fed_length: 0,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -372,7 +385,9 @@ where
     let health = node.get_health_i64(me);
     let threshold = params.low_health_for(&rivals);
 
-    if params.ramp_weight_milli == 0 && health < threshold {
+    let fed = params.fed_length > 0 && node.get_length_i64(me) > params.fed_length;
+
+    if params.ramp_weight_milli == 0 && health < threshold && !fed {
         let dist = params.food_distance(node).map(|x| -x);
         return Score::LowOnHealth(dist, my_ratio);
     }
@@ -887,6 +902,37 @@ mod tests {
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, always_eat),
             Score::LowOnHealth(_, _)
         ));
+    }
+
+    /// A leaf longer than the root has eaten inside the window, so `fed_length` keeps it on the
+    /// territory score even below the threshold, and a leaf that has not eaten still seeks food.
+    #[test]
+    fn a_leaf_that_ate_inside_the_window_scores_as_fed() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let length = board.get_length_i64(board.you_id());
+
+        let always_eat = ScoreParams {
+            low_health_duel: 101,
+            low_health_crowded: 101,
+            ..ScoreParams::STANDARD
+        };
+        for (root_length, fed) in [(0, false), (length, false), (length - 1, true)] {
+            let score = standard_score_tail_aware_with_params::<_, u8, 4>(
+                &board,
+                ScoreParams {
+                    fed_length: root_length,
+                    ..always_eat
+                },
+            );
+            assert_eq!(
+                matches!(score, Score::FloodFill(_)),
+                fed,
+                "root length {root_length} against leaf length {length}: {score:?}"
+            );
+        }
     }
 
     /// The ramp replaces the mode switch: a board below the threshold keeps its territory score and
