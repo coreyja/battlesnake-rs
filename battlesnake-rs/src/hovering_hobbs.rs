@@ -161,6 +161,10 @@ pub struct ScoreParams {
     /// Width of the health ramp in health points. 0 means the full threshold, so the ramp runs all
     /// the way from the threshold down to zero health.
     pub ramp_width: i64,
+    /// Centre the ramp on the threshold instead of hanging it below. A ramp that only falls below
+    /// the threshold also moves its midpoint down as it widens, and a lower threshold is already
+    /// known to lose, so widening it confounds shape with position. Centred, the midpoint stays put.
+    pub ramp_centred: bool,
 }
 
 impl ScoreParams {
@@ -179,6 +183,7 @@ impl ScoreParams {
         pre_fix_food_distance: false,
         ramp_weight_milli: 0,
         ramp_width: 1,
+        ramp_centred: false,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -249,7 +254,8 @@ impl ScoreParams {
             self.ramp_width
         }
         .max(1);
-        let depth = (threshold - health).clamp(0, width) as f64 / width as f64;
+        let lead = if self.ramp_centred { width / 2 } else { 0 };
+        let depth = (threshold + lead - health).clamp(0, width) as f64 / width as f64;
         N64::from(depth * self.ramp_weight_milli as f64 / 1000.0)
     }
 
@@ -683,6 +689,7 @@ mod tests {
     use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
     use battlesnake_game_types::types::{FoodGettableGame, HeadGettableGame, LengthGettableGame};
     use battlesnake_minimax::ParanoidMinimaxSnake;
+    use decorum::N64;
 
     /// The parameterized entry points exist so a sweep can vary one knob; at
     /// [`ScoreParams::STANDARD`] they have to be the shipped score exactly, or every baseline in a
@@ -910,8 +917,35 @@ mod tests {
                 ramp_width: width,
                 ..ScoreParams::STANDARD
             };
+            assert_ramp(&board, base, params, depth);
+        }
+
+        // Centred, a ramp starts width/2 above the threshold: 100 health against a threshold of 95
+        // and a width of 20 is 5 points into a ramp that starts at 105.
+        for (threshold, width, depth) in
+            [(95, 20, 0.25), (110, 1, 1.0), (90, 20, 0.0), (91, 20, 0.05)]
+        {
+            let params = ScoreParams {
+                low_health_crowded: threshold,
+                ramp_weight_milli: 1000,
+                ramp_width: width,
+                ramp_centred: true,
+                ..ScoreParams::STANDARD
+            };
+            assert_ramp(&board, base, params, depth);
+        }
+    }
+
+    fn assert_ramp(
+        board: &StandardCellBoard4Snakes11x11,
+        base: N64,
+        params: ScoreParams,
+        depth: f64,
+    ) {
+        let (threshold, width) = (params.low_health_crowded, params.ramp_width);
+        {
             let Score::FloodFill(scored) =
-                standard_score_tail_aware_with_params::<_, u8, 4>(&board, params)
+                standard_score_tail_aware_with_params::<_, u8, 4>(board, params)
             else {
                 panic!("with the ramp on the score never takes the LowOnHealth branch");
             };
