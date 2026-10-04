@@ -147,6 +147,20 @@ pub struct ScoreParams {
     /// RESEARCH ONLY -- do not ship. Route food distance through the pre-fix A*, so an A/B can play
     /// the broken pathfinder against the fixed one in one process.
     pub pre_fix_food_distance: bool,
+    /// RESEARCH ONLY. Weight of a health ramp that *replaces* the mode switch, in thousandths of a
+    /// ratio point at full depth.
+    ///
+    /// The ramp sits below the same threshold the switch would use and falls linearly over
+    /// [`ScoreParams::ramp_width`] health points, then stays flat. Width 1 with a weight of at least
+    /// 1000 orders every leaf exactly as the switch does with no food distance inside the band;
+    /// wider ramps interpolate toward a smooth health penalty, and smaller weights toward no policy.
+    /// That separates the two things the switch does at once: being a *step* and being *dominant*.
+    ///
+    /// 0 disables it, and the mode switch applies as shipped.
+    pub ramp_weight_milli: i64,
+    /// Width of the health ramp in health points. 0 means the full threshold, so the ramp runs all
+    /// the way from the threshold down to zero health.
+    pub ramp_width: i64,
 }
 
 impl ScoreParams {
@@ -163,6 +177,8 @@ impl ScoreParams {
         health_weight_milli: 0,
         health_onset: 100,
         pre_fix_food_distance: false,
+        ramp_weight_milli: 0,
+        ramp_width: 1,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -219,6 +235,22 @@ impl ScoreParams {
         let shortfall =
             (self.health_onset - health).max(0) as f64 / self.health_onset.max(1) as f64;
         N64::from(shortfall * self.health_weight_milli as f64 / 1000.0)
+    }
+
+    /// The health ramp below `threshold`: how far into the ramp our health is, as a fraction of its
+    /// width, scaled into ratio units. Zero at or above the threshold.
+    fn health_ramp(self, health: i64, threshold: i64) -> N64 {
+        if self.ramp_weight_milli == 0 {
+            return N64::from(0.0);
+        }
+        let width = if self.ramp_width == 0 {
+            threshold
+        } else {
+            self.ramp_width
+        }
+        .max(1);
+        let depth = (threshold - health).clamp(0, width) as f64 / width as f64;
+        N64::from(depth * self.ramp_weight_milli as f64 / 1000.0)
     }
 
     /// Distance to the nearest food from our own head, through whichever A* the params select.
@@ -331,8 +363,10 @@ where
     let my_ratio = N64::from(my_space / total_space);
 
     let rivals = LivingRivals::of(node);
+    let health = node.get_health_i64(me);
+    let threshold = params.low_health_for(&rivals);
 
-    if node.get_health_i64(me) < params.low_health_for(&rivals) {
+    if params.ramp_weight_milli == 0 && health < threshold {
         let dist = params.food_distance(node).map(|x| -x);
         return Score::LowOnHealth(dist, my_ratio);
     }
@@ -340,7 +374,8 @@ where
     Score::FloodFill(
         my_ratio + params.length_term(node.get_length_i64(me), &rivals)
             - params.hunger_penalty(node)
-            - params.health_penalty(node.get_health_i64(me)),
+            - params.health_penalty(health)
+            - params.health_ramp(health, threshold),
     )
 }
 
@@ -845,6 +880,47 @@ mod tests {
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, always_eat),
             Score::LowOnHealth(_, _)
         ));
+    }
+
+    /// The ramp replaces the mode switch: a board below the threshold keeps its territory score and
+    /// pays the ramp instead of dropping into `LowOnHealth`, and width 1 is a step of the full weight.
+    #[test]
+    fn the_health_ramp_replaces_the_switch_and_falls_over_its_width() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let Score::FloodFill(base) =
+            standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD)
+        else {
+            panic!("a full-health snake hovers");
+        };
+
+        // Every snake is on 100 health. (threshold, width, expected depth into the ramp)
+        for (threshold, width, depth) in [
+            (101, 1, 1.0),
+            (110, 1, 1.0),
+            (110, 20, 0.5),
+            (110, 0, 10.0 / 110.0),
+            (100, 5, 0.0),
+        ] {
+            let params = ScoreParams {
+                low_health_crowded: threshold,
+                ramp_weight_milli: 1000,
+                ramp_width: width,
+                ..ScoreParams::STANDARD
+            };
+            let Score::FloodFill(scored) =
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, params)
+            else {
+                panic!("with the ramp on the score never takes the LowOnHealth branch");
+            };
+            let actual = f64::from(base) - f64::from(scored);
+            assert!(
+                (actual - depth).abs() < 1e-12,
+                "threshold {threshold} width {width}: penalty {actual}, expected {depth}"
+            );
+        }
     }
 
     /// The point of two thresholds is that the board picks between them. `start_of_game` has three
