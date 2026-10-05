@@ -42,15 +42,26 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 
 /// Below this health the leaf score heads for the nearest food, when two or more rivals are alive.
 ///
-/// 85 rather than 60: measured head-to-head on the 4-snake board under production rules at fixed
-/// depth, the conditional policy beats a flat 60 **72.0%** of the time (z=+10.52, 574 decisive games
-/// of 720, A/A control exactly 50.0%). In those games the flat-60 side finishes near length 15 and
-/// the raised-threshold side near 20, and the elimination counts show the trade: head-to-head deaths
-/// 213 -> 84, body collisions flat at 306 -> 300, self-collisions 604 -> 513.
+/// 95, up from 85 once the score counted a meal anywhere in the search window (see below). Measured
+/// on four snakes under production rules, both sides searching to the same budget of leaf
+/// evaluations, against 85 with the length term on:
 ///
-/// It is also the knob that matters: adding a doubled food weight on top of it is worth only 53.0%
-/// (z=+1.62, n.s.), while adding this threshold on top of a doubled food weight is worth 62.4%
-/// (z=+6.30).
+/// | budget | win rate vs 85 | z |
+/// | -- | --: | --: |
+/// | 8k leaves | 64.3% (101/157) | +3.59 |
+/// | 60k leaves (~production) | 52.4% (77/147) | +0.58 |
+/// | both | 58.6% (178/304) | +2.98 |
+///
+/// The gain shrinks with budget, and at production depth alone it is not significant. What does
+/// show at 60k is growth: food one step away is taken 85.8% of the time against 79.0%, and the
+/// final length is 22.0 against 20.2. 100 ties with 95: 61.6% and 54.6% against 85, and 52.7%
+/// head-to-head against 95 at 8k (n.s.).
+///
+/// The rival count matters because growth is worth more the more snakes there are to out-length.
+/// At fixed depth, 85 crowded / 60 in a duel beat a flat 60 **72.0%** of the time (z=+10.52, 574
+/// decisive games of 720, A/A control exactly 50.0%), mostly by cutting head-to-head deaths from 213
+/// to 84. A doubled food weight on top of it is worth only 53.0% (n.s.), so the threshold is the
+/// knob that matters.
 ///
 /// A high threshold used to make Hobbs skip food, because of how food mode scored a meal. Food mode
 /// scores `-dist_to_food`, and eating destroys the food you were next to, so a leaf that ate early
@@ -65,7 +76,7 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 /// This is a *relative* result from controlled self-play, and deliberately not justified by the
 /// leaderboard. The ranked games that preceded it were played while the handler was panicking on
 /// last-snake-standing boards (fixed separately), so they say nothing about how this policy plays.
-pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
+pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 95;
 
 /// Weight on the length term, in thousandths of the territory ratio's own scale.
 ///
