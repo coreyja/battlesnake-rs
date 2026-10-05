@@ -1,15 +1,8 @@
-use std::time::Duration;
-
 use crate::a_prime::APrimeCalculable;
 use crate::flood_fill::spread_from_head::{Scores, SpreadFromHead};
-use crate::flood_fill::spread_from_head_arcade_maze::SpreadFromHeadArcadeMaze;
 use crate::flood_fill::spread_from_head_tail_aware::SpreadFromHeadTailAware;
 use crate::*;
 
-use battlesnake_minimax::{
-    paranoid::{move_ordering::MoveOrdering, SnakeOptions},
-    ParanoidMinimaxSnake,
-};
 use decorum::N64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -49,26 +42,41 @@ pub const STANDARD_LOW_HEALTH_DUEL: i64 = 60;
 
 /// Below this health the leaf score heads for the nearest food, when two or more rivals are alive.
 ///
-/// 85 rather than 60: measured head-to-head on the 4-snake board under production rules at fixed
-/// depth, the conditional policy beats a flat 60 **72.0%** of the time (z=+10.52, 574 decisive games
-/// of 720, A/A control exactly 50.0%). In those games the flat-60 side finishes near length 15 and
-/// the raised-threshold side near 20, and the elimination counts show the trade: head-to-head deaths
-/// 213 -> 84, body collisions flat at 306 -> 300, self-collisions 604 -> 513.
+/// 95, up from 85 once the score counted a meal anywhere in the search window (see below). Measured
+/// on four snakes under production rules, both sides searching to the same budget of leaf
+/// evaluations, against 85 with the length term on:
 ///
-/// It is also the knob that matters: adding a doubled food weight on top of it is worth only 53.0%
-/// (z=+1.62, n.s.), while adding this threshold on top of a doubled food weight is worth 62.4%
-/// (z=+6.30).
+/// | budget | win rate vs 85 | z |
+/// | -- | --: | --: |
+/// | 8k leaves | 64.3% (101/157) | +3.59 |
+/// | 60k leaves (~production) | 52.4% (77/147) | +0.58 |
+/// | both | 58.6% (178/304) | +2.98 |
 ///
-/// Do not raise it further. The fraction of turns on which *every* leaf sits below the threshold --
-/// so territory is demoted to a tiebreak behind food distance for the whole search window -- goes as
-/// `depth / (100 - threshold)`, so the cost is hyperbolic: 90 scores 34.0%, 95 scores 27.4%, and 100
-/// (always food-seeking) loses every decisive game while finishing *shorter* than a flat 60, because
-/// it dives for food into losing space.
+/// The gain shrinks with budget, and at production depth alone it is not significant. What does
+/// show at 60k is growth: food one step away is taken 85.8% of the time against 79.0%, and the
+/// final length is 22.0 against 20.2. 100 ties with 95: 61.6% and 54.6% against 85, and 52.7%
+/// head-to-head against 95 at 8k (n.s.).
+///
+/// The rival count matters because growth is worth more the more snakes there are to out-length.
+/// At fixed depth, 85 crowded / 60 in a duel beat a flat 60 **72.0%** of the time (z=+10.52, 574
+/// decisive games of 720, A/A control exactly 50.0%), mostly by cutting head-to-head deaths from 213
+/// to 84. A doubled food weight on top of it is worth only 53.0% (n.s.), so the threshold is the
+/// knob that matters.
+///
+/// A high threshold used to make Hobbs skip food, because of how food mode scored a meal. Food mode
+/// scores `-dist_to_food`, and eating destroys the food you were next to, so a leaf that ate early
+/// in the window -- and is back under the threshold by the leaf -- scored *worse* than one still
+/// hovering beside the food. A meal on round `k` of a `D`-round window only counted if
+/// `D - k <= 100 - threshold`, so once the search reached `102 - threshold` rounds it kept
+/// scheduling the meal for the horizon and never took it. At 100 that starts at two rounds: an
+/// always-hungry Hobbs starved beside food 59 times in 180 games, which is why 100 used to lose every
+/// decisive game. [`ScoreParams::root_length`] makes every meal in the window count at any depth,
+/// and the live score always supplies it.
 ///
 /// This is a *relative* result from controlled self-play, and deliberately not justified by the
 /// leaderboard. The ranked games that preceded it were played while the handler was panicking on
 /// last-snake-standing boards (fixed separately), so they say nothing about how this policy plays.
-pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 85;
+pub const STANDARD_LOW_HEALTH_CROWDED: i64 = 95;
 
 /// Weight on the length term, in thousandths of the territory ratio's own scale.
 ///
@@ -132,6 +140,16 @@ pub struct ScoreParams {
     pub length_weight_milli: i64,
     /// Length difference at which the length term saturates. See [`STANDARD_LENGTH_CAP`].
     pub length_cap: i64,
+    /// Our length at the root of the search, when the caller knows it.
+    ///
+    /// A leaf longer than this has eaten inside the search window, and keeps the territory score
+    /// whatever its health. Without it, the health threshold is read from the leaf's health alone,
+    /// so a meal only counts if it was recent enough to lift the leaf back over the threshold. See
+    /// [`STANDARD_LOW_HEALTH_CROWDED`] for why that makes a high threshold skip food.
+    ///
+    /// `None` in [`ScoreParams::STANDARD`] because it belongs to one search, not to the snake; the
+    /// live route fills it in on every move.
+    pub root_length: Option<i64>,
 }
 
 impl ScoreParams {
@@ -143,6 +161,7 @@ impl ScoreParams {
         low_health_crowded: STANDARD_LOW_HEALTH_CROWDED,
         length_weight_milli: STANDARD_LENGTH_WEIGHT_MILLI,
         length_cap: STANDARD_LENGTH_CAP,
+        root_length: None,
     };
 
     /// The threshold for this board: growth is worth more the more rivals there are to out-length.
@@ -241,8 +260,12 @@ where
     let my_ratio = N64::from(my_space / total_space);
 
     let rivals = LivingRivals::of(node);
+    let my_length = node.get_length_i64(me);
 
-    if node.get_health_i64(me) < params.low_health_for(&rivals) {
+    // Length only grows by eating, so a leaf longer than the root ate somewhere in the window.
+    let ate_in_window = params.root_length.is_some_and(|root| my_length > root);
+
+    if !ate_in_window && node.get_health_i64(me) < params.low_health_for(&rivals) {
         let dist = node
             .shortest_distance(
                 &node.get_head_as_native_position(me),
@@ -253,7 +276,7 @@ where
         return Score::LowOnHealth(dist, my_ratio);
     }
 
-    Score::FloodFill(my_ratio + params.length_term(node.get_length_i64(me), &rivals))
+    Score::FloodFill(my_ratio + params.length_term(my_length, &rivals))
 }
 
 /// [`standard_score`] with every knob supplied by the caller.
@@ -320,10 +343,16 @@ where
     standard_score_with_params::<_, CellType, MAX_SNAKES>(node, ScoreParams::STANDARD)
 }
 
-/// [`standard_score`] with a tail-aware flood fill: squares your own tail is about to vacate count
-/// as reachable instead of as wall. See [`crate::flood_fill::spread_from_head_tail_aware`].
+/// The leaf score Hobbs plays: [`standard_score`] with a tail-aware flood fill, where squares your
+/// own tail is about to vacate count as reachable instead of as wall (see
+/// [`crate::flood_fill::spread_from_head_tail_aware`]).
+///
+/// `root_length` is our length at the root of this search. It is required because the shipped
+/// crowded threshold is only safe with it: without it a meal early in the window scores as hungry,
+/// and the search keeps putting the meal off to the horizon. See [`ScoreParams::root_length`].
 pub fn standard_score_tail_aware<BoardType, CellType, const MAX_SNAKES: usize>(
     node: &BoardType,
+    root_length: i64,
 ) -> Score
 where
     BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
@@ -337,201 +366,18 @@ where
         + FoodGettableGame
         + MaxSnakes<MAX_SNAKES>,
 {
-    standard_score_tail_aware_with_params::<_, CellType, MAX_SNAKES>(node, ScoreParams::STANDARD)
-}
-
-pub fn arcade_maze_score<BoardType, CellType, const MAX_SNAKES: usize>(node: &BoardType) -> Score
-where
-    BoardType: SnakeIDGettableGame<SnakeIDType = SnakeId>
-        + YouDeterminableGame
-        + SpreadFromHead<CellType, MAX_SNAKES>
-        + SpreadFromHeadArcadeMaze<CellType, MAX_SNAKES>
-        + APrimeCalculable
-        + HeadGettableGame
-        + HazardQueryableGame
-        + HealthGettableGame
-        + LengthGettableGame
-        + FoodGettableGame
-        + MaxSnakes<MAX_SNAKES>,
-{
-    let square_counts = node.squares_per_snake_hazard_maze(8);
-
-    let me = node.you_id();
-    let my_space: f64 = square_counts[me.as_usize()] as f64;
-    let total_space: f64 = square_counts.iter().sum::<u8>() as f64;
-    let my_ratio = N64::from(my_space / total_space);
-
-    if node.get_health_i64(me) < 40 {
-        let dist = node
-            .shortest_distance(
-                &node.get_head_as_native_position(me),
-                &node.get_all_food_as_native_positions(),
-                None,
-            )
-            .map(|x| -x);
-        return Score::LowOnHealth(dist, my_ratio);
-    }
-
-    let me_length = node.get_length_i64(me);
-    let max_opponent_length = node
-        .get_snake_ids()
-        .iter()
-        .filter(|&x| x != me)
-        .map(|&x| node.get_length_i64(&x))
-        .max()
-        .unwrap();
-    let length_diff = me_length - max_opponent_length;
-    let capped_diff = length_diff.min(3);
-    let length_diff_multiplier: f64 = 0.05 * capped_diff as f64;
-
-    Score::FloodFill(my_ratio * length_diff_multiplier)
+    standard_score_tail_aware_with_params::<_, CellType, MAX_SNAKES>(
+        node,
+        ScoreParams {
+            root_length: Some(root_length),
+            ..ScoreParams::STANDARD
+        },
+    )
 }
 
 pub struct Factory;
 
-#[macro_export]
-macro_rules! build_from_best_cell_board {
-    ( $wire_game:expr, $game_info:expr, $turn:expr, $score_function:ident, $name:expr, $options:expr ) => {{
-        let game = $wire_game;
-        let game_info = $game_info;
-        let turn = $turn;
-        let name = $name;
-        let options = $options;
-
-        if game_info.ruleset.name == "wrapped" {
-            use battlesnake_game_types::compact_representation::wrapped::*;
-
-            build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
-        } else {
-            use battlesnake_game_types::compact_representation::standard::*;
-
-            build_from_best_cell_board_inner!(game, game_info, turn, $score_function, name, options)
-        }
-    }};
-}
-
-#[macro_export]
-macro_rules! build_from_best_cell_board_inner {
-    ( $wire_game:expr, $game_info:expr, $turn:expr, $score_function:ident, $name:expr, $options:expr ) => {{
-        {
-            let game = $wire_game;
-            let game_info = $game_info;
-            let turn = $turn;
-            let name = $name;
-            let options = $options;
-
-            match ToBestCellBoard::to_best_cell_board(game).unwrap() {
-                BestCellBoard::Tiny(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::SmallExact(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::Standard(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::MediumExact(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::LargestU8(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::LargeExact(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::ArcadeMaze(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::ArcadeMaze8Snake(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::Large(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-                BestCellBoard::Silly(game) => Box::new(ParanoidMinimaxSnake::new(
-                    *game,
-                    game_info,
-                    turn,
-                    &$score_function,
-                    name,
-                    options,
-                )),
-            }
-        }
-    }};
-}
-
 impl Factory {
-    pub fn create_from_wire_game(&self, game: Game) -> BoxedSnake {
-        let game_info = game.game.clone();
-        let turn = game.turn;
-
-        let name = "hovering-hobbs";
-
-        let options: SnakeOptions = SnakeOptions {
-            network_latency_padding: Duration::from_millis(120),
-            move_ordering: MoveOrdering::BestFirst,
-        };
-
-        if game.is_arcade_maze_map() {
-            build_from_best_cell_board!(game, game_info, turn, arcade_maze_score, name, options)
-        } else {
-            build_from_best_cell_board!(
-                game,
-                game_info,
-                turn,
-                standard_score_tail_aware,
-                name,
-                options
-            )
-        }
-    }
-
     pub fn about(&self) -> AboutMe {
         AboutMe {
             apiversion: "1".to_owned(),
@@ -557,7 +403,7 @@ mod tests {
         standard_score_with_params, Score, ScoreParams, STANDARD_LOW_HEALTH_DUEL,
     };
     use battlesnake_game_types::compact_representation::StandardCellBoard4Snakes11x11;
-    use battlesnake_game_types::types::LengthGettableGame;
+    use battlesnake_game_types::types::{LengthGettableGame, Move};
     use battlesnake_minimax::ParanoidMinimaxSnake;
 
     /// The parameterized entry points exist so a sweep can vary one knob; at
@@ -578,9 +424,14 @@ mod tests {
                 standard_score_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
                 standard_score::<_, u8, 4>(&board)
             );
+            let root_length = board.get_length_i64(board.you_id());
+            let at_root = ScoreParams {
+                root_length: Some(root_length),
+                ..ScoreParams::STANDARD
+            };
             assert_eq!(
-                standard_score_tail_aware_with_params::<_, u8, 4>(&board, ScoreParams::STANDARD),
-                standard_score_tail_aware::<_, u8, 4>(&board)
+                standard_score_tail_aware_with_params::<_, u8, 4>(&board, at_root),
+                standard_score_tail_aware::<_, u8, 4>(&board, root_length)
             );
         }
     }
@@ -667,12 +518,14 @@ mod tests {
         let id_map = build_snake_id_map(&game);
         let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
 
+        let root_length = board.get_length_i64(board.you_id());
         let without_term = ScoreParams {
             length_weight_milli: 0,
+            root_length: Some(root_length),
             ..ScoreParams::STANDARD
         };
         let (Score::FloodFill(shipped), Score::FloodFill(off)) = (
-            standard_score_tail_aware::<_, u8, 4>(&board),
+            standard_score_tail_aware::<_, u8, 4>(&board, root_length),
             standard_score_tail_aware_with_params::<_, u8, 4>(&board, without_term),
         ) else {
             panic!("fixture is above every shipped health threshold, so it should flood-fill");
@@ -779,6 +632,123 @@ mod tests {
         }
     }
 
+    /// A leaf longer than the root has eaten inside the window, so `root_length` keeps it on the
+    /// territory score even below the threshold, and a leaf that has not eaten still seeks food.
+    #[test]
+    fn a_leaf_that_ate_inside_the_window_scores_as_fed() {
+        let game =
+            serde_json::from_str::<Game>(include_str!("../fixtures/start_of_game.json")).unwrap();
+        let id_map = build_snake_id_map(&game);
+        let board = StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
+        let length = board.get_length_i64(board.you_id());
+
+        let always_eat = ScoreParams {
+            low_health_duel: 101,
+            low_health_crowded: 101,
+            ..ScoreParams::STANDARD
+        };
+        for (root_length, fed) in [
+            (None, false),
+            (Some(length), false),
+            (Some(length - 1), true),
+        ] {
+            let score = standard_score_tail_aware_with_params::<_, u8, 4>(
+                &board,
+                ScoreParams {
+                    root_length,
+                    ..always_eat
+                },
+            );
+            assert_eq!(
+                matches!(score, Score::FloodFill(_)),
+                fed,
+                "root length {root_length:?} vs leaf length {length}: {score:?}"
+            );
+        }
+    }
+
+    /// Our head at (5,5) with food one step Right, on a crowded board with every rival in a far
+    /// corner, so the meal is free.
+    fn food_next_to_head(health: i64) -> StandardCellBoard4Snakes11x11 {
+        let snake = |id: &str, body: [(i32, i32); 3], health: i64| {
+            serde_json::json!({
+                "id": id, "name": id, "health": health, "latency": null, "length": 3,
+                "head": {"x": body[0].0, "y": body[0].1},
+                "body": body.iter().map(|(x, y)| serde_json::json!({"x": x, "y": y})).collect::<Vec<_>>(),
+            })
+        };
+        let you = snake("you", [(5, 5), (5, 4), (5, 3)], health);
+        let game: Game = serde_json::from_value(serde_json::json!({
+            "game": {"id": "food-next-to-head", "ruleset": {"name": "standard", "version": "v1"}, "timeout": 500},
+            "turn": 60,
+            "you": you,
+            "board": {
+                "height": 11, "width": 11, "hazards": [],
+                "food": [{"x": 6, "y": 5}, {"x": 10, "y": 0}],
+                "snakes": [
+                    you,
+                    snake("r1", [(0, 10), (0, 9), (0, 8)], 100),
+                    snake("r2", [(10, 10), (10, 9), (10, 8)], 100),
+                ],
+            },
+        }))
+        .unwrap();
+        let id_map = build_snake_id_map(&game);
+        StandardCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap()
+    }
+
+    fn best_move_at_depth(
+        board: StandardCellBoard4Snakes11x11,
+        params: ScoreParams,
+        depth: usize,
+    ) -> Option<Move> {
+        let me = *board.you_id();
+        let score = move |b: &StandardCellBoard4Snakes11x11| {
+            standard_score_tail_aware_with_params::<_, u8, 4>(b, params)
+        };
+        let game_info = serde_json::from_value(serde_json::json!({
+            "id": "food-next-to-head", "ruleset": {"name": "standard", "version": "v1"}, "timeout": 500
+        }))
+        .unwrap();
+        ParanoidMinimaxSnake::new(board, game_info, 60, score, "hover", Default::default())
+            .deepend_minimax_to_turn(depth)
+            .your_best_move(&me)
+    }
+
+    /// The horizon effect the root length exists to fix. Food mode scores `-dist_to_food`, and
+    /// eating destroys the food you were next to, so a leaf that ate early in the window -- and is
+    /// back under the threshold by the leaf -- scores *worse* than one still hovering beside the
+    /// food. With a threshold of 100 only a meal on the very last round counts, so from two rounds
+    /// on the search keeps scheduling the meal for the horizon and never takes it.
+    ///
+    /// Knowing the root length makes every meal in the window count, and the search eats.
+    #[test]
+    fn a_meal_early_in_the_window_counts_once_the_root_length_is_known() {
+        let always_eat_crowded = ScoreParams {
+            low_health_crowded: 100,
+            ..ScoreParams::STANDARD
+        };
+        let board = food_next_to_head(99);
+        let root_length = board.get_length_i64(board.you_id());
+        let fed = ScoreParams {
+            root_length: Some(root_length),
+            ..always_eat_crowded
+        };
+
+        assert_ne!(
+            best_move_at_depth(board, always_eat_crowded, 2),
+            Some(Move::Right),
+            "without the root length a 2-round search should hover beside the food"
+        );
+        for depth in 1..=3 {
+            assert_eq!(
+                best_move_at_depth(board, fed, depth),
+                Some(Move::Right),
+                "with the root length a {depth}-round search should eat"
+            );
+        }
+    }
+
     #[test]
     #[ignore]
     fn test_095b30fa_f2c7_4826_ac93_90b4dde6b785_turn_5() {
@@ -835,14 +805,11 @@ mod tests {
         let name = "hovering-hobbs";
         let options = Default::default();
         let game = WrappedCellBoard4Snakes11x11::convert_from_game(game, &id_map).unwrap();
-        let hobbs = ParanoidMinimaxSnake::new(
-            game,
-            game_info,
-            turn,
-            &standard_score_tail_aware,
-            name,
-            options,
-        );
+        let root_length = game.get_length_i64(game.you_id());
+        let score = move |board: &WrappedCellBoard4Snakes11x11| {
+            standard_score_tail_aware::<_, _, 4>(board, root_length)
+        };
+        let hobbs = ParanoidMinimaxSnake::new(game, game_info, turn, score, name, options);
 
         let my_id = game.you_id();
         let mut sorted_ids = game.get_snake_ids();
