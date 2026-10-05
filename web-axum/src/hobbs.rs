@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use battlesnake_game_types::types::Move;
 use battlesnake_minimax::types::types::SnakeIDGettableGame;
-use battlesnake_rs::{HeadGettableGame, HealthGettableGame, Vector};
+use battlesnake_rs::{HeadGettableGame, HealthGettableGame, LengthGettableGame, Vector};
 use parking_lot::Mutex;
 
 use crate::*;
@@ -209,12 +209,18 @@ pub(crate) async fn route_hobbs_move(
         None
     };
 
-    // The tail-aware fill, matching `hovering_hobbs::Factory`. This route does not go through the
-    // factory -- `hovering_hobbs::Factory` is commented out of `all_factories()` -- so the score has
-    // to be switched here too or the deployed snake keeps playing the naive fill.
-    let score = &standard_score_tail_aware::<StandardCellBoard4Snakes11x11, _, 4>;
-
     let my_id = game.you_id();
+
+    // The score is built per move because it needs our length at the root of this search: a leaf
+    // longer than that ate somewhere in the window, and counts as fed whatever its health.
+    //
+    // `initial_return` was scored against last turn's root length. That is safe: the previous tree
+    // only orders moves (`MoveOrdering::BestFirst`), and every score in this search is recomputed.
+    let root_length = game.get_length_i64(my_id);
+    let score = move |board: &StandardCellBoard4Snakes11x11| {
+        standard_score_tail_aware::<_, _, 4>(board, root_length)
+    };
+
     let snake = ParanoidMinimaxSnake::new(game, game_info, turn, score, name, options);
 
     let (_depth, scored) =
